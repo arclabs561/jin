@@ -1,0 +1,208 @@
+//! Vamana graph construction algorithm (two-pass with RRND + RND).
+
+use crate::hnsw::construction::select_neighbors;
+use crate::hnsw::distance as hnsw_distance;
+use crate::hnsw::graph::NeighborhoodDiversification;
+use crate::vamana::graph::VamanaIndex;
+use crate::RetrieveError;
+use rand::seq::IndexedRandom;
+use smallvec::SmallVec;
+
+/// Initialize random graph with minimum degree >= log(n).
+///
+/// Creates initial graph structure by connecting each node to log(n) random neighbors.
+fn initialize_random_graph(index: &mut VamanaIndex) -> Result<(), RetrieveError> {
+    if index.num_vectors == 0 {
+        return Err(RetrieveError::EmptyIndex);
+    }
+
+    let min_degree = (index.num_vectors as f64).ln().ceil() as usize;
+    let mut rng = rand::rng();
+
+    // Pre-allocate all_ids once (optimized: avoid recreating for each node)
+    let all_ids: Vec<u32> = (0..index.num_vectors as u32).collect();
+
+    // For each vector, connect to min_degree random neighbors
+    for i in 0..index.num_vectors {
+        let mut neighbors: SmallVec<[u32; 16]> = SmallVec::with_capacity(min_degree);
+
+        // Sample random neighbors (excluding self) - optimized: filter inline
+        let candidate_ids: Vec<u32> = all_ids
+            .iter()
+            .filter(|&&id| id != i as u32)
+            .copied()
+            .collect();
+
+        let num_neighbors = min_degree.min(candidate_ids.len());
+        let selected: Vec<u32> = candidate_ids
+            .choose_multiple(&mut rng, num_neighbors)
+            .copied()
+            .collect();
+
+        neighbors.extend(selected);
+        index.neighbors[i] = neighbors;
+    }
+
+    Ok(())
+}
+
+/// First pass: Refine graph using RRND (Relaxed Relative Neighborhood Diversification).
+///
+/// Formula: dist(X_q, X_j) < α · dist(X_i, X_j) with α ≥ 1.5
+#[cfg(feature = "vamana")]
+fn refine_with_rrnd(index: &mut VamanaIndex) -> Result<(), RetrieveError> {
+    if index.num_vectors == 0 {
+        return Err(RetrieveError::EmptyIndex);
+    }
+
+    // For each vector, refine its neighbors using RRND
+    for current_id in 0..index.num_vectors {
+        let current_vector = index.get_vector(current_id);
+
+        // Collect all current neighbors and their distances
+        let mut candidates: Vec<(u32, f32)> = Vec::with_capacity(index.params.ef_construction);
+        for &neighbor_id in &index.neighbors[current_id] {
+            let neighbor_vec = index.get_vector(neighbor_id as usize);
+            let dist = hnsw_distance::cosine_distance(current_vector, neighbor_vec);
+            candidates.push((neighbor_id, dist));
+        }
+
+        // Also explore neighbors of neighbors (up to ef_construction)
+        // Use VecDeque for O(1) pop_front instead of O(n) remove(0)
+        use std::collections::VecDeque;
+        let mut to_explore: VecDeque<u32> = index.neighbors[current_id].iter().copied().collect();
+        let mut visited = std::collections::HashSet::with_capacity(index.params.ef_construction);
+        visited.insert(current_id as u32);
+
+        while let Some(explore_id) = to_explore.pop_front() {
+            if visited.contains(&explore_id) {
+                continue;
+            }
+            visited.insert(explore_id);
+
+            if candidates.len() >= index.params.ef_construction {
+                break;
+            }
+
+            let explore_vec = index.get_vector(explore_id as usize);
+            let dist = hnsw_distance::cosine_distance(current_vector, explore_vec);
+            candidates.push((explore_id, dist));
+
+            // Add neighbors to explore
+            for &neighbor_id in &index.neighbors[explore_id as usize] {
+                if !visited.contains(&neighbor_id) {
+                    to_explore.push_back(neighbor_id);
+                }
+            }
+        }
+
+        // Select neighbors using RRND
+        // Note: vamana feature requires hnsw feature, so we can always use select_neighbors
+        let selected = select_neighbors(
+            current_vector,
+            &candidates,
+            index.params.max_degree,
+            &index.vectors,
+            index.dimension,
+            &NeighborhoodDiversification::RelaxedRelative {
+                alpha: index.params.alpha,
+            },
+        );
+
+        // Update neighbors
+        index.neighbors[current_id] = SmallVec::from_vec(selected);
+    }
+
+    Ok(())
+}
+
+/// Second pass: Further refine using RND (Relative Neighborhood Diversification).
+///
+/// Formula: dist(X_q, X_j) < dist(X_i, X_j) for all neighbors X_i
+#[cfg(feature = "vamana")]
+fn refine_with_rnd(index: &mut VamanaIndex) -> Result<(), RetrieveError> {
+    if index.num_vectors == 0 {
+        return Err(RetrieveError::EmptyIndex);
+    }
+
+    // For each vector, refine its neighbors using RND
+    for current_id in 0..index.num_vectors {
+        let current_vector = index.get_vector(current_id);
+
+        // Collect all current neighbors and their distances
+        // Avoid clone: use reference to neighbors
+        let mut candidates: Vec<(u32, f32)> = Vec::with_capacity(index.params.ef_construction);
+        for &neighbor_id in &index.neighbors[current_id] {
+            let neighbor_vec = index.get_vector(neighbor_id as usize);
+            let dist = hnsw_distance::cosine_distance(current_vector, neighbor_vec);
+            candidates.push((neighbor_id, dist));
+        }
+
+        // Also explore neighbors of neighbors (up to ef_construction)
+        // Use VecDeque for O(1) pop_front instead of O(n) remove(0)
+        use std::collections::VecDeque;
+        let mut to_explore: VecDeque<u32> = index.neighbors[current_id].iter().copied().collect();
+        let mut visited = std::collections::HashSet::with_capacity(index.params.ef_construction);
+        visited.insert(current_id as u32);
+
+        while let Some(explore_id) = to_explore.pop_front() {
+            if visited.contains(&explore_id) {
+                continue;
+            }
+            visited.insert(explore_id);
+
+            if candidates.len() >= index.params.ef_construction {
+                break;
+            }
+
+            let explore_vec = index.get_vector(explore_id as usize);
+            let dist = hnsw_distance::cosine_distance(current_vector, explore_vec);
+            candidates.push((explore_id, dist));
+
+            // Add neighbors to explore (avoid clone: use reference)
+            for &neighbor_id in &index.neighbors[explore_id as usize] {
+                if !visited.contains(&neighbor_id) {
+                    to_explore.push_back(neighbor_id);
+                }
+            }
+        }
+
+        // Select neighbors using RND
+        // Note: vamana feature requires hnsw feature, so we can always use select_neighbors
+        let selected = select_neighbors(
+            current_vector,
+            &candidates,
+            index.params.max_degree,
+            &index.vectors,
+            index.dimension,
+            &NeighborhoodDiversification::RelativeNeighborhood,
+        );
+
+        // Update neighbors
+        index.neighbors[current_id] = SmallVec::from_vec(selected);
+    }
+
+    Ok(())
+}
+
+/// Construct Vamana graph using two-pass algorithm.
+///
+/// 1. Initialize random graph with degree >= log(n)
+/// 2. First pass: Refine using RRND
+/// 3. Second pass: Further refine using RND
+pub fn construct_graph(index: &mut VamanaIndex) -> Result<(), RetrieveError> {
+    if index.num_vectors == 0 {
+        return Err(RetrieveError::EmptyIndex);
+    }
+
+    // Step 1: Initialize random graph
+    initialize_random_graph(index)?;
+
+    // Step 2: First pass - refine with RRND
+    refine_with_rrnd(index)?;
+
+    // Step 3: Second pass - refine with RND
+    refine_with_rnd(index)?;
+
+    Ok(())
+}

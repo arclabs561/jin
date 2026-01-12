@@ -1,0 +1,484 @@
+//! Unified traits for all ANN algorithms.
+
+use crate::RetrieveError;
+
+/// Unified trait for all ANN index implementations.
+pub trait ANNIndex {
+    /// Add a vector to the index.
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError>;
+
+    /// Build the index (required before search).
+    fn build(&mut self) -> Result<(), RetrieveError>;
+
+    /// Search for k nearest neighbors.
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError>;
+
+    /// Get index size in bytes (approximate).
+    fn size_bytes(&self) -> usize;
+
+    /// Get index statistics.
+    fn stats(&self) -> ANNStats;
+
+    /// Get vector dimension.
+    fn dimension(&self) -> usize;
+
+    /// Get number of vectors.
+    fn num_vectors(&self) -> usize;
+}
+
+/// Statistics about an ANN index.
+#[derive(Debug, Clone)]
+pub struct ANNStats {
+    pub num_vectors: usize,
+    pub dimension: usize,
+    pub size_bytes: usize,
+    pub algorithm: String,
+}
+
+// Implement ANNIndex for HNSW
+#[cfg(feature = "hnsw")]
+impl ANNIndex for crate::hnsw::HNSWIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k, self.params.ef_search)
+    }
+
+    fn size_bytes(&self) -> usize {
+        // Approximate: vectors + graph structure
+        self.vectors.len() * std::mem::size_of::<f32>()
+            + self
+                .layers
+                .iter()
+                .map(|l| l.len() * std::mem::size_of::<u32>())
+                .sum::<usize>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "HNSW".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for Anisotropic Vector Quantization with k-means Partitioning
+// (Technical name; vendor name: SCANN/ScaNN)
+#[cfg(feature = "scann")]
+impl ANNIndex for crate::scann::search::SCANNIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+            + self
+                .partition_centroids
+                .iter()
+                .map(|c| c.len() * std::mem::size_of::<f32>())
+                .sum::<usize>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "AnisotropicVQ-kmeans".to_string(), // Technical name (vendor: SCANN)
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for IVF-PQ
+#[cfg(feature = "ivf_pq")]
+impl ANNIndex for crate::ivf_pq::search::IVFPQIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+            + self
+                .centroids
+                .iter()
+                .map(|c| c.len() * std::mem::size_of::<f32>())
+                .sum::<usize>()
+            + self.quantized_codes.len()
+                * self.quantized_codes.first().map(|v| v.len()).unwrap_or(0)
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "IVF-PQ".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for KD-Tree
+#[cfg(feature = "kdtree")]
+impl ANNIndex for crate::classic::trees::kdtree::KDTreeIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "KD-Tree".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for Ball Tree
+#[cfg(feature = "balltree")]
+impl ANNIndex for crate::classic::trees::balltree::BallTreeIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "Ball-Tree".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for K-Means Tree
+#[cfg(feature = "kmeans_tree")]
+impl ANNIndex for crate::classic::trees::kmeans_tree::KMeansTreeIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "K-Means-Tree".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for Random Projection Tree
+#[cfg(feature = "rptree")]
+impl ANNIndex for crate::classic::trees::random_projection::RPTreeIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "RP-Tree".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for OPT-SNG
+#[cfg(feature = "sng")]
+impl ANNIndex for crate::sng::SNGIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+            + self
+                .neighbors
+                .iter()
+                .map(|n| n.len() * std::mem::size_of::<u32>())
+                .sum::<usize>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "OPT-SNG".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for LSH
+#[cfg(feature = "lsh")]
+impl ANNIndex for crate::classic::lsh::search::LSHIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+            + self
+                .hash_tables
+                .iter()
+                .map(|t| t.len() * std::mem::size_of::<u32>())
+                .sum::<usize>()
+            + self
+                .hash_functions
+                .iter()
+                .map(|f| f.len() * std::mem::size_of::<f32>())
+                .sum::<usize>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "LSH".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for Random Projection Tree Forest (Annoy)
+#[cfg(feature = "annoy")]
+impl ANNIndex for crate::classic::trees::annoy::AnnoyIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+            // Approximate tree structure size
+            + self.trees.len() * self.num_vectors * std::mem::size_of::<u32>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "RP-Tree-Forest".to_string(), // Technical name (vendor: Annoy)
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}
+
+// Implement ANNIndex for Flat NSW
+#[cfg(feature = "nsw")]
+impl ANNIndex for crate::nsw::NSWIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k, self.params.ef_search)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.vectors.len() * std::mem::size_of::<f32>()
+            + self
+                .neighbors
+                .iter()
+                .map(|n| n.len() * std::mem::size_of::<u32>())
+                .sum::<usize>()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors,
+            dimension: self.dimension,
+            size_bytes: self.size_bytes(),
+            algorithm: "NSW".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors
+    }
+}

@@ -1,0 +1,62 @@
+[package]
+name = "prox"
+version = "0.1.0"
+edition = "2021"
+description = "Approximate Nearest Neighbor Search primitives: HNSW, DiskANN, IVF-PQ, ScaNN."
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+smallvec = { version = "1.11", features = ["serde"] }
+rand = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bitflags = "2.4"
+ordered-float = "4.2"
+parking_lot = "0.12"
+rayon = "1.8"
+thiserror = "1.0"
+log = "0.4"
+
+# Persistence & IO
+byteorder = "1.5"
+crc32fast = "1.4"
+libc = "0.2"
+hex = "0.4"
+fst = "0.4"
+memmap2 = { version = "0.9", optional = true }
+postcard = { version = "1.0", optional = true, features = ["use-crc", "alloc"] }
+bytemuck = { version = "1.14", optional = true, features = ["derive"] }
+
+# Compression
+constriction = { version = "0.4", optional = true }
+
+[features]
+default = []
+persistence = ["dep:postcard", "dep:bytemuck", "dep:memmap2", "dep:constriction"]
+hnsw = []
+ivf_pq = []
+diskann = []
+scann = []
+sng = []
+vamana = []
+quantization = []
+
+# Feature names referenced by cfgs in the extracted code.
+# These are currently mostly organizational toggles.
+dense = []
+nsw = []
+kdtree = []
+balltree = []
+kmeans_tree = []
+rptree = []
+lsh = []
+annoy = []
+evoc = []
+
+id-compression = ["dep:constriction"]
+persistence-bincode = []
+
+# Quantization sub-features (kept separate so callers can be explicit)
+rabitq = []
+saq = []
+turboquant = []
