@@ -72,10 +72,18 @@ impl UpdateBatch {
     pub fn iter(&self) -> impl Iterator<Item = &UpdateOp> {
         self.ops.iter()
     }
+}
 
-    pub fn into_iter(self) -> impl Iterator<Item = UpdateOp> {
+impl IntoIterator for UpdateBatch {
+    type Item = UpdateOp;
+    type IntoIter = std::vec::IntoIter<UpdateOp>;
+
+    fn into_iter(self) -> Self::IntoIter {
         self.ops.into_iter()
     }
+}
+
+impl UpdateBatch {
 
     /// Count inserts in batch.
     pub fn insert_count(&self) -> usize {
