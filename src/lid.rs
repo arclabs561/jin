@@ -17,7 +17,7 @@
 //!
 //! where F(r) is the cumulative distribution of distances to nearby points.
 //!
-//! ## MLE Estimator (Amsaleg et al., 2015)
+//! ## MLE Estimator (Levina & Bickel, 2004; Amsaleg et al., 2015)
 //!
 //! Uses k nearest neighbors:
 //!
@@ -27,16 +27,38 @@
 //!
 //! where d₁ ≤ d₂ ≤ ... ≤ dₖ are distances to k nearest neighbors.
 //!
+//! **Known failure modes:**
+//! - Underestimates at high intrinsic dimensions (finite sample bias)
+//! - Sensitive to non-uniform density (GeoMLE addresses this)
+//! - Biased near manifold boundaries
+//!
 //! ## TwoNN Estimator (Facco et al., 2017)
 //!
 //! A simpler method using only 2 nearest neighbors:
 //!
 //! ```text
 //! μ = r₂/r₁  (ratio of 2nd to 1st neighbor distance)
+//! P(μ ≤ x) = 1 - x^(-d)  for data on d-dimensional manifold
 //! d = slope of linear fit: -log(1 - F_emp(μ)) vs log(μ)
 //! ```
 //!
 //! TwoNN is O(n) vs O(n*k) for MLE, making it faster for large datasets.
+//!
+//! **Known failure modes:**
+//! - Sensitive to measurement noise at small scales (overestimates)
+//! - Can be biased by high manifold curvature
+//! - Requires discarding outlier ratios (typically 10%)
+//!
+//! ## Scale-Dependent ID (Di Noia et al., 2024)
+//!
+//! The ABIDE algorithm addresses the scale-dependency problem:
+//! - At small scales: ID appears high due to measurement noise
+//! - At large scales: ID appears high due to manifold curvature
+//! - "Sweet spot" exists where local constant-density assumption holds
+//!
+//! The algorithm iteratively refines both ID estimate and optimal neighborhood
+//! size k* for each point, using a likelihood ratio test to find the largest
+//! neighborhood where density is approximately constant.
 //!
 //! # Applications
 //!
@@ -44,11 +66,14 @@
 //!   outliers that need special handling during graph construction.
 //! - **Anomaly detection**: High LID points are potential outliers.
 //! - **Adaptive search**: Adjust ef_search based on local complexity.
+//! - **Compression guidance**: ID provides lower bound on effective dimensions.
 //!
 //! # References
 //!
-//! - Amsaleg et al. (2015) "Estimating Local Intrinsic Dimensionality"
+//! - Levina & Bickel (2004) "Maximum Likelihood Estimation of Intrinsic Dimension"
 //! - Facco et al. (2017) "Estimating the intrinsic dimension of datasets"
+//! - Gomtsyan et al. (2019) "Geometry-Aware Maximum Likelihood Estimation"
+//! - Di Noia et al. (2024) "Beyond the noise: intrinsic dimension estimation"
 //! - Dual-Branch HNSW (arXiv 2501.13992, 2025) "LID-based insertion"
 
 use crate::hnsw::distance;
