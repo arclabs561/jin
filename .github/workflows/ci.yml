@@ -45,6 +45,6 @@ jobs:
 
       - name: Check MSRV
         run: |
-          # Cargo.lock v4 requires Cargo 1.83+, delete for MSRV check
-          rm -f Cargo.lock
-          cargo check
+          rm -f Cargo.lock  # v4 lock requires Cargo 1.83+
+          # Skip innr (path dep unavailable in standalone CI)
+          cargo check --no-default-features --features hnsw

@@ -213,52 +213,53 @@ pub fn estimate_twonn(mu_ratios: &[f32], discard_fraction: f32) -> f32 {
     if mu_ratios.is_empty() {
         return f32::NAN;
     }
-    
+
     let n = mu_ratios.len();
-    
+
     // Sort ratios and discard largest (likely outliers)
-    let mut sorted: Vec<f32> = mu_ratios.iter()
+    let mut sorted: Vec<f32> = mu_ratios
+        .iter()
         .filter(|&&x| x.is_finite() && x > 0.0)
         .copied()
         .collect();
     sorted.sort_by(|a, b| a.total_cmp(b));
-    
+
     let keep_count = ((n as f32) * (1.0 - discard_fraction)).max(2.0) as usize;
     let sorted = &sorted[..keep_count.min(sorted.len())];
-    
+
     if sorted.len() < 2 {
         return f32::NAN;
     }
-    
+
     // Empirical CDF: F_emp(μ_i) = i / n
     // We fit: -log(1 - F_emp) = d * log(μ)
     // Using simple least squares with intercept forced to 0
-    
+
     let mut sum_xy = 0.0f32;
     let mut sum_xx = 0.0f32;
-    
+
     for (i, &mu) in sorted.iter().enumerate() {
         let f_emp = (i + 1) as f32 / n as f32;
-        
+
         // Avoid log(0) and log(1)
         if f_emp >= 1.0 || mu <= 1.0 {
             continue;
         }
-        
+
         let x = mu.ln();
         let y = -(1.0 - f_emp).ln();
-        
+
         if x.is_finite() && y.is_finite() {
             sum_xy += x * y;
             sum_xx += x * x;
         }
     }
-    
+
     if sum_xx.abs() < 1e-10 {
         return f32::NAN;
     }
-    
-    sum_xy / sum_xx  // slope = d
+
+    sum_xy / sum_xx // slope = d
 }
 
 /// Methods for aggregating pointwise LID estimates into a global estimate.
@@ -296,15 +297,13 @@ pub fn aggregate_lid(estimates: &[LidEstimate], method: LidAggregation) -> f32 {
         .map(|e| e.lid)
         .filter(|&lid| lid.is_finite() && lid > 0.0)
         .collect();
-    
+
     if valid.is_empty() {
         return f32::NAN;
     }
-    
+
     match method {
-        LidAggregation::Mean => {
-            valid.iter().sum::<f32>() / valid.len() as f32
-        }
+        LidAggregation::Mean => valid.iter().sum::<f32>() / valid.len() as f32,
         LidAggregation::Median => {
             let mut sorted = valid.clone();
             sorted.sort_by(|a, b| a.total_cmp(b));
