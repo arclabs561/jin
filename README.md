@@ -12,12 +12,15 @@ Approximate Nearest Neighbor search in Rust.
 Dual-licensed under MIT or Apache-2.0.
 
 ```rust
-use vicinity::hnsw::Hnsw;
+use vicinity::hnsw::HNSWIndex;
 
-let mut index = Hnsw::new(128, 16, 200); // dim, M, ef_construction
-index.insert(&vector, id);
+let mut index = HNSWIndex::new(128, 16, 16)?;  // dim, M, M_max
 
-let neighbors = index.search(&query, 10, 50); // k, ef_search
+index.add(0, vec![0.1; 128])?;
+index.add(1, vec![0.2; 128])?;
+index.build()?;
+
+let results = index.search(&query, 10, 50)?;  // k, ef
 ```
 
 ## Algorithms
@@ -38,6 +41,7 @@ let neighbors = index.search(&query, 10, 50); // k, ef_search
 
 ## Features
 
+- `hnsw` — HNSW and related graph algorithms
 - `lsh` — LSH, MinHash, SimHash
 - `persistence` — WAL-based durability
 - `full` — all features
