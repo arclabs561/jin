@@ -3,28 +3,74 @@
 //! Pure Rust implementation optimized for performance with SIMD acceleration and
 //! cache-friendly memory layouts.
 //!
-//! # Algorithm
+//! # The Small-World Insight
 //!
-//! HNSW constructs a multi-layer graph where:
-//! - **Upper layers**: Sparse, long-range connections for fast navigation
-//! - **Lower layers**: Dense, local connections for precise search
-//! - **Search**: Start at top layer, navigate down to base layer, greedy search
+//! HNSW exploits the **small-world network property**: in well-constructed graphs,
+//! any two nodes can be reached in O(log n) hops via greedy routing. This is the
+//! same phenomenon that gives "six degrees of separation" in social networks.
 //!
-//! # Critical Note: Hierarchy Benefits
+//! **Greedy routing**: From any node, examine neighbors and move to the one closest
+//! to your target. Repeat until no closer neighbor exists (local minimum). In
+//! small-world graphs, this converges to near-optimal paths.
+//!
+//! # Why Hierarchy?
+//!
+//! Flat navigable small-world (NSW) graphs work, but require many distance
+//! computations in the "zoom-out" phase (finding long-range connections). HNSW
+//! adds hierarchy to reduce this:
+//!
+//! ```text
+//! Layer 3: [sparse]     ●───────────────●  (long jumps, few nodes)
+//! Layer 2:          ●───●───●───●───●───●  (medium connections)
+//! Layer 1:       ●─●─●─●─●─●─●─●─●─●─●─●─●  (local connections)
+//! Layer 0:     ●●●●●●●●●●●●●●●●●●●●●●●●●●●  (all nodes, dense)
+//! ```
+//!
+//! Search starts at sparse top layer, then descends. Each descent provides a
+//! better starting point for greedy search at the next level.
+//!
+//! # Exponential Layer Assignment
+//!
+//! Nodes are assigned to layers probabilistically:
+//!
+//! ```text
+//! max_layer = floor(-ln(rand(0,1)) × mL)
+//! ```
+//!
+//! where mL ≈ 1/ln(M). This creates exponentially decreasing node density:
+//! - Layer 0: All n nodes
+//! - Layer 1: ~n/M nodes
+//! - Layer 2: ~n/M² nodes
+//!
+//! Upper layers are sparse → few distance computations for coarse routing.
+//!
+//! # Key Parameters
+//!
+//! - **M**: Max connections per node. Higher = better recall, more memory.
+//! - **ef_construction**: Search width during build. Higher = better graph quality.
+//! - **ef**: Search width during query. Higher = better recall, slower search.
+//!
+//! # Critical Note: Hierarchy in High Dimensions
 //!
 //! Recent research (2024-2025) suggests that **the hierarchical structure provides
 //! minimal or no practical benefit in high-dimensional settings** (d > 32). Flat
-//! Navigable Small World (NSW) graphs achieve performance parity with hierarchical
-//! HNSW in both median and tail latency, while using less memory.
+//! NSW graphs achieve performance parity with HNSW in both median and tail latency.
 //!
-//! The explanation: **hubness** in high-dimensional spaces creates natural "highway"
-//! nodes that serve the same functional role as explicit hierarchy. When metric hubs
-//! already provide efficient routing, explicit hierarchical layers become redundant.
+//! The explanation: **hubness**. In high dimensions, some nodes naturally become
+//! "hubs" with high connectivity, serving the same routing function as explicit
+//! hierarchy. When metric hubs already provide efficient routing, explicit layers
+//! become redundant.
 //!
 //! **Implications**:
-//! - For high-dimensional data (d > 32), consider flat NSW variants for memory savings
-//! - Hierarchy may still help for low-dimensional data (d < 32) or angular distance metrics
-//! - See `docs/CRITICAL_PERSPECTIVES_AND_LIMITATIONS.md` for detailed analysis
+//! - For d > 32: Consider flat NSW variants for memory savings
+//! - For d < 32 or angular metrics: Hierarchy may still help
+//! - See `docs/CRITICAL_PERSPECTIVES_AND_LIMITATIONS.md` for analysis
+//!
+//! # References
+//!
+//! - Malkov & Yashunin (2016). "Efficient and robust approximate nearest neighbor
+//!   search using Hierarchical Navigable Small World graphs."
+//! - [Recent NSW analysis](https://arxiv.org/abs/2412.01940) on hierarchy benefits
 //!
 //! # Performance
 //!
