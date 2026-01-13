@@ -412,3 +412,118 @@ mod ground_truth_props {
         }
     }
 }
+
+// =============================================================================
+// LID (Local Intrinsic Dimensionality) Properties
+// =============================================================================
+
+mod lid_props {
+    use super::*;
+    use vicinity::lid::{estimate_lid_mle, LidConfig, LidStats, LidEstimate};
+    
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(100))]
+        
+        /// LID should be positive for valid distance sequences.
+        #[test]
+        fn lid_positive_for_valid_distances(
+            // Generate increasing distances (realistic scenario)
+            base in 0.01f32..0.1,
+            increments in prop::collection::vec(0.01f32..0.5, 19),
+        ) {
+            let mut distances = vec![base];
+            let mut cumsum = base;
+            for inc in increments {
+                cumsum += inc;
+                distances.push(cumsum);
+            }
+            
+            let config = LidConfig::default();
+            let estimate = estimate_lid_mle(&distances, &config);
+            
+            prop_assert!(estimate.lid > 0.0 || estimate.lid.is_infinite(),
+                "LID should be positive, got {}", estimate.lid);
+        }
+        
+        /// LID should be invariant to uniform scaling of distances.
+        #[test]
+        fn lid_scale_invariant(
+            base in 0.01f32..0.1,
+            increments in prop::collection::vec(0.01f32..0.5, 19),
+            scale in 0.1f32..10.0,
+        ) {
+            let mut distances = vec![base];
+            let mut cumsum = base;
+            for inc in &increments {
+                cumsum += inc;
+                distances.push(cumsum);
+            }
+            
+            let scaled: Vec<f32> = distances.iter().map(|d| d * scale).collect();
+            
+            let config = LidConfig::default();
+            let est1 = estimate_lid_mle(&distances, &config);
+            let est2 = estimate_lid_mle(&scaled, &config);
+            
+            // LID should be approximately scale-invariant
+            // (exact invariance holds for continuous distributions)
+            if est1.lid.is_finite() && est2.lid.is_finite() {
+                let relative_diff = (est1.lid - est2.lid).abs() / est1.lid.max(1.0);
+                prop_assert!(relative_diff < 0.3,
+                    "LID not scale invariant: {} vs {} (scale={})", 
+                    est1.lid, est2.lid, scale);
+            }
+        }
+        
+        /// k parameter should be respected.
+        #[test]
+        fn lid_respects_k(
+            distances in prop::collection::vec(0.1f32..10.0, 30..50),
+            k in 5usize..25,
+        ) {
+            let mut sorted = distances.clone();
+            sorted.sort_by(|a, b| a.total_cmp(b));
+            
+            let config = LidConfig { k, epsilon: 1e-10 };
+            let estimate = estimate_lid_mle(&sorted, &config);
+            
+            prop_assert_eq!(estimate.k, k.min(sorted.len()),
+                "k should be min of config.k and distances.len()");
+        }
+        
+        /// LidStats should produce valid statistics.
+        #[test]
+        fn lid_stats_valid(
+            lids in prop::collection::vec(1.0f32..50.0, 10..30),
+        ) {
+            let estimates: Vec<LidEstimate> = lids.iter()
+                .map(|&lid| LidEstimate { lid, k: 20, max_dist: 1.0 })
+                .collect();
+            
+            let stats = LidStats::from_estimates(&estimates);
+            
+            prop_assert_eq!(stats.count, estimates.len());
+            prop_assert!(stats.min <= stats.mean);
+            prop_assert!(stats.mean <= stats.max);
+            prop_assert!(stats.std_dev >= 0.0);
+        }
+        
+        /// High LID threshold should be above median.
+        #[test]
+        fn high_lid_threshold_above_median(
+            lids in prop::collection::vec(1.0f32..50.0, 5..20),
+        ) {
+            let estimates: Vec<LidEstimate> = lids.iter()
+                .map(|&lid| LidEstimate { lid, k: 20, max_dist: 1.0 })
+                .collect();
+            
+            let stats = LidStats::from_estimates(&estimates);
+            
+            if stats.std_dev > 0.0 {
+                prop_assert!(stats.high_lid_threshold() > stats.median,
+                    "threshold {} should be > median {}", 
+                    stats.high_lid_threshold(), stats.median);
+            }
+        }
+    }
+}

@@ -124,6 +124,10 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_compatibility = { level = "warn", priority = -1 }
 future_incompatible = { level = "warn", priority = -1 }
 nonstandard_style = { level = "warn", priority = -1 }
+# Allow cfg checks for internal feature toggles (classic ANN algorithms)
+unexpected_cfgs = { level = "warn", check-cfg = [
+    "cfg(feature, values(\"nsw\", \"kdtree\", \"balltree\", \"kmeans_tree\", \"rptree\", \"lsh\", \"annoy\", \"simd\", \"rand\"))"
+] }
 # Documentation lints: temporarily relaxed, enable incrementally
 # missing_docs = "warn"
 # missing_doc_code_examples = "warn"
