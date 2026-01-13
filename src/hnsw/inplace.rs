@@ -27,7 +27,7 @@
 //! # References
 //!
 //! - Xu et al. (2025): "In-Place Updates of a Graph Index for Streaming
-//!   Approximate Nearest Neighbor Search" - https://arxiv.org/abs/2502.13826
+//!   Approximate Nearest Neighbor Search" - <https://arxiv.org/abs/2502.13826>
 
 use crate::RetrieveError;
 use std::collections::{BinaryHeap, HashSet};

@@ -23,7 +23,7 @@
 //! # References
 //!
 //! - Mishra et al. (2025): "Graph-based Nearest Neighbors with Dynamic Updates
-//!   via Random Walks" - https://arxiv.org/abs/2512.18060
+//!   via Random Walks" - <https://arxiv.org/abs/2512.18060>
 
 use crate::RetrieveError;
 use std::collections::{HashMap, HashSet};

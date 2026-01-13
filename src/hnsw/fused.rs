@@ -22,7 +22,7 @@
 //! # References
 //!
 //! - Heidari et al. (2025): "FusedANN: Convexified Hybrid ANN via Attribute-Vector
-//!   Fusion" - https://arxiv.org/abs/2509.19767
+//!   Fusion" - <https://arxiv.org/abs/2509.19767>
 
 use crate::RetrieveError;
 use std::collections::HashMap;

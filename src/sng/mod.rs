@@ -9,7 +9,7 @@
 //! # References
 //!
 //! - Ma et al. (2026): "Graph-Based Approximate Nearest Neighbor Search Revisited:
-//!   Theoretical Analysis and Optimization" - https://arxiv.org/abs/2509.15531
+//!   Theoretical Analysis and Optimization" - <https://arxiv.org/abs/2509.15531>
 //!
 //! # Status: Experimental
 //!

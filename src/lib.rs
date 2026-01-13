@@ -7,7 +7,7 @@
 //! Provides standalone implementations of state-of-the-art ANN algorithms:
 //!
 //! - **Graph-based**: [`hnsw`], [`nsw`], [`sng`], [`vamana`]
-//! - **Hash-based**: [`hash`] (LSH, MinHash, SimHash) — requires `lsh` feature
+//! - **Hash-based**: `hash` (LSH, MinHash, SimHash) — requires `lsh` feature
 //! - **Partition-based**: [`ivf_pq`], [`scann`]
 //! - **Quantization**: [`quantization`] (PQ, RaBitQ)
 //!

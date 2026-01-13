@@ -19,7 +19,7 @@
 //!
 //! # References
 //!
-//! - Tutte Institute: https://github.com/TutteInstitute/evoc
+//! - Tutte Institute: <https://github.com/TutteInstitute/evoc>
 //! - Combines UMAP dimensionality reduction + HDBSCAN hierarchical clustering
 //! - Optimized for high-dimensional embedding vectors
 

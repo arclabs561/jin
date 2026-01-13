@@ -19,7 +19,7 @@
 //! | Fashion-MNIST | 60K | 784 | L2 | Zalando |
 //! | Deep1B | 1B | 96 | Angular | Yandex |
 //!
-//! Reference: https://ann-benchmarks.com/
+//! Reference: <https://ann-benchmarks.com/>
 
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
