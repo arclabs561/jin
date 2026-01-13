@@ -370,6 +370,7 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
             );
 
             // Pre-compute all neighbor vectors and distances (before any mutable borrows)
+            // selected contains the new neighbors we want to add
             let neighbor_data: Vec<(u32, Vec<f32>, f32)> = selected
                 .iter()
                 .map(|&id| {
@@ -379,7 +380,7 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                 })
                 .collect();
 
-            // Pre-compute existing neighbors of current_id (needed for pruning current_id's list)
+            // Pre-compute existing neighbors of current_id
             let current_existing_neighbors: Vec<u32> = if layer_idx < index.layers.len() {
                 index.layers[layer_idx]
                     .get_neighbors(current_id as u32)
@@ -390,16 +391,24 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                 Vec::new()
             };
 
-            // Pre-compute distances from current to all its existing neighbors
-            let current_neighbor_distances: std::collections::HashMap<u32, f32> =
-                current_existing_neighbors
-                    .iter()
-                    .map(|&id| {
-                        let vec = index.get_vector(id as usize);
-                        let dist = distance::cosine_distance(&current_vector, vec);
-                        (id, dist)
-                    })
-                    .collect();
+            // Pre-compute distances from current to ALL its neighbors (existing + selected)
+            // Use HashMap for O(1) lookup during pruning
+            let mut all_current_distances: std::collections::HashMap<u32, f32> =
+                std::collections::HashMap::with_capacity(
+                    current_existing_neighbors.len() + selected.len(),
+                );
+
+            // Add distances to existing neighbors
+            for &id in &current_existing_neighbors {
+                let vec = index.get_vector(id as usize);
+                let dist = distance::cosine_distance(&current_vector, vec);
+                all_current_distances.insert(id, dist);
+            }
+
+            // Add distances to selected neighbors
+            for (nid, _, dist) in &neighbor_data {
+                all_current_distances.insert(*nid, *dist);
+            }
 
             // Pre-compute existing neighbor data for reverse connections
             let existing_neighbor_lists: Vec<Vec<u32>> = selected
@@ -417,49 +426,58 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                 })
                 .collect();
 
-            // Compute distances for existing neighbors of each selected neighbor
-            let mut existing_neighbor_data: Vec<Vec<(u32, f32)>> = Vec::new();
-            for (idx, _neighbor_id) in selected.iter().enumerate() {
+            // Pre-compute distances for each selected neighbor to ALL its potential neighbors
+            // This includes: existing neighbors of that node + current_id
+            let mut all_reverse_distances: Vec<std::collections::HashMap<u32, f32>> = Vec::new();
+            for (idx, _) in selected.iter().enumerate() {
                 let neighbor_vec = &neighbor_data[idx].1;
-                let mut existing = Vec::new();
+                let mut distances = std::collections::HashMap::new();
+
+                // Distance to current_id
+                distances.insert(current_id as u32, neighbor_data[idx].2);
+
+                // Distances to existing neighbors
                 for &existing_id in &existing_neighbor_lists[idx] {
                     let existing_vec = index.get_vector(existing_id as usize);
                     let dist = distance::cosine_distance(neighbor_vec, existing_vec);
-                    existing.push((existing_id, dist));
+                    distances.insert(existing_id, dist);
                 }
-                existing_neighbor_data.push(existing);
+
+                all_reverse_distances.push(distances);
             }
 
             // Now do all mutable operations
             let layer = &mut index.layers[layer_idx];
             let neighbors_vec = layer.get_neighbors_mut();
 
-            for (idx, &neighbor_id) in selected.iter().enumerate() {
-                // Add connection from current to neighbor
+            // First pass: add all edges without pruning
+            for &neighbor_id in &selected {
                 let neighbors = &mut neighbors_vec[current_id];
                 if !neighbors.contains(&neighbor_id) {
                     neighbors.push(neighbor_id);
                 }
 
-                // Prune if too many connections
+                let reverse_neighbors = &mut neighbors_vec[neighbor_id as usize];
+                if !reverse_neighbors.contains(&(current_id as u32)) {
+                    reverse_neighbors.push(current_id as u32);
+                }
+            }
+
+            // Second pass: prune current_id's neighbors if needed
+            {
+                let neighbors = &mut neighbors_vec[current_id];
                 if neighbors.len() > m_actual {
-                    // Use pre-computed distances for ALL neighbors
                     let mut neighbor_candidates: Vec<(u32, f32)> = neighbors
                         .iter()
                         .map(|&id| {
-                            // Check if this is one of our selected neighbors
-                            if let Some((_, _, dist)) =
-                                neighbor_data.iter().find(|(nid, _, _)| *nid == id)
-                            {
-                                (id, *dist)
-                            } else if let Some(&dist) = current_neighbor_distances.get(&id) {
-                                // Use pre-computed distance from existing neighbors
-                                (id, dist)
-                            } else {
-                                // This should not happen if pre-computation is complete
-                                // Keep the edge rather than incorrectly pruning it
-                                (id, 0.0) // Use 0.0 to preserve edge rather than lose it
-                            }
+                            let dist =
+                                all_current_distances.get(&id).copied().unwrap_or_else(|| {
+                                    // Compute distance on the fly if somehow missing
+                                    let vec =
+                                        get_vector(&index.vectors, index.dimension, id as usize);
+                                    distance::cosine_distance(&current_vector, vec)
+                                });
+                            (id, dist)
                         })
                         .collect();
 
@@ -467,35 +485,30 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                     neighbor_candidates.truncate(m_actual);
                     *neighbors = neighbor_candidates.iter().map(|(id, _)| *id).collect();
                 }
+            }
 
-                // Add reverse connection
+            // Third pass: prune each selected neighbor's reverse list if needed
+            for (idx, &neighbor_id) in selected.iter().enumerate() {
                 let reverse_neighbors = &mut neighbors_vec[neighbor_id as usize];
-                if !reverse_neighbors.contains(&(current_id as u32)) {
-                    reverse_neighbors.push(current_id as u32);
+                if reverse_neighbors.len() > m_actual {
+                    let distances = &all_reverse_distances[idx];
+                    let neighbor_vec = &neighbor_data[idx].1;
 
-                    // Prune reverse connection if needed
-                    if reverse_neighbors.len() > m_actual {
-                        let mut reverse_candidates: Vec<(u32, f32)> = reverse_neighbors
-                            .iter()
-                            .map(|&id| {
-                                if id == current_id as u32 {
-                                    // Use pre-computed distance
-                                    (id, neighbor_data[idx].2)
-                                } else if let Some((_, dist)) = existing_neighbor_data[idx]
-                                    .iter()
-                                    .find(|(nid, _)| *nid == id)
-                                {
-                                    (id, *dist)
-                                } else {
-                                    // Keep edge rather than incorrectly prune it
-                                    (id, 0.0)
-                                }
-                            })
-                            .collect();
-                        reverse_candidates.sort_by(|a, b| a.1.total_cmp(&b.1));
-                        reverse_candidates.truncate(m_actual);
-                        *reverse_neighbors = reverse_candidates.iter().map(|(id, _)| *id).collect();
-                    }
+                    let mut reverse_candidates: Vec<(u32, f32)> = reverse_neighbors
+                        .iter()
+                        .map(|&id| {
+                            let dist = distances.get(&id).copied().unwrap_or_else(|| {
+                                // Compute distance on the fly if somehow missing
+                                let vec = get_vector(&index.vectors, index.dimension, id as usize);
+                                distance::cosine_distance(neighbor_vec, vec)
+                            });
+                            (id, dist)
+                        })
+                        .collect();
+
+                    reverse_candidates.sort_by(|a, b| a.1.total_cmp(&b.1));
+                    reverse_candidates.truncate(m_actual);
+                    *reverse_neighbors = reverse_candidates.iter().map(|(id, _)| *id).collect();
                 }
             }
         }
