@@ -93,6 +93,7 @@ impl Default for LidConfig {
 /// let lid = estimate_lid_mle(&distances, &LidConfig::default());
 /// println!("LID estimate: {}", lid.lid);
 /// ```
+#[must_use]
 pub fn estimate_lid_mle(sorted_distances: &[f32], config: &LidConfig) -> LidEstimate {
     let k = sorted_distances.len().min(config.k);
     
@@ -104,14 +105,18 @@ pub fn estimate_lid_mle(sorted_distances: &[f32], config: &LidConfig) -> LidEsti
         };
     }
     
-    let d_k = sorted_distances[k - 1].max(config.epsilon);
+    let d_k = sorted_distances[k - 1];
+    
+    // Use relative epsilon for scale-invariance
+    let abs_epsilon = d_k * config.epsilon;
+    let d_k = d_k.max(abs_epsilon);
     
     // Sum of log ratios
     let mut sum_log = 0.0f32;
     let mut valid_count = 0;
     
     for &d_i in &sorted_distances[..k] {
-        let d_i = d_i.max(config.epsilon);
+        let d_i = d_i.max(abs_epsilon);
         let ratio = d_i / d_k;
         if ratio > 0.0 && ratio < 1.0 {
             sum_log += ratio.ln();
@@ -119,7 +124,7 @@ pub fn estimate_lid_mle(sorted_distances: &[f32], config: &LidConfig) -> LidEsti
         }
     }
     
-    let lid = if valid_count > 0 && sum_log.abs() > config.epsilon {
+    let lid = if valid_count > 0 && sum_log.abs() > abs_epsilon {
         -(valid_count as f32) / sum_log
     } else {
         // Degenerate case: all distances equal or very close
@@ -145,6 +150,7 @@ pub fn estimate_lid_mle(sorted_distances: &[f32], config: &LidConfig) -> LidEsti
 /// # Returns
 ///
 /// LID estimate for the query point.
+#[must_use]
 pub fn estimate_lid(neighbor_distances: &[f32], config: &LidConfig) -> LidEstimate {
     let mut sorted = neighbor_distances.to_vec();
     sorted.sort_by(|a, b| a.total_cmp(b));

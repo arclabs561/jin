@@ -260,11 +260,9 @@ impl<'a> GraphRepairer<'a> {
         }
         impl Ord for Candidate {
             fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                // Min-heap by distance
-                other
-                    .dist
-                    .partial_cmp(&self.dist)
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                // Min-heap: smaller distance = higher priority
+                // Use total_cmp for IEEE 754 total ordering (NaN-safe)
+                self.dist.total_cmp(&other.dist).reverse()
             }
         }
 

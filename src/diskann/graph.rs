@@ -66,13 +66,11 @@ struct Candidate {
 
 impl Eq for Candidate {}
 
-// Max-heap (farthest first)
-// NaN is treated as greater than all other values (pushed to end/bottom of heap).
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.dist
-            .partial_cmp(&other.dist)
-            .unwrap_or(std::cmp::Ordering::Greater)
+        // Max-heap: larger distance = higher priority (for results pruning)
+        // Use total_cmp for IEEE 754 total ordering (NaN-safe, NaN > all)
+        self.dist.total_cmp(&other.dist)
     }
 }
 

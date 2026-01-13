@@ -211,11 +211,9 @@ impl PartialOrd for Candidate {
 
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> Ordering {
-        // Reverse ordering for min-heap behavior with BinaryHeap
-        other
-            .distance
-            .partial_cmp(&self.distance)
-            .unwrap_or(Ordering::Equal)
+        // Min-heap: smaller distance = higher priority
+        // Use total_cmp for IEEE 754 total ordering (NaN-safe)
+        self.distance.total_cmp(&other.distance).reverse()
     }
 }
 

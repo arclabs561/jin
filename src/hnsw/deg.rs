@@ -430,10 +430,9 @@ impl PartialOrd for Candidate {
 
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Max-heap by distance (for results)
-        self.distance
-            .partial_cmp(&other.distance)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        // Max-heap: larger distance = higher priority (for results pruning)
+        // Use total_cmp for IEEE 754 total ordering (NaN-safe)
+        self.distance.total_cmp(&other.distance)
     }
 }
 

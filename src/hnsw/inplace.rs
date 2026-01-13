@@ -603,9 +603,9 @@ impl PartialOrd for Candidate {
 
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.distance
-            .partial_cmp(&other.distance)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        // Max-heap: larger distance = higher priority (for results pruning)
+        // Use total_cmp for IEEE 754 total ordering (NaN-safe)
+        self.distance.total_cmp(&other.distance)
     }
 }
 
@@ -672,7 +672,7 @@ mod tests {
 
         // Insert
         let id1 = index.insert(vec![1.0, 2.0]).unwrap();
-        let id2 = index.insert(vec![3.0, 4.0]).unwrap();
+        let _id2 = index.insert(vec![3.0, 4.0]).unwrap();
 
         // Delete
         index.delete(id1).unwrap();

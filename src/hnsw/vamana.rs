@@ -315,9 +315,9 @@ where
     }
     impl Ord for Candidate {
         fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-            self.dist
-                .partial_cmp(&other.dist)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            // Max-heap: larger distance = higher priority
+            // Use total_cmp for IEEE 754 total ordering (NaN-safe)
+            self.dist.total_cmp(&other.dist)
         }
     }
 

@@ -238,10 +238,9 @@ impl PartialOrd for MergeCandidate {
 
 impl Ord for MergeCandidate {
     fn cmp(&self, other: &Self) -> Ordering {
-        other
-            .distance
-            .partial_cmp(&self.distance)
-            .unwrap_or(Ordering::Equal)
+        // Min-heap: smaller distance = higher priority
+        // Use total_cmp for IEEE 754 total ordering (NaN-safe)
+        self.distance.total_cmp(&other.distance).reverse()
     }
 }
 
@@ -718,7 +717,7 @@ mod tests {
         let graph_b = make_test_graph(5, 10, 64); // Overlaps IDs 5-9
         let config = MergeConfig::default();
 
-        let (merged, stats) = naive_graph_merge(&graph_a, &graph_b, &config);
+        let (merged, _stats) = naive_graph_merge(&graph_a, &graph_b, &config);
 
         // Should have 15 unique nodes (0-14)
         assert_eq!(merged.len(), 15);

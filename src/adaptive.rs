@@ -550,7 +550,7 @@ mod tests {
         let a = vec![0.0f32; 10];
         let b: Vec<f32> = (0..10).map(|i| i as f32 * 0.1).collect();
 
-        let (sampled, estimated) = sampled_l2_squared(&a, &b, &importance, 0.5);
+        let (_sampled, estimated) = sampled_l2_squared(&a, &b, &importance, 0.5);
 
         // Estimated should be roughly proportional to full
         let full: f32 = a

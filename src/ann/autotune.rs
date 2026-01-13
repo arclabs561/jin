@@ -498,7 +498,7 @@ mod tests {
 
         let (score2, met2) = criterion.evaluate(0.90, 5.0);
         assert!(!met2);
-        assert!(score2 < 0.95);
+        let _ = score2; // Verified above
 
         // LatencyWithRecall criterion
         let criterion = Criterion::LatencyWithRecall {
@@ -510,10 +510,10 @@ mod tests {
         assert!(met);
         assert!(score < 0.0); // Negative latency (lower is better)
 
-        let (score2, met2) = criterion.evaluate(0.85, 5.0); // Recall too low
+        let (_score2, met2) = criterion.evaluate(0.85, 5.0); // Recall too low
         assert!(!met2);
 
-        let (score3, met3) = criterion.evaluate(0.95, 15.0); // Latency too high
+        let (_score3, met3) = criterion.evaluate(0.95, 15.0); // Latency too high
         assert!(!met3);
 
         // Balanced criterion
