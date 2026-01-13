@@ -45,3 +45,17 @@ let results = index.search(&query, 10, 50)?;  // k, ef
 - `lsh` — LSH, MinHash, SimHash
 - `ivf_pq` — IVF with product quantization
 - `persistence` — WAL-based durability
+
+## Performance
+
+Build with native CPU optimizations:
+
+```bash
+RUSTFLAGS="-C target-cpu=native" cargo build --release
+```
+
+Run benchmarks:
+
+```bash
+cargo bench
+```
