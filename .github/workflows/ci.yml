@@ -10,6 +10,9 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
 
+# Note: This crate has optional path deps (innr, idpaq) that are only
+# available in the full ecosystem build. CI tests standalone functionality.
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,20 +24,19 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
-      - name: Clippy (default features)
-        run: cargo clippy --all-targets
+      # Use --no-default-features to skip path deps (innr, idpaq)
+      - name: Clippy
+        run: cargo clippy --no-default-features --features hnsw --all-targets
 
-      - name: Build (default features)
-        run: cargo build
+      - name: Build
+        run: cargo build --no-default-features --features hnsw
 
-      - name: Test (default features)
-        run: cargo test
+      - name: Test
+        run: cargo test --no-default-features --features hnsw
 
-      - name: Build (all features)
-        run: cargo build --all-features
-
-      - name: Test (all features)
-        run: cargo test --all-features
+      # Test persistence feature (all crates.io deps)
+      - name: Build (with persistence)
+        run: cargo build --no-default-features --features "hnsw,persistence"
 
   msrv:
     runs-on: ubuntu-latest
@@ -46,5 +48,4 @@ jobs:
       - name: Check MSRV
         run: |
           rm -f Cargo.lock  # v4 lock requires Cargo 1.83+
-          # Skip innr (path dep unavailable in standalone CI)
           cargo check --no-default-features --features hnsw
