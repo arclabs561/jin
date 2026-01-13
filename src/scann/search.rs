@@ -18,7 +18,7 @@ pub struct SCANNIndex {
     // Partitioning
     partitions: Vec<Partition>,
     pub(crate) partition_centroids: Vec<Vec<f32>>,
-    
+
     // Quantization
     quantizer: Option<AnisotropicQuantizer>,
 }
@@ -85,8 +85,12 @@ impl SCANNIndex {
     }
 
     pub fn build(&mut self) -> Result<(), RetrieveError> {
-        if self.built { return Ok(()); }
-        if self.num_vectors == 0 { return Err(RetrieveError::EmptyIndex); }
+        if self.built {
+            return Ok(());
+        }
+        if self.num_vectors == 0 {
+            return Err(RetrieveError::EmptyIndex);
+        }
 
         // 1. Train Partitioning (Coarse Quantizer)
         let mut kmeans = KMeans::new(self.dimension, self.params.num_partitions)?;
@@ -96,16 +100,22 @@ impl SCANNIndex {
         // 2. Assign vectors to partitions and compute residuals
         let assignments = kmeans.assign_clusters(&self.vectors, self.num_vectors);
         let mut residuals = Vec::with_capacity(self.vectors.len());
-        
+
         // Initialize partitions
-        self.partitions = vec![Partition { vector_indices: Vec::new(), codes: Vec::new() }; self.params.num_partitions];
+        self.partitions = vec![
+            Partition {
+                vector_indices: Vec::new(),
+                codes: Vec::new()
+            };
+            self.params.num_partitions
+        ];
 
         for (i, &partition_idx) in assignments.iter().enumerate() {
             self.partitions[partition_idx].vector_indices.push(i as u32);
-            
+
             let vec = self.get_vector(i);
             let centroid = &self.partition_centroids[partition_idx];
-            
+
             // Compute residual: r = x - c
             for (x, c) in vec.iter().zip(centroid.iter()) {
                 residuals.push(x - c);
@@ -114,9 +124,9 @@ impl SCANNIndex {
 
         // 3. Train Quantizer on Residuals
         let mut quantizer = AnisotropicQuantizer::new(
-            self.dimension, 
-            self.params.num_codebooks, 
-            self.params.codebook_size
+            self.dimension,
+            self.params.num_codebooks,
+            self.params.codebook_size,
         )?;
         quantizer.fit_residuals(&residuals, self.num_vectors)?;
 
@@ -124,25 +134,27 @@ impl SCANNIndex {
         // We re-compute residuals on the fly to keep code simple (or use the flat residuals vector)
         // But the flat residuals vector is ordered by input ID, not partition.
         // Let's iterate partitions to populate codes.
-        
+
         for p_idx in 0..self.params.num_partitions {
             let centroid = &self.partition_centroids[p_idx];
             // Clone vector indices to avoid borrow conflict with self.get_vector()
             let vec_indices: Vec<u32> = self.partitions[p_idx].vector_indices.clone();
-            
+
             let mut all_codes = Vec::with_capacity(vec_indices.len() * self.params.num_codebooks);
             for vec_idx in vec_indices {
                 let vec = self.get_vector(vec_idx as usize);
-                
+
                 // Recompute residual
-                let residual: Vec<f32> = vec.iter().zip(centroid.iter())
+                let residual: Vec<f32> = vec
+                    .iter()
+                    .zip(centroid.iter())
                     .map(|(x, c)| x - c)
                     .collect();
-                
+
                 let codes = quantizer.quantize(&residual);
                 all_codes.extend(codes);
             }
-            
+
             self.partitions[p_idx].codes = all_codes;
         }
 
@@ -152,21 +164,24 @@ impl SCANNIndex {
     }
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
-        if !self.built { 
-            return Err(RetrieveError::Other("Not built".into())); 
+        if !self.built {
+            return Err(RetrieveError::Other("Not built".into()));
         }
-        
-        let quantizer = self.quantizer.as_ref()
+
+        let quantizer = self
+            .quantizer
+            .as_ref()
             .ok_or_else(|| RetrieveError::Other("Quantizer not initialized".into()))?;
 
         // 1. Find top partitions
         // Compute dot product with all centroids
-        let mut partition_scores: Vec<(usize, f32)> = self.partition_centroids
+        let mut partition_scores: Vec<(usize, f32)> = self
+            .partition_centroids
             .iter()
             .enumerate()
             .map(|(idx, c)| (idx, crate::simd::dot(query, c)))
             .collect();
-        
+
         // Sort by score (descending for MIPS)
         partition_scores.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
 
@@ -187,11 +202,11 @@ impl SCANNIndex {
                 // <q, x> ≈ <q, c> + <q, r>
                 // We have <q, c> as center_score
                 // <q, r> is approximated by LUT
-                
+
                 let mut residual_score = 0.0;
                 let code_start = i * m;
                 let codes = &partition.codes[code_start..code_start + m];
-                
+
                 for (subspace_idx, &code) in codes.iter().enumerate() {
                     residual_score += lut[subspace_idx][code as usize];
                 }

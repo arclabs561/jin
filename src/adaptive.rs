@@ -36,7 +36,6 @@
 //!
 //! The techniques share a meta-principle: **compute just enough to be confident**.
 
-
 /// Configuration for adaptive search.
 #[derive(Debug, Clone)]
 pub struct AdaptiveConfig {
@@ -341,9 +340,8 @@ impl HubnessTracker {
         if self.num_queries == 0 {
             return false;
         }
-        let occurrence_rate =
-            self.occurrence_counts.get(node_idx).copied().unwrap_or(0) as f32
-                / self.num_queries as f32;
+        let occurrence_rate = self.occurrence_counts.get(node_idx).copied().unwrap_or(0) as f32
+            / self.num_queries as f32;
         occurrence_rate > self.hub_threshold
     }
 
@@ -352,8 +350,7 @@ impl HubnessTracker {
         if self.num_queries == 0 {
             return 0.0;
         }
-        self.occurrence_counts.get(node_idx).copied().unwrap_or(0) as f32
-            / self.num_queries as f32
+        self.occurrence_counts.get(node_idx).copied().unwrap_or(0) as f32 / self.num_queries as f32
     }
 
     /// Get all nodes classified as hubs.
@@ -542,9 +539,7 @@ mod tests {
 
     #[test]
     fn test_sampled_distance() {
-        let vectors: Vec<f32> = (0..100)
-            .map(|i| (i as f32 / 100.0) - 0.5)
-            .collect();
+        let vectors: Vec<f32> = (0..100).map(|i| (i as f32 / 100.0) - 0.5).collect();
         let importance = DimensionImportance::estimate(&vectors, 10, 10);
 
         let a = vec![0.0f32; 10];

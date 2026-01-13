@@ -16,25 +16,23 @@
 use std::time::Instant;
 
 use vicinity::benchmark::{
-    generate_normalized_clustered_dataset, generate_uniform_dataset,
-    DistanceMetric, EvalDataset, EvalResults,
+    generate_normalized_clustered_dataset, generate_uniform_dataset, DistanceMetric, EvalDataset,
+    EvalResults,
 };
 use vicinity::hnsw::{HNSWIndex, HNSWParams};
 
 /// Run evaluation on a dataset with given HNSW parameters.
-fn evaluate_hnsw(
-    dataset: &EvalDataset,
-    params: &HNSWParams,
-    config_name: &str,
-) -> EvalResults {
+fn evaluate_hnsw(dataset: &EvalDataset, params: &HNSWParams, config_name: &str) -> EvalResults {
     let start = Instant::now();
 
     // Build index
-    let mut index = HNSWIndex::with_params(dataset.dim, params.clone())
-        .expect("Failed to create HNSW index");
-    
+    let mut index =
+        HNSWIndex::with_params(dataset.dim, params.clone()).expect("Failed to create HNSW index");
+
     for (i, vec) in dataset.base.iter().enumerate() {
-        index.add(i as u32, vec.clone()).expect("Failed to add vector");
+        index
+            .add(i as u32, vec.clone())
+            .expect("Failed to add vector");
     }
     index.build().expect("Failed to build index");
 
@@ -42,7 +40,7 @@ fn evaluate_hnsw(
 
     // Estimate memory (simplified)
     let index_memory = dataset.base.len() * dataset.dim * 4  // vectors
-        + dataset.base.len() * params.m * 8;  // graph edges
+        + dataset.base.len() * params.m * 8; // graph edges
 
     // Evaluate
     let mut recalls = Vec::with_capacity(dataset.n_queries());
@@ -50,7 +48,8 @@ fn evaluate_hnsw(
 
     for (query, gt) in dataset.queries.iter().zip(dataset.ground_truth.iter()) {
         let start = Instant::now();
-        let results = index.search(query, dataset.k, params.ef_search)
+        let results = index
+            .search(query, dataset.k, params.ef_search)
             .expect("Search failed");
         let elapsed = start.elapsed();
 
@@ -59,7 +58,11 @@ fn evaluate_hnsw(
 
         // Compute recall
         let gt_set: std::collections::HashSet<u32> = gt.iter().take(dataset.k).copied().collect();
-        let found = approx.iter().take(dataset.k).filter(|id| gt_set.contains(id)).count();
+        let found = approx
+            .iter()
+            .take(dataset.k)
+            .filter(|id| gt_set.contains(id))
+            .count();
         let recall = found as f32 / dataset.k as f32;
 
         recalls.push(recall);
@@ -83,7 +86,7 @@ fn evaluate_hnsw(
 // NOTE: HNSW uses cosine_distance internally, requiring:
 // 1. All vectors L2-normalized
 // 2. Ground truth computed with cosine distance
-// 
+//
 // The generate_normalized_clustered_dataset function handles both.
 
 #[test]
@@ -91,12 +94,12 @@ fn test_eval_small_clustered() {
     // Small clustered dataset with normalized vectors (required for HNSW cosine)
     let dataset = generate_normalized_clustered_dataset(
         "small-clustered",
-        1000,   // base vectors
-        100,    // queries
-        64,     // dimensions
-        10,     // clusters
-        0.1,    // cluster_std
-        10,     // k
+        1000, // base vectors
+        100,  // queries
+        64,   // dimensions
+        10,   // clusters
+        0.1,  // cluster_std
+        10,   // k
         42,
     );
 
@@ -109,11 +112,21 @@ fn test_eval_small_clustered() {
     };
 
     let results = evaluate_hnsw(&dataset, &params, "M=24,ef=150");
-    
+
     println!("\n{}", results.summary());
-    println!("  Recalls: min={:.3}, max={:.3}", 
-        results.recalls.iter().cloned().fold(f32::INFINITY, f32::min),
-        results.recalls.iter().cloned().fold(f32::NEG_INFINITY, f32::max));
+    println!(
+        "  Recalls: min={:.3}, max={:.3}",
+        results
+            .recalls
+            .iter()
+            .cloned()
+            .fold(f32::INFINITY, f32::min),
+        results
+            .recalls
+            .iter()
+            .cloned()
+            .fold(f32::NEG_INFINITY, f32::max)
+    );
 
     // Target: 30%+ mean recall (lowered due to high variance in HNSW)
     // Note: Results vary between runs (30-60%), suggesting randomness issues
@@ -128,16 +141,8 @@ fn test_eval_small_clustered() {
 #[test]
 fn test_eval_small_high_connectivity() {
     // Higher M for better graph connectivity
-    let dataset = generate_normalized_clustered_dataset(
-        "small-high-M",
-        1000,
-        100,
-        64,
-        10,
-        0.1,
-        10,
-        42,
-    );
+    let dataset =
+        generate_normalized_clustered_dataset("small-high-M", 1000, 100, 64, 10, 0.1, 10, 42);
 
     let params = HNSWParams {
         m: 48,
@@ -163,7 +168,7 @@ fn test_eval_small_high_connectivity() {
 fn test_eval_normalized_uniform() {
     // Uniform random data, normalized for cosine
     use vicinity::benchmark::normalize;
-    
+
     let mut dataset = generate_uniform_dataset(
         "uniform-normalized",
         1000,
@@ -173,14 +178,17 @@ fn test_eval_normalized_uniform() {
         DistanceMetric::Cosine,
         42,
     );
-    
+
     // Normalize vectors
     dataset.base = dataset.base.into_iter().map(|v| normalize(&v)).collect();
     dataset.queries = dataset.queries.into_iter().map(|v| normalize(&v)).collect();
-    
+
     // Recompute ground truth with cosine
     dataset.ground_truth = vicinity::benchmark::evaluation::compute_ground_truth(
-        &dataset.base, &dataset.queries, 10, DistanceMetric::Cosine
+        &dataset.base,
+        &dataset.queries,
+        10,
+        DistanceMetric::Cosine,
     );
 
     let params = HNSWParams {
@@ -244,16 +252,7 @@ fn test_eval_medium_clustered() {
 
 #[test]
 fn test_ef_search_improves_recall() {
-    let dataset = generate_normalized_clustered_dataset(
-        "ef-sweep",
-        1000,
-        100,
-        64,
-        10,
-        0.1,
-        10,
-        42,
-    );
+    let dataset = generate_normalized_clustered_dataset("ef-sweep", 1000, 100, 64, 10, 0.1, 10, 42);
 
     let ef_values = [50, 100, 200, 400];
     let mut recalls = Vec::new();
@@ -268,7 +267,12 @@ fn test_ef_search_improves_recall() {
         };
 
         let results = evaluate_hnsw(&dataset, &params, &format!("ef={}", ef));
-        println!("ef={}: recall={:.3}, qps={:.0}", ef, results.mean_recall(), results.qps());
+        println!(
+            "ef={}: recall={:.3}, qps={:.0}",
+            ef,
+            results.mean_recall(),
+            results.qps()
+        );
         recalls.push(results.mean_recall());
     }
 
@@ -284,16 +288,7 @@ fn test_ef_search_improves_recall() {
 
 #[test]
 fn test_m_parameter_tradeoff() {
-    let dataset = generate_normalized_clustered_dataset(
-        "m-sweep",
-        1000,
-        100,
-        64,
-        10,
-        0.1,
-        10,
-        42,
-    );
+    let dataset = generate_normalized_clustered_dataset("m-sweep", 1000, 100, 64, 10, 0.1, 10, 42);
 
     let m_values = [16, 32, 48];
     let mut results_vec = Vec::new();
@@ -333,7 +328,7 @@ fn test_m_parameter_tradeoff() {
 #[test]
 fn test_evaluation_metrics() {
     // Test that our evaluation metrics are computed correctly
-    use vicinity::benchmark::{mrr, eval_recall_at_k};
+    use vicinity::benchmark::{eval_recall_at_k, mrr};
 
     // Perfect match
     let approx = vec![0, 1, 2, 3, 4];
@@ -393,16 +388,7 @@ fn test_no_recall_regression() {
 
 #[test]
 fn test_print_detailed_stats() {
-    let dataset = generate_normalized_clustered_dataset(
-        "diagnostic",
-        500,
-        50,
-        32,
-        5,
-        0.1,
-        10,
-        42,
-    );
+    let dataset = generate_normalized_clustered_dataset("diagnostic", 500, 50, 32, 5, 0.1, 10, 42);
 
     let params = HNSWParams {
         m: 16,
@@ -415,14 +401,33 @@ fn test_print_detailed_stats() {
     let results = evaluate_hnsw(&dataset, &params, "diagnostic");
 
     println!("\n=== Detailed Evaluation Stats ===");
-    println!("Dataset: {} ({} base, {} queries, dim={})", 
-        dataset.name, dataset.n_base(), dataset.n_queries(), dataset.dim);
+    println!(
+        "Dataset: {} ({} base, {} queries, dim={})",
+        dataset.name,
+        dataset.n_base(),
+        dataset.n_queries(),
+        dataset.dim
+    );
     println!("Config: {}", results.config);
     println!("\nRecall:");
     println!("  Mean:   {:.3}", results.mean_recall());
     println!("  Median: {:.3}", results.median_recall());
-    println!("  Min:    {:.3}", results.recalls.iter().cloned().fold(f32::INFINITY, f32::min));
-    println!("  Max:    {:.3}", results.recalls.iter().cloned().fold(f32::NEG_INFINITY, f32::max));
+    println!(
+        "  Min:    {:.3}",
+        results
+            .recalls
+            .iter()
+            .cloned()
+            .fold(f32::INFINITY, f32::min)
+    );
+    println!(
+        "  Max:    {:.3}",
+        results
+            .recalls
+            .iter()
+            .cloned()
+            .fold(f32::NEG_INFINITY, f32::max)
+    );
     println!("\nLatency:");
     println!("  Mean:   {:.1} us", results.mean_latency_us());
     println!("  P50:    {} us", results.p50_latency_us());
@@ -431,7 +436,10 @@ fn test_print_detailed_stats() {
     println!("  QPS:    {:.1}", results.qps());
     println!("\nResources:");
     println!("  Build:  {:.2} s", results.build_time.as_secs_f64());
-    println!("  Memory: {:.2} MB", results.index_memory_bytes as f64 / 1_000_000.0);
+    println!(
+        "  Memory: {:.2} MB",
+        results.index_memory_bytes as f64 / 1_000_000.0
+    );
 
     // Recall distribution histogram
     println!("\nRecall Distribution:");
@@ -442,6 +450,12 @@ fn test_print_detailed_stats() {
     }
     for (i, count) in bins.iter().enumerate() {
         let bar = "*".repeat(*count);
-        println!("  [{:.1}-{:.1}): {} {}", i as f32 / 10.0, (i + 1) as f32 / 10.0, count, bar);
+        println!(
+            "  [{:.1}-{:.1}): {} {}",
+            i as f32 / 10.0,
+            (i + 1) as f32 / 10.0,
+            count,
+            bar
+        );
     }
 }

@@ -54,7 +54,7 @@ impl IndexMemoryStats {
     }
 
     /// Compression ratio (raw size / stored size).
-    /// 
+    ///
     /// Values > 1 indicate compression, < 1 indicates expansion.
     pub fn compression_ratio(&self) -> f64 {
         if self.stored_vectors_bytes == 0 {
@@ -100,7 +100,7 @@ impl MemoryTracker {
     }
 
     /// Record current memory as starting point.
-    /// 
+    ///
     /// Note: Actual implementation would use platform-specific
     /// memory queries (e.g., /proc/self/statm on Linux).
     pub fn start(&mut self) {
@@ -189,7 +189,12 @@ pub mod theoretical {
 
         let index_overhead_bytes = graph_edges_bytes + metadata_bytes;
 
-        IndexMemoryStats::new(n_vectors, dimension, stored_vectors_bytes, index_overhead_bytes)
+        IndexMemoryStats::new(
+            n_vectors,
+            dimension,
+            stored_vectors_bytes,
+            index_overhead_bytes,
+        )
     }
 
     /// IVF-PQ memory estimate.
@@ -220,7 +225,12 @@ pub mod theoretical {
 
         let index_overhead_bytes = centroid_bytes + codebook_bytes + invlist_bytes;
 
-        IndexMemoryStats::new(n_vectors, dimension, stored_vectors_bytes, index_overhead_bytes)
+        IndexMemoryStats::new(
+            n_vectors,
+            dimension,
+            stored_vectors_bytes,
+            index_overhead_bytes,
+        )
     }
 
     /// Flat (brute force) index memory.
@@ -279,11 +289,11 @@ mod tests {
     #[test]
     fn test_theoretical_ivf_pq() {
         let stats = theoretical::ivf_pq_memory(
-            10000,  // vectors
-            128,    // dimension
-            256,    // clusters
-            16,     // subquantizers
-            8,      // bits per code
+            10000, // vectors
+            128,   // dimension
+            256,   // clusters
+            16,    // subquantizers
+            8,     // bits per code
         );
 
         // PQ should compress: 128 floats -> 16 bytes

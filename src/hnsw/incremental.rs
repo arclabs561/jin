@@ -358,7 +358,8 @@ impl DriftTracker {
 
         // Check if window is complete
         if self.window_count >= self.window_size {
-            self.historical_centroids.push_back(self.query_centroid.clone());
+            self.historical_centroids
+                .push_back(self.query_centroid.clone());
             if self.historical_centroids.len() > 10 {
                 self.historical_centroids.pop_front();
             }
@@ -376,10 +377,7 @@ impl DriftTracker {
         // Compare current centroid to historical average
         let historical_avg: Vec<f32> = (0..self.dimension)
             .map(|d| {
-                self.historical_centroids
-                    .iter()
-                    .map(|c| c[d])
-                    .sum::<f32>()
+                self.historical_centroids.iter().map(|c| c[d]).sum::<f32>()
                     / self.historical_centroids.len() as f32
             })
             .collect();
@@ -466,9 +464,10 @@ mod tests {
         let suggestions = analyzer.analyze(&stats, &existing);
 
         // Should suggest adding edge between 0 and 5
-        assert!(suggestions.edges_to_add.iter().any(|&(a, b, _)| {
-            (a == 0 && b == 5) || (a == 5 && b == 0)
-        }));
+        assert!(suggestions
+            .edges_to_add
+            .iter()
+            .any(|&(a, b, _)| { (a == 0 && b == 5) || (a == 5 && b == 0) }));
     }
 
     #[test]

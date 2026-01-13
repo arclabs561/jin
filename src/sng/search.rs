@@ -1,7 +1,7 @@
 //! OPT-SNG search algorithm.
 
-use crate::sng::graph::SNGIndex;
 use crate::simd;
+use crate::sng::graph::SNGIndex;
 use crate::RetrieveError;
 use std::collections::{BinaryHeap, HashSet};
 

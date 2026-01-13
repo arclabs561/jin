@@ -100,8 +100,7 @@ pub fn greedy_search(
     // Convert to sorted vector
     let mut sorted_results: Vec<(u32, f32)> =
         results.into_iter().map(|c| (c.id, c.distance)).collect();
-    sorted_results
-        .sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
+    sorted_results.sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
 
     Ok(sorted_results)
 }

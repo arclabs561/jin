@@ -241,16 +241,16 @@ pub fn select_neighbors(
         crate::hnsw::graph::NeighborhoodDiversification::RelativeNeighborhood => {
             select_neighbors_rnd(query_vector, candidates, m, vectors, dimension)
         }
-        crate::hnsw::graph::NeighborhoodDiversification::MaximumOriented {
-            min_angle_degrees,
-        } => select_neighbors_mond(
-            query_vector,
-            candidates,
-            m,
-            vectors,
-            dimension,
-            *min_angle_degrees,
-        ),
+        crate::hnsw::graph::NeighborhoodDiversification::MaximumOriented { min_angle_degrees } => {
+            select_neighbors_mond(
+                query_vector,
+                candidates,
+                m,
+                vectors,
+                dimension,
+                *min_angle_degrees,
+            )
+        }
         crate::hnsw::graph::NeighborhoodDiversification::RelaxedRelative { alpha } => {
             select_neighbors_rrnd(query_vector, candidates, m, vectors, dimension, *alpha)
         }

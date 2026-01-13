@@ -92,10 +92,8 @@ impl SNGIndex {
         }
 
         // Optimize truncation parameter R using closed-form rule
-        self.truncation_r = crate::sng::optimization::optimize_truncation_r(
-            self.num_vectors,
-            self.dimension,
-        )?;
+        self.truncation_r =
+            crate::sng::optimization::optimize_truncation_r(self.num_vectors, self.dimension)?;
 
         // Build graph using martingale-based model
         self.construct_graph()?;
@@ -131,8 +129,8 @@ impl SNGIndex {
 
     /// Construct graph using martingale-based model.
     fn construct_graph(&mut self) -> Result<(), RetrieveError> {
-        use crate::sng::martingale;
         use crate::simd;
+        use crate::sng::martingale;
         use smallvec::SmallVec;
 
         if self.num_vectors == 0 {

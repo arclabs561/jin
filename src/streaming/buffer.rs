@@ -3,8 +3,8 @@
 //! Buffers small updates before merging into the main index.
 //! This amortizes the cost of index updates and enables batched processing.
 
-use std::collections::{HashMap, HashSet};
 use crate::error::{Result, RetrieveError};
+use std::collections::{HashMap, HashSet};
 
 /// Configuration for the stream buffer.
 #[derive(Debug, Clone)]
@@ -151,7 +151,8 @@ impl StreamBuffer {
     ///
     /// Returns (id, distance) pairs sorted by distance ascending.
     pub fn search(&self, query: &[f32], k: usize) -> Vec<(u32, f32)> {
-        let mut results: Vec<(u32, f32)> = self.inserts
+        let mut results: Vec<(u32, f32)> = self
+            .inserts
             .iter()
             .filter(|(id, _)| !self.deletes.contains(id))
             .map(|(&id, vec)| {
@@ -187,12 +188,12 @@ mod tests {
     #[test]
     fn test_insert_delete() {
         let mut buffer = StreamBuffer::new();
-        
+
         buffer.insert(0, vec![1.0, 2.0]).unwrap();
         buffer.insert(1, vec![3.0, 4.0]).unwrap();
-        
+
         assert_eq!(buffer.insert_count(), 2);
-        
+
         buffer.delete(0);
         assert_eq!(buffer.insert_count(), 1);
         assert!(!buffer.is_deleted(0)); // Was in buffer, so just removed
@@ -201,10 +202,10 @@ mod tests {
     #[test]
     fn test_delete_from_main() {
         let mut buffer = StreamBuffer::new();
-        
+
         // Delete something not in buffer (i.e., in main index)
         buffer.delete(42);
-        
+
         assert!(buffer.is_deleted(42));
         assert_eq!(buffer.delete_count(), 1);
     }
@@ -212,14 +213,14 @@ mod tests {
     #[test]
     fn test_search() {
         let mut buffer = StreamBuffer::new();
-        
+
         buffer.insert(0, vec![0.0, 0.0]).unwrap();
         buffer.insert(1, vec![1.0, 0.0]).unwrap();
         buffer.insert(2, vec![0.0, 1.0]).unwrap();
-        
+
         let query = vec![0.1, 0.1];
         let results = buffer.search(&query, 2);
-        
+
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].0, 0); // Closest to query
     }

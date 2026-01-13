@@ -15,9 +15,7 @@ use std::io::{Read, Write};
 #[cfg(feature = "hnsw")]
 use crate::hnsw::graph::Layer;
 #[cfg(feature = "hnsw")]
-use crate::hnsw::{
-    HNSWIndex, HNSWParams, NeighborhoodDiversification, SeedSelectionStrategy,
-};
+use crate::hnsw::{HNSWIndex, HNSWParams, NeighborhoodDiversification, SeedSelectionStrategy};
 #[cfg(feature = "hnsw")]
 use smallvec::SmallVec;
 

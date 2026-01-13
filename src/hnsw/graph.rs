@@ -637,8 +637,7 @@ impl HNSWIndex {
                 }
 
                 // Sort by distance and collect top candidates
-                candidates
-                    .sort_by(|a, b| a.1.total_cmp(&b.1));
+                candidates.sort_by(|a, b| a.1.total_cmp(&b.1));
                 let selected_neighbors: Vec<u32> = candidates
                     .iter()
                     .take(max_intra_edges)
@@ -822,59 +821,57 @@ impl HNSWIndex {
         // Fine search in base layer (layer 0)
         if !self.layers.is_empty() {
             // For KS strategy, warm up search with multiple seeds
-            let base_results = if let SeedSelectionStrategy::KSampledRandom { .. } =
-                &self.params.seed_selection
-            {
-                // Use KS seeds to initialize search
-                use crate::hnsw::search::SearchState;
-                let mut state = SearchState::with_capacity(ef.max(k));
+            let base_results =
+                if let SeedSelectionStrategy::KSampledRandom { .. } = &self.params.seed_selection {
+                    // Use KS seeds to initialize search
+                    use crate::hnsw::search::SearchState;
+                    let mut state = SearchState::with_capacity(ef.max(k));
 
-                // Add all KS seeds to candidate queue
-                for &seed_id in &initial_seeds {
-                    let seed_vec = self.get_vector(seed_id as usize);
-                    let dist = crate::hnsw::distance::cosine_distance(query, seed_vec);
-                    state.add_candidate(seed_id, dist);
-                }
-
-                // Also add entry point neighbors
-                let neighbors = self.layers[0].get_neighbors(current_closest);
-                for &neighbor_id in neighbors.iter() {
-                    let neighbor_vec = self.get_vector(neighbor_id as usize);
-                    let dist = crate::hnsw::distance::cosine_distance(query, neighbor_vec);
-                    state.add_candidate(neighbor_id, dist);
-                }
-
-                // Continue search from candidates
-                let mut results = Vec::new();
-                while let Some(candidate) = state.pop_candidate() {
-                    if results.len() >= ef.max(k) {
-                        break;
+                    // Add all KS seeds to candidate queue
+                    for &seed_id in &initial_seeds {
+                        let seed_vec = self.get_vector(seed_id as usize);
+                        let dist = crate::hnsw::distance::cosine_distance(query, seed_vec);
+                        state.add_candidate(seed_id, dist);
                     }
 
-                    results.push((candidate.id, candidate.distance));
-
-                    // Explore neighbors
-                    let neighbors = self.layers[0].get_neighbors(candidate.id);
+                    // Also add entry point neighbors
+                    let neighbors = self.layers[0].get_neighbors(current_closest);
                     for &neighbor_id in neighbors.iter() {
                         let neighbor_vec = self.get_vector(neighbor_id as usize);
-                        let dist =
-                            crate::hnsw::distance::cosine_distance(query, neighbor_vec);
+                        let dist = crate::hnsw::distance::cosine_distance(query, neighbor_vec);
                         state.add_candidate(neighbor_id, dist);
                     }
-                }
 
-                results
-            } else {
-                // Default: Use greedy search from entry point
-                crate::hnsw::search::greedy_search_layer(
-                    query,
-                    current_closest,
-                    &self.layers[0],
-                    &self.vectors,
-                    self.dimension,
-                    ef.max(k),
-                )
-            };
+                    // Continue search from candidates
+                    let mut results = Vec::new();
+                    while let Some(candidate) = state.pop_candidate() {
+                        if results.len() >= ef.max(k) {
+                            break;
+                        }
+
+                        results.push((candidate.id, candidate.distance));
+
+                        // Explore neighbors
+                        let neighbors = self.layers[0].get_neighbors(candidate.id);
+                        for &neighbor_id in neighbors.iter() {
+                            let neighbor_vec = self.get_vector(neighbor_id as usize);
+                            let dist = crate::hnsw::distance::cosine_distance(query, neighbor_vec);
+                            state.add_candidate(neighbor_id, dist);
+                        }
+                    }
+
+                    results
+                } else {
+                    // Default: Use greedy search from entry point
+                    crate::hnsw::search::greedy_search_layer(
+                        query,
+                        current_closest,
+                        &self.layers[0],
+                        &self.vectors,
+                        self.dimension,
+                        ef.max(k),
+                    )
+                };
 
             // Return top k (pre-allocate with capacity k)
             let mut results: Vec<(u32, f32)> = Vec::with_capacity(k);
@@ -1034,8 +1031,7 @@ impl HNSWIndex {
                 }
 
                 let neighbor_vec = self.get_vector(neighbor_id as usize);
-                let neighbor_dist =
-                    crate::hnsw::distance::cosine_distance(query, neighbor_vec);
+                let neighbor_dist = crate::hnsw::distance::cosine_distance(query, neighbor_vec);
                 candidates.push(std::cmp::Reverse((FloatOrd(neighbor_dist), neighbor_id)));
             }
 

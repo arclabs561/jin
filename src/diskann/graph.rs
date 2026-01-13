@@ -185,7 +185,8 @@ impl DiskANNIndex {
 
             // Greedy search to find candidates
             // We use the graph as it exists so far
-            let (visited, _) = self.greedy_search(query_vec, self.params.ef_construction, self.start_node);
+            let (visited, _) =
+                self.greedy_search(query_vec, self.params.ef_construction, self.start_node);
 
             // Candidate set V = visited nodes
             // Run RobustPrune on V to find new neighbors for i
@@ -206,7 +207,13 @@ impl DiskANNIndex {
     ///
     /// Selects neighbors that are close to `node`, but also "orthogonal" to each other
     /// to ensure good coverage of the space.
-    fn robust_prune(&self, node: u32, candidates: &[u32], alpha: f32, max_degree: usize) -> Vec<u32> {
+    fn robust_prune(
+        &self,
+        node: u32,
+        candidates: &[u32],
+        alpha: f32,
+        max_degree: usize,
+    ) -> Vec<u32> {
         let node_vec = self.get_vector(node);
 
         // 1. Calculate distances to all candidates
@@ -234,7 +241,7 @@ impl DiskANNIndex {
 
         // 3. Prune
         let mut new_neighbors: Vec<u32> = Vec::with_capacity(max_degree);
-        
+
         // Remove duplicates if any
         candidates_with_dist.dedup_by(|a, b| a.id == b.id);
 
@@ -250,7 +257,7 @@ impl DiskANNIndex {
 
             for &existing_neighbor in &new_neighbors {
                 let dist_existing_cand = self.dist(self.get_vector(existing_neighbor), cand_vec);
-                
+
                 // If existing neighbor is closer to candidate than node is (scaled by alpha),
                 // then candidate is redundant (we can reach it via existing neighbor).
                 if alpha * dist_existing_cand <= cand.dist {
@@ -270,39 +277,47 @@ impl DiskANNIndex {
     /// Greedy search for construction and querying.
     ///
     /// Returns (visited_nodes, nearest_candidates).
-    fn greedy_search(&self, query: &[f32], l_size: usize, start_node: u32) -> (Vec<u32>, Vec<Candidate>) {
+    fn greedy_search(
+        &self,
+        query: &[f32],
+        l_size: usize,
+        start_node: u32,
+    ) -> (Vec<u32>, Vec<Candidate>) {
         let mut visited = HashSet::new();
         // Note: We use retset Vec instead of BinaryHeap for simpler control over L closest
-        
+
         // Use a max-heap for the working queue to easily pop the worst candidate
         // Wait, standard beam search keeps L closest.
         // Let's implement standard "iterate until convergence" greedy search.
-        
+
         // Results set (L closest found so far) - sorted vector or binary heap
         // We'll use a vector and sort it, for simplicity in this proto.
         let mut retset: Vec<Candidate> = Vec::with_capacity(l_size + 1);
-        
+
         let start_dist = self.dist(query, self.get_vector(start_node));
-        retset.push(Candidate { id: start_node, dist: start_dist });
+        retset.push(Candidate {
+            id: start_node,
+            dist: start_dist,
+        });
         visited.insert(start_node);
 
         let mut current_idx = 0;
-        
+
         while current_idx < retset.len() {
             // Find the closest unvisited node in retset
             // (In optimized impl, we iterate sorted retset)
             retset.sort_by(|a, b| a.dist.total_cmp(&b.dist));
-            
+
             if current_idx >= retset.len() {
                 break;
             }
-            
+
             let current = retset[current_idx];
             current_idx += 1;
 
             // If closest unvisited is farther than our worst candidate (and list is full), stop?
             // Vamana doesn't strictly stop, it explores all neighbors.
-            
+
             for &neighbor in &self.adj[current.id as usize] {
                 if visited.contains(&neighbor) {
                     continue;
@@ -310,11 +325,11 @@ impl DiskANNIndex {
                 visited.insert(neighbor);
 
                 let dist = self.dist(query, self.get_vector(neighbor));
-                
+
                 // Add to retset
                 retset.push(Candidate { id: neighbor, dist });
             }
-            
+
             // Keep only top L
             retset.sort_by(|a, b| a.dist.total_cmp(&b.dist));
             if retset.len() > l_size {
@@ -367,9 +382,6 @@ impl DiskANNIndex {
     // Euclidean distance (squared)
     fn dist(&self, a: &[f32], b: &[f32]) -> f32 {
         // In full impl, use SIMD from crate::simd
-        a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| (x - y) * (x - y))
-            .sum()
+        a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
     }
 }

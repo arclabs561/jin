@@ -139,11 +139,11 @@ impl<I: IndexOps> StreamingCoordinator<I> {
     pub fn insert(&mut self, id: u32, vector: Vec<f32>) -> Result<()> {
         self.buffer.insert(id, vector)?;
         self.total_inserts += 1;
-        
+
         if self.config.auto_compact && self.buffer.needs_compaction() {
             self.compact()?;
         }
-        
+
         Ok(())
     }
 
@@ -151,11 +151,11 @@ impl<I: IndexOps> StreamingCoordinator<I> {
     pub fn delete(&mut self, id: u32) -> Result<()> {
         self.buffer.delete(id);
         self.total_deletes += 1;
-        
+
         if self.config.auto_compact && self.buffer.needs_compaction() {
             self.compact()?;
         }
-        
+
         Ok(())
     }
 
@@ -165,11 +165,11 @@ impl<I: IndexOps> StreamingCoordinator<I> {
         self.buffer.insert(id, vector)?;
         self.total_inserts += 1;
         self.total_deletes += 1;
-        
+
         if self.config.auto_compact && self.buffer.needs_compaction() {
             self.compact()?;
         }
-        
+
         Ok(())
     }
 
@@ -177,9 +177,9 @@ impl<I: IndexOps> StreamingCoordinator<I> {
     pub fn compact(&mut self) -> Result<UpdateStats> {
         let start = Instant::now();
         let (inserts, deletes) = self.buffer.drain();
-        
+
         let mut stats = UpdateStats::default();
-        
+
         // Apply deletes first
         for id in deletes {
             if self.index.delete(id).is_ok() {
@@ -188,7 +188,7 @@ impl<I: IndexOps> StreamingCoordinator<I> {
                 stats.errors += 1;
             }
         }
-        
+
         // Then inserts
         for (id, vector) in inserts {
             if self.index.insert(id, vector).is_ok() {
@@ -197,10 +197,10 @@ impl<I: IndexOps> StreamingCoordinator<I> {
                 stats.errors += 1;
             }
         }
-        
+
         stats.duration_us = start.elapsed().as_micros() as u64;
         self.total_compactions += 1;
-        
+
         Ok(stats)
     }
 
@@ -218,20 +218,20 @@ impl<I: IndexOps> StreamingCoordinator<I> {
         // Search both buffer and main index
         let buffer_results = self.buffer.search(query, k);
         let mut main_results = self.index.search(query, k * 2)?; // Overfetch to account for deletes
-        
+
         // Filter deletes from main results
         main_results.retain(|(id, _)| !self.buffer.is_deleted(*id));
-        
+
         // Merge results
         let mut combined = buffer_results;
         combined.extend(main_results);
         combined.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         combined.truncate(k);
-        
+
         // Deduplicate (prefer lower distance)
         let mut seen = std::collections::HashSet::new();
         combined.retain(|(id, _)| seen.insert(*id));
-        
+
         Ok(combined)
     }
 }
@@ -240,10 +240,10 @@ impl<I: IndexOps> StreamingCoordinator<I> {
 pub trait IndexOps {
     /// Insert a vector into the index.
     fn insert(&mut self, id: u32, vector: Vec<f32>) -> Result<()>;
-    
+
     /// Delete a vector from the index.
     fn delete(&mut self, id: u32) -> Result<()>;
-    
+
     /// Search the index.
     fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>>;
 }
@@ -259,7 +259,9 @@ mod tests {
 
     impl MockIndex {
         fn new() -> Self {
-            Self { vectors: std::collections::HashMap::new() }
+            Self {
+                vectors: std::collections::HashMap::new(),
+            }
         }
     }
 
@@ -275,10 +277,12 @@ mod tests {
         }
 
         fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>> {
-            let mut results: Vec<_> = self.vectors
+            let mut results: Vec<_> = self
+                .vectors
                 .iter()
                 .map(|(&id, vec)| {
-                    let dist: f32 = query.iter()
+                    let dist: f32 = query
+                        .iter()
                         .zip(vec.iter())
                         .map(|(a, b)| (a - b) * (a - b))
                         .sum::<f32>()

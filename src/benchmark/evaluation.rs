@@ -221,7 +221,11 @@ pub fn recall_at_k(approx: &[u32], true_neighbors: &[u32], k: usize) -> f32 {
     }
 
     let true_set: HashSet<u32> = true_neighbors.iter().take(k).copied().collect();
-    let found = approx.iter().take(k).filter(|&id| true_set.contains(id)).count();
+    let found = approx
+        .iter()
+        .take(k)
+        .filter(|&id| true_set.contains(id))
+        .count();
     found as f32 / k as f32
 }
 
@@ -291,10 +295,7 @@ pub fn l2_distance(a: &[f32], b: &[f32]) -> f32 {
 /// L2 squared distance (faster, preserves ordering).
 #[inline]
 pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum()
 }
 
 /// Cosine distance (1 - cosine_similarity).
@@ -556,17 +557,8 @@ mod tests {
 
     #[test]
     fn test_eval_dataset_generation() {
-        let dataset = generate_clustered_dataset(
-            "test",
-            1000,
-            100,
-            64,
-            10,
-            0.1,
-            10,
-            DistanceMetric::L2,
-            42,
-        );
+        let dataset =
+            generate_clustered_dataset("test", 1000, 100, 64, 10, 0.1, 10, DistanceMetric::L2, 42);
 
         assert_eq!(dataset.n_base(), 1000);
         assert_eq!(dataset.n_queries(), 100);

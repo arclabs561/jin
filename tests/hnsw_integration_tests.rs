@@ -5,8 +5,8 @@
 //! Note: HNSWIndex uses internal indices (0, 1, 2, ...) based on insertion order,
 //! not the doc_id passed to add(). The index also uses cosine distance internally.
 
-use vicinity::hnsw::{HNSWIndex, HNSWParams};
 use std::collections::HashSet;
+use vicinity::hnsw::{HNSWIndex, HNSWParams};
 
 /// Generate random vectors for testing.
 fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
@@ -43,11 +43,11 @@ fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
     let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    
+
     if norm_a < 1e-10 || norm_b < 1e-10 {
         return 1.0;
     }
-    
+
     1.0 - dot / (norm_a * norm_b)
 }
 
@@ -165,7 +165,10 @@ fn test_hnsw_empty_index_errors() {
     let query = vec![0.0f32; dim];
     // Empty index not built should error
     let result = hnsw.search(&query, 10, DEFAULT_EF);
-    assert!(result.is_err(), "Empty unbuilt index should error on search");
+    assert!(
+        result.is_err(),
+        "Empty unbuilt index should error on search"
+    );
 }
 
 #[test]
@@ -201,7 +204,9 @@ fn test_hnsw_high_dimensional() {
     hnsw.build().expect("Failed to build");
 
     // Query with vector at index 50
-    let results = hnsw.search(&vectors[50], 10, DEFAULT_EF).expect("Search failed");
+    let results = hnsw
+        .search(&vectors[50], 10, DEFAULT_EF)
+        .expect("Search failed");
     assert!(!results.is_empty());
     assert_eq!(results[0].0, 50, "Should find internal index 50");
 }
@@ -281,7 +286,8 @@ fn test_hnsw_dimension_validation() {
 fn test_hnsw_query_dimension_mismatch() {
     let dim = 32;
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create");
-    hnsw.add(0, normalize(&vec![1.0; dim])).expect("Failed to add");
+    hnsw.add(0, normalize(&vec![1.0; dim]))
+        .expect("Failed to add");
     hnsw.build().expect("Failed to build");
 
     // Query with wrong dimension - should return error
@@ -322,14 +328,17 @@ fn test_hnsw_with_custom_params() {
 fn test_hnsw_repeated_builds_idempotent() {
     let dim = 16;
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create");
-    
-    hnsw.add(0, normalize(&vec![1.0; dim])).expect("Failed to add");
-    
+
+    hnsw.add(0, normalize(&vec![1.0; dim]))
+        .expect("Failed to add");
+
     // Build multiple times should be ok
     hnsw.build().expect("First build");
     hnsw.build().expect("Second build should be idempotent");
-    
-    let results = hnsw.search(&normalize(&vec![1.0; dim]), 10, DEFAULT_EF).expect("Search failed");
+
+    let results = hnsw
+        .search(&normalize(&vec![1.0; dim]), 10, DEFAULT_EF)
+        .expect("Search failed");
     assert_eq!(results.len(), 1);
 }
 
@@ -375,10 +384,11 @@ fn test_hnsw_ef_tradeoff() {
 fn test_hnsw_cannot_add_after_build() {
     let dim = 16;
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create");
-    
-    hnsw.add(0, normalize(&vec![1.0; dim])).expect("Failed to add");
+
+    hnsw.add(0, normalize(&vec![1.0; dim]))
+        .expect("Failed to add");
     hnsw.build().expect("Failed to build");
-    
+
     // Adding after build should fail
     let result = hnsw.add(1, normalize(&vec![2.0; dim]));
     assert!(result.is_err(), "Adding after build should fail");
@@ -388,9 +398,10 @@ fn test_hnsw_cannot_add_after_build() {
 fn test_hnsw_search_before_build_fails() {
     let dim = 16;
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create");
-    
-    hnsw.add(0, normalize(&vec![1.0; dim])).expect("Failed to add");
-    
+
+    hnsw.add(0, normalize(&vec![1.0; dim]))
+        .expect("Failed to add");
+
     // Search before build should fail
     let result = hnsw.search(&normalize(&vec![1.0; dim]), 10, DEFAULT_EF);
     assert!(result.is_err(), "Search before build should fail");
@@ -401,17 +412,23 @@ fn test_hnsw_cosine_similarity_property() {
     // Identical normalized vectors should have distance ~0
     let dim = 32;
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create");
-    
+
     let v = normalize(&vec![1.0; dim]);
     hnsw.add(0, v.clone()).expect("Failed to add");
     hnsw.add(1, v.clone()).expect("Failed to add"); // Same vector
     hnsw.build().expect("Failed to build");
-    
+
     let results = hnsw.search(&v, 10, DEFAULT_EF).expect("Search failed");
-    
+
     // Both should have distance ~0
-    assert!(results[0].1 < 0.01, "Distance to identical vector should be ~0");
-    assert!(results[1].1 < 0.01, "Distance to identical vector should be ~0");
+    assert!(
+        results[0].1 < 0.01,
+        "Distance to identical vector should be ~0"
+    );
+    assert!(
+        results[1].1 < 0.01,
+        "Distance to identical vector should be ~0"
+    );
 }
 
 #[test]
@@ -419,27 +436,30 @@ fn test_hnsw_orthogonal_vectors() {
     // Orthogonal vectors should have cosine distance ~1
     let dim = 4;
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create");
-    
+
     let v1 = vec![1.0, 0.0, 0.0, 0.0];
     let v2 = vec![0.0, 1.0, 0.0, 0.0];
-    
+
     hnsw.add(0, v1.clone()).expect("Failed to add");
     hnsw.add(1, v2.clone()).expect("Failed to add");
     hnsw.build().expect("Failed to build");
-    
+
     let results = hnsw.search(&v1, 10, DEFAULT_EF).expect("Search failed");
-    
+
     // v1 should find itself first with distance ~0
     assert_eq!(results[0].0, 0);
     assert!(results[0].1 < 0.01);
-    
+
     // v2 should be found with distance ~1 (orthogonal)
     assert_eq!(results[1].0, 1);
-    assert!((results[1].1 - 1.0).abs() < 0.01, "Orthogonal vector distance should be ~1");
+    assert!(
+        (results[1].1 - 1.0).abs() < 0.01,
+        "Orthogonal vector distance should be ~1"
+    );
 }
 
 /// Property: Recall should be monotonically non-decreasing with ef_search.
-/// 
+///
 /// This is a fundamental HNSW property: larger search effort (ef) explores
 /// more candidates, so recall should not decrease.
 #[test]
@@ -447,44 +467,46 @@ fn test_hnsw_recall_monotonic_with_ef() {
     let dim = 32;
     let n = 500;
     let k = 10;
-    
+
     let vectors: Vec<Vec<f32>> = random_vectors(n, dim, 42)
         .into_iter()
         .map(|v| normalize(&v))
         .collect();
-    
+
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
-    
+
     for (i, v) in vectors.iter().enumerate() {
         hnsw.add(i as u32, v.clone()).expect("Failed to add vector");
     }
     hnsw.build().expect("Failed to build index");
-    
+
     // Test with several queries
     let test_queries: Vec<Vec<f32>> = random_vectors(20, dim, 999)
         .into_iter()
         .map(|v| normalize(&v))
         .collect();
-    
+
     let ef_values = [10, 20, 50, 100, 200];
-    
+
     for query in &test_queries {
         let exact = exact_knn_cosine(&vectors, query, k);
-        
+
         let mut prev_recall = 0.0_f32;
-        
+
         for &ef in &ef_values {
             let results = hnsw.search(query, k, ef).expect("Search failed");
             let recall = recall_at_k(&exact, &results, k);
-            
+
             // Recall should not decrease as ef increases
             // Allow small tolerance for floating point and edge cases
             assert!(
                 recall >= prev_recall - 0.1,
                 "Recall decreased from {} to {} when ef increased to {}",
-                prev_recall, recall, ef
+                prev_recall,
+                recall,
+                ef
             );
-            
+
             prev_recall = recall;
         }
     }
@@ -495,36 +517,37 @@ fn test_hnsw_recall_monotonic_with_ef() {
 fn test_hnsw_search_returns_valid_indices() {
     let dim = 16;
     let n = 200;
-    
+
     let vectors: Vec<Vec<f32>> = random_vectors(n, dim, 123)
         .into_iter()
         .map(|v| normalize(&v))
         .collect();
-    
+
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
-    
+
     for (i, v) in vectors.iter().enumerate() {
         hnsw.add(i as u32, v.clone()).expect("Failed to add vector");
     }
     hnsw.build().expect("Failed to build index");
-    
+
     // Run many queries
     let test_queries: Vec<Vec<f32>> = random_vectors(50, dim, 456)
         .into_iter()
         .map(|v| normalize(&v))
         .collect();
-    
+
     for query in &test_queries {
         let results = hnsw.search(query, 20, DEFAULT_EF).expect("Search failed");
-        
+
         for (idx, dist) in &results {
             // Index must be valid
             assert!(
                 (*idx as usize) < n,
                 "Search returned invalid index {} (n={})",
-                idx, n
+                idx,
+                n
             );
-            
+
             // Distance must be non-negative (cosine distance is in [0, 2])
             assert!(
                 *dist >= 0.0 && *dist <= 2.0 + 1e-5,
@@ -540,26 +563,26 @@ fn test_hnsw_search_returns_valid_indices() {
 fn test_hnsw_deterministic_search() {
     let dim = 32;
     let n = 300;
-    
+
     let vectors: Vec<Vec<f32>> = random_vectors(n, dim, 789)
         .into_iter()
         .map(|v| normalize(&v))
         .collect();
-    
+
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
-    
+
     for (i, v) in vectors.iter().enumerate() {
         hnsw.add(i as u32, v.clone()).expect("Failed to add vector");
     }
     hnsw.build().expect("Failed to build index");
-    
+
     let query = normalize(&vec![1.0; dim]);
-    
+
     // Run the same query multiple times
     let results1 = hnsw.search(&query, 10, DEFAULT_EF).expect("Search failed");
     let results2 = hnsw.search(&query, 10, DEFAULT_EF).expect("Search failed");
     let results3 = hnsw.search(&query, 10, DEFAULT_EF).expect("Search failed");
-    
+
     // All results should be identical
     assert_eq!(results1, results2, "Search should be deterministic");
     assert_eq!(results2, results3, "Search should be deterministic");
@@ -571,30 +594,30 @@ fn test_hnsw_results_unique() {
     let dim = 32;
     let n = 400;
     let k = 50;
-    
+
     let vectors: Vec<Vec<f32>> = random_vectors(n, dim, 321)
         .into_iter()
         .map(|v| normalize(&v))
         .collect();
-    
+
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
-    
+
     for (i, v) in vectors.iter().enumerate() {
         hnsw.add(i as u32, v.clone()).expect("Failed to add vector");
     }
     hnsw.build().expect("Failed to build index");
-    
+
     let test_queries: Vec<Vec<f32>> = random_vectors(30, dim, 654)
         .into_iter()
         .map(|v| normalize(&v))
         .collect();
-    
+
     for query in &test_queries {
         let results = hnsw.search(query, k, 100).expect("Search failed");
-        
+
         let indices: Vec<u32> = results.iter().map(|(i, _)| *i).collect();
         let unique: HashSet<u32> = indices.iter().copied().collect();
-        
+
         assert_eq!(
             indices.len(),
             unique.len(),

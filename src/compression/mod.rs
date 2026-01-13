@@ -89,6 +89,10 @@ mod tests {
         let ratio = (ids.len() * 4) as f64 / compressed.len() as f64;
 
         // Should achieve compression
-        assert!(ratio > 1.5, "Expected compression ratio > 1.5, got {}", ratio);
+        assert!(
+            ratio > 1.5,
+            "Expected compression ratio > 1.5, got {}",
+            ratio
+        );
     }
 }

@@ -30,14 +30,11 @@ fn normalized_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
 // === Distance Functions ===
 
 fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y) * (x - y))
-        .sum()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
 }
 
 // === Simplified HNSW for Benchmarking ===
-// 
+//
 // This is a minimal HNSW implementation for benchmarking purposes.
 // The real implementation is in src/hnsw/ with more features.
 
@@ -51,9 +48,9 @@ struct SimpleHnsw {
     nodes: Vec<HnswNode>,
     entry_point: u32,
     max_level: usize,
-    m: usize,      // max neighbors per layer
+    m: usize, // max neighbors per layer
     ef_construction: usize,
-    ml: f64,       // level multiplier
+    ml: f64, // level multiplier
 }
 
 impl SimpleHnsw {
@@ -76,14 +73,14 @@ impl SimpleHnsw {
     fn insert(&mut self, vector: Vec<f32>, rng: &mut impl Rng) {
         let id = self.nodes.len() as u32;
         let level = self.random_level(rng);
-        
+
         // Ensure levels exist
         while level >= self.max_level {
             self.max_level += 1;
         }
-        
+
         let mut neighbors = vec![Vec::new(); level + 1];
-        
+
         if self.nodes.is_empty() {
             self.nodes.push(HnswNode { vector, neighbors });
             return;
@@ -99,9 +96,9 @@ impl SimpleHnsw {
         for l in (0..=level).rev() {
             let candidates = self.search_layer(&vector, current, self.ef_construction, l);
             let selected = self.select_neighbors(&vector, &candidates, self.m);
-            
+
             neighbors[l] = selected.clone();
-            
+
             // Add bidirectional links
             for &neighbor_id in &selected {
                 let neighbor = &mut self.nodes[neighbor_id as usize];
@@ -111,7 +108,7 @@ impl SimpleHnsw {
                     }
                 }
             }
-            
+
             if !candidates.is_empty() {
                 current = candidates[0].0;
             }
@@ -128,11 +125,11 @@ impl SimpleHnsw {
     fn search_layer_entry(&self, query: &[f32], entry: u32, level: usize) -> u32 {
         let mut current = entry;
         let mut current_dist = l2_squared(query, &self.nodes[current as usize].vector);
-        
+
         loop {
             let mut improved = false;
             let node = &self.nodes[current as usize];
-            
+
             if node.neighbors.len() > level {
                 for &neighbor in &node.neighbors[level] {
                     let dist = l2_squared(query, &self.nodes[neighbor as usize].vector);
@@ -143,44 +140,51 @@ impl SimpleHnsw {
                     }
                 }
             }
-            
+
             if !improved {
                 break;
             }
         }
-        
+
         current
     }
 
     fn search_layer(&self, query: &[f32], entry: u32, ef: usize, level: usize) -> Vec<(u32, f32)> {
         let mut visited = std::collections::HashSet::new();
-        let mut candidates: BinaryHeap<std::cmp::Reverse<(ordered_float::OrderedFloat<f32>, u32)>> = BinaryHeap::new();
+        let mut candidates: BinaryHeap<std::cmp::Reverse<(ordered_float::OrderedFloat<f32>, u32)>> =
+            BinaryHeap::new();
         let mut results: BinaryHeap<(ordered_float::OrderedFloat<f32>, u32)> = BinaryHeap::new();
-        
+
         let dist = l2_squared(query, &self.nodes[entry as usize].vector);
         visited.insert(entry);
-        candidates.push(std::cmp::Reverse((ordered_float::OrderedFloat(dist), entry)));
+        candidates.push(std::cmp::Reverse((
+            ordered_float::OrderedFloat(dist),
+            entry,
+        )));
         results.push((ordered_float::OrderedFloat(dist), entry));
-        
+
         while let Some(std::cmp::Reverse((_, current))) = candidates.pop() {
             let node = &self.nodes[current as usize];
-            
+
             // Get worst result distance for pruning
             let worst_dist = if results.len() >= ef {
                 results.peek().map(|(d, _)| d.0).unwrap_or(f32::INFINITY)
             } else {
                 f32::INFINITY
             };
-            
+
             if node.neighbors.len() > level {
                 for &neighbor in &node.neighbors[level] {
                     if visited.insert(neighbor) {
                         let dist = l2_squared(query, &self.nodes[neighbor as usize].vector);
-                        
+
                         if dist < worst_dist || results.len() < ef {
-                            candidates.push(std::cmp::Reverse((ordered_float::OrderedFloat(dist), neighbor)));
+                            candidates.push(std::cmp::Reverse((
+                                ordered_float::OrderedFloat(dist),
+                                neighbor,
+                            )));
                             results.push((ordered_float::OrderedFloat(dist), neighbor));
-                            
+
                             while results.len() > ef {
                                 results.pop();
                             }
@@ -189,7 +193,7 @@ impl SimpleHnsw {
                 }
             }
         }
-        
+
         results.into_iter().map(|(d, id)| (id, d.0)).collect()
     }
 
@@ -222,14 +226,14 @@ impl SimpleHnsw {
 
 fn bench_hnsw_construction(c: &mut Criterion) {
     let mut group = c.benchmark_group("hnsw_construction");
-    
+
     let dim = 128;
-    
+
     for n in [1000, 5000, 10000].iter() {
         group.throughput(Throughput::Elements(*n as u64));
-        
+
         let vectors = random_vectors(*n, dim, 42);
-        
+
         group.bench_with_input(BenchmarkId::from_parameter(n), n, |bench, _| {
             bench.iter(|| {
                 let mut hnsw = SimpleHnsw::new(16, 100);
@@ -241,30 +245,30 @@ fn bench_hnsw_construction(c: &mut Criterion) {
             });
         });
     }
-    
+
     group.finish();
 }
 
 fn bench_hnsw_search(c: &mut Criterion) {
     let mut group = c.benchmark_group("hnsw_search");
-    
+
     let dim = 128;
     let n_vectors = 10000;
     let n_queries = 100;
-    
+
     // Build index once
     let vectors = random_vectors(n_vectors, dim, 42);
     let queries = random_vectors(n_queries, dim, 123);
-    
+
     let mut hnsw = SimpleHnsw::new(16, 100);
     let mut rng = StdRng::seed_from_u64(42);
     for v in &vectors {
         hnsw.insert(v.clone(), &mut rng);
     }
-    
+
     for ef in [10, 50, 100, 200].iter() {
         group.throughput(Throughput::Elements(n_queries as u64));
-        
+
         group.bench_with_input(BenchmarkId::new("ef", ef), ef, |bench, &ef| {
             bench.iter(|| {
                 queries
@@ -274,30 +278,30 @@ fn bench_hnsw_search(c: &mut Criterion) {
             });
         });
     }
-    
+
     group.finish();
 }
 
 fn bench_hnsw_search_k(c: &mut Criterion) {
     let mut group = c.benchmark_group("hnsw_search_k");
-    
+
     let dim = 128;
     let n_vectors = 10000;
     let n_queries = 100;
-    
+
     // Build index once
     let vectors = random_vectors(n_vectors, dim, 42);
     let queries = random_vectors(n_queries, dim, 123);
-    
+
     let mut hnsw = SimpleHnsw::new(16, 100);
     let mut rng = StdRng::seed_from_u64(42);
     for v in &vectors {
         hnsw.insert(v.clone(), &mut rng);
     }
-    
+
     for k in [1, 10, 50, 100].iter() {
         group.throughput(Throughput::Elements(n_queries as u64));
-        
+
         group.bench_with_input(BenchmarkId::new("k", k), k, |bench, &k| {
             bench.iter(|| {
                 queries
@@ -307,7 +311,7 @@ fn bench_hnsw_search_k(c: &mut Criterion) {
             });
         });
     }
-    
+
     group.finish();
 }
 

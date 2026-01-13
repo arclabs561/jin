@@ -174,4 +174,3 @@ pub mod fusion {
         augmented[..original_dim].to_vec()
     }
 }
-

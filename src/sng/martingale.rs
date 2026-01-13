@@ -82,10 +82,8 @@ pub fn prune_candidates_martingale(
     }
 
     // Ensure we don't exceed theoretical maximum out-degree
-    let max_degree = crate::sng::optimization::estimate_max_degree(
-        vectors.len() / dimension,
-        truncation_r,
-    );
+    let max_degree =
+        crate::sng::optimization::estimate_max_degree(vectors.len() / dimension, truncation_r);
 
     if pruned.len() > max_degree {
         pruned.truncate(max_degree);

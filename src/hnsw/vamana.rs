@@ -356,16 +356,16 @@ where
             let d = distance_fn(query_id, nb);
             let cand = Candidate { dist: d, id: nb };
 
-        if working_set.len() < beam_width {
-            working_set.push(cand);
-            frontier.push(Reverse(cand));
-        } else if let Some(worst) = working_set.peek() {
-            if d < worst.dist {
-                working_set.pop();
+            if working_set.len() < beam_width {
                 working_set.push(cand);
                 frontier.push(Reverse(cand));
+            } else if let Some(worst) = working_set.peek() {
+                if d < worst.dist {
+                    working_set.pop();
+                    working_set.push(cand);
+                    frontier.push(Reverse(cand));
+                }
             }
-        }
         }
     }
 

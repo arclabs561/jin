@@ -294,52 +294,52 @@ impl SegmentFooter {
     pub fn read<R: std::io::Read>(reader: &mut R) -> super::error::PersistenceResult<Self> {
         let mut buf = vec![0u8; std::mem::size_of::<Self>()];
         reader.read_exact(&mut buf)?;
-        
+
         // Simple binary deserialization
         let mut cursor = std::io::Cursor::new(&buf);
         use std::io::Read;
-        
+
         let mut magic = [0u8; 4];
         cursor.read_exact(&mut magic)?;
-        
+
         let mut u32_buf = [0u8; 4];
         cursor.read_exact(&mut u32_buf)?;
         let format_version = u32::from_le_bytes(u32_buf);
-        
+
         let mut u64_buf = [0u8; 8];
         cursor.read_exact(&mut u64_buf)?;
         let header_offset = u64::from_le_bytes(u64_buf);
-        
+
         cursor.read_exact(&mut u64_buf)?;
         let vectors_offset = u64::from_le_bytes(u64_buf);
-        
+
         cursor.read_exact(&mut u64_buf)?;
         let graph_offset = u64::from_le_bytes(u64_buf);
-        
+
         cursor.read_exact(&mut u64_buf)?;
         let ids_offset = u64::from_le_bytes(u64_buf);
-        
+
         cursor.read_exact(&mut u64_buf)?;
         let term_dict_offset = u64::from_le_bytes(u64_buf);
-        
+
         cursor.read_exact(&mut u64_buf)?;
         let term_dict_len = u64::from_le_bytes(u64_buf);
-        
+
         cursor.read_exact(&mut u64_buf)?;
         let postings_offset = u64::from_le_bytes(u64_buf);
-        
+
         cursor.read_exact(&mut u64_buf)?;
         let postings_len = u64::from_le_bytes(u64_buf);
-        
+
         cursor.read_exact(&mut u32_buf)?;
         let doc_count = u32::from_le_bytes(u32_buf);
-        
+
         cursor.read_exact(&mut u32_buf)?;
         let max_doc_id = u32::from_le_bytes(u32_buf);
-        
+
         cursor.read_exact(&mut u32_buf)?;
         let checksum = u32::from_le_bytes(u32_buf);
-        
+
         Ok(Self {
             magic,
             format_version,
@@ -380,10 +380,10 @@ impl SegmentFooter {
 pub trait Persistable: Sized {
     /// Serialize to bytes.
     fn to_bytes(&self) -> crate::Result<Vec<u8>>;
-    
+
     /// Deserialize from bytes.
     fn from_bytes(bytes: &[u8]) -> crate::Result<Self>;
-    
+
     /// Estimated size in bytes.
     fn size_hint(&self) -> usize;
 }
@@ -392,10 +392,10 @@ pub trait Persistable: Sized {
 pub trait IndexPersistence: Sized {
     /// Save index to a directory.
     fn save(&self, path: &std::path::Path) -> crate::Result<()>;
-    
+
     /// Load index from a directory.
     fn load(path: &std::path::Path) -> crate::Result<Self>;
-    
+
     /// Check if an index exists at the path.
     fn exists(path: &std::path::Path) -> bool {
         path.join("manifest.json").exists()
@@ -429,7 +429,7 @@ mod tests {
 
         let json = serde_json::to_string(&header).unwrap();
         let parsed: SegmentHeader = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.segment_id, 1);
         assert_eq!(parsed.index_type, IndexType::Hnsw);
     }
@@ -451,7 +451,7 @@ mod tests {
 
         let json = serde_json::to_string_pretty(&manifest).unwrap();
         let parsed: IndexManifest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.version, FORMAT_VERSION);
         assert_eq!(parsed.segments.len(), 3);
     }

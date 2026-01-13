@@ -55,7 +55,11 @@ impl AnisotropicQuantizer {
     ///
     /// The input `residuals` should be pre-computed:
     /// residual[i] = vector[i] - partition_centroid[assignment[i]]
-    pub fn fit_residuals(&mut self, residuals: &[f32], num_vectors: usize) -> Result<(), RetrieveError> {
+    pub fn fit_residuals(
+        &mut self,
+        residuals: &[f32],
+        num_vectors: usize,
+    ) -> Result<(), RetrieveError> {
         if residuals.len() != num_vectors * self.dimension {
             return Err(RetrieveError::DimensionMismatch {
                 query_dim: self.dimension,
@@ -73,16 +77,17 @@ impl AnisotropicQuantizer {
             // Gather all subvectors for subspace m
             // TODO: In production, downsample if num_vectors is huge
             let mut subvectors: Vec<f32> = Vec::with_capacity(num_vectors * subvector_dim);
-            
+
             for i in 0..num_vectors {
                 let vec_start = i * self.dimension + start_dim;
                 subvectors.extend_from_slice(&residuals[vec_start..vec_start + subvector_dim]);
             }
 
             // Train K-Means on this subspace
-            let mut kmeans = crate::scann::partitioning::KMeans::new(subvector_dim, self.codebook_size)?;
+            let mut kmeans =
+                crate::scann::partitioning::KMeans::new(subvector_dim, self.codebook_size)?;
             kmeans.fit(&subvectors, num_vectors)?;
-            
+
             // Store centroids as codewords
             // centroids() returns &[Vec<f32>], one Vec per cluster
             let centers = kmeans.centroids();
@@ -101,11 +106,11 @@ impl AnisotropicQuantizer {
         for m in 0..self.num_codebooks {
             let start_dim = m * subvector_dim;
             let sub = &residual[start_dim..start_dim + subvector_dim];
-            
+
             // Find nearest codeword
             let mut best_idx = 0;
             let mut min_dist = f32::MAX;
-            
+
             for (k, codeword) in self.codebooks[m].iter().enumerate() {
                 let dist = squared_euclidean(sub, codeword);
                 if dist < min_dist {
@@ -129,7 +134,7 @@ impl AnisotropicQuantizer {
         for m in 0..self.num_codebooks {
             let start_dim = m * subvector_dim;
             let query_sub = &query[start_dim..start_dim + subvector_dim];
-            
+
             let mut sub_lut = Vec::with_capacity(self.codebook_size);
             for codeword in &self.codebooks[m] {
                 // For MIPS: store dot product
@@ -145,7 +150,5 @@ impl AnisotropicQuantizer {
 }
 
 fn squared_euclidean(a: &[f32], b: &[f32]) -> f32 {
-    a.iter().zip(b.iter())
-        .map(|(x, y)| (x - y) * (x - y))
-        .sum()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
 }

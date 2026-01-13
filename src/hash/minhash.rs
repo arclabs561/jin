@@ -48,20 +48,22 @@ impl MinHash {
     pub fn with_seed(num_hashes: usize, seed: u64) -> Self {
         let mut seeds = Vec::with_capacity(num_hashes);
         let mut rng_state = seed;
-        
+
         for _ in 0..num_hashes {
             // Simple LCG for seed generation
-            rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            rng_state = rng_state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             seeds.push(rng_state);
         }
-        
+
         Self { num_hashes, seeds }
     }
 
     /// Compute MinHash signature for a set of items.
     pub fn signature<T: Hash>(&self, items: &HashSet<T>) -> MinHashSignature {
         let mut mins = vec![u64::MAX; self.num_hashes];
-        
+
         for item in items {
             for (i, &seed) in self.seeds.iter().enumerate() {
                 let hash = self.hash_with_seed(item, seed);
@@ -70,7 +72,7 @@ impl MinHash {
                 }
             }
         }
-        
+
         MinHashSignature { values: mins }
     }
 
@@ -80,7 +82,7 @@ impl MinHash {
         items: I,
     ) -> MinHashSignature {
         let mut mins = vec![u64::MAX; self.num_hashes];
-        
+
         for item in items {
             for (i, &seed) in self.seeds.iter().enumerate() {
                 let hash = self.hash_with_seed(&item, seed);
@@ -89,7 +91,7 @@ impl MinHash {
                 }
             }
         }
-        
+
         MinHashSignature { values: mins }
     }
 
@@ -123,12 +125,14 @@ impl MinHashSignature {
         if self.values.len() != other.values.len() {
             return 0.0;
         }
-        
-        let matches = self.values.iter()
+
+        let matches = self
+            .values
+            .iter()
             .zip(other.values.iter())
             .filter(|(a, b)| a == b)
             .count();
-        
+
         matches as f64 / self.values.len() as f64
     }
 
@@ -143,7 +147,8 @@ impl MinHashSignature {
     ///
     /// Number of positions where hash values differ.
     pub fn hamming_distance(&self, other: &MinHashSignature) -> usize {
-        self.values.iter()
+        self.values
+            .iter()
             .zip(other.values.iter())
             .filter(|(a, b)| a != b)
             .count()
@@ -153,11 +158,13 @@ impl MinHashSignature {
     ///
     /// Takes element-wise minimum.
     pub fn merge(&self, other: &MinHashSignature) -> MinHashSignature {
-        let values = self.values.iter()
+        let values = self
+            .values
+            .iter()
             .zip(other.values.iter())
             .map(|(&a, &b)| a.min(b))
             .collect();
-        
+
         MinHashSignature { values }
     }
 
@@ -196,7 +203,9 @@ impl MinHashLSH {
         Self {
             bands,
             rows_per_band,
-            buckets: (0..bands).map(|_| std::collections::HashMap::new()).collect(),
+            buckets: (0..bands)
+                .map(|_| std::collections::HashMap::new())
+                .collect(),
             signatures: Vec::new(),
         }
     }
@@ -208,7 +217,7 @@ impl MinHashLSH {
         // Find bands/rows that give threshold closest to target
         let mut best_bands = 1;
         let mut best_error = f64::MAX;
-        
+
         for b in 1..=num_hashes {
             if num_hashes % b == 0 {
                 let r = num_hashes / b;
@@ -220,7 +229,7 @@ impl MinHashLSH {
                 }
             }
         }
-        
+
         let rows = num_hashes / best_bands;
         Self::new(best_bands, rows)
     }
@@ -228,7 +237,7 @@ impl MinHashLSH {
     /// Insert a signature into the index.
     pub fn insert(&mut self, signature: MinHashSignature) -> usize {
         let doc_id = self.signatures.len();
-        
+
         // Hash each band and insert into corresponding bucket
         for (band_idx, chunk) in signature.values.chunks(self.rows_per_band).enumerate() {
             if band_idx >= self.bands {
@@ -240,7 +249,7 @@ impl MinHashLSH {
                 .or_default()
                 .push(doc_id);
         }
-        
+
         self.signatures.push(signature);
         doc_id
     }
@@ -251,7 +260,7 @@ impl MinHashLSH {
     /// Candidates should be verified with exact Jaccard computation.
     pub fn query(&self, signature: &MinHashSignature) -> Vec<usize> {
         let mut candidates: HashSet<usize> = HashSet::new();
-        
+
         for (band_idx, chunk) in signature.values.chunks(self.rows_per_band).enumerate() {
             if band_idx >= self.bands {
                 break;
@@ -261,15 +270,12 @@ impl MinHashLSH {
                 candidates.extend(docs.iter().copied());
             }
         }
-        
+
         candidates.into_iter().collect()
     }
 
     /// Query and return results with estimated similarity.
-    pub fn query_with_similarity(
-        &self,
-        signature: &MinHashSignature,
-    ) -> Vec<(usize, f64)> {
+    pub fn query_with_similarity(&self, signature: &MinHashSignature) -> Vec<(usize, f64)> {
         let candidates = self.query(signature);
         let mut results: Vec<(usize, f64)> = candidates
             .into_iter()
@@ -278,7 +284,7 @@ impl MinHashLSH {
                 (id, sim)
             })
             .collect();
-        
+
         results.sort_by(|a, b| b.1.total_cmp(&a.1));
         results
     }
@@ -317,23 +323,23 @@ mod tests {
     fn test_minhash_identical_sets() {
         let mh = MinHash::new(128);
         let set: HashSet<&str> = ["a", "b", "c"].into_iter().collect();
-        
+
         let sig1 = mh.signature(&set);
         let sig2 = mh.signature(&set);
-        
+
         assert_eq!(sig1.jaccard(&sig2), 1.0);
     }
 
     #[test]
     fn test_minhash_disjoint_sets() {
         let mh = MinHash::new(128);
-        
+
         let set1: HashSet<&str> = ["a", "b", "c"].into_iter().collect();
         let set2: HashSet<&str> = ["x", "y", "z"].into_iter().collect();
-        
+
         let sig1 = mh.signature(&set1);
         let sig2 = mh.signature(&set2);
-        
+
         // Should be close to 0 but not exactly due to hash collisions
         assert!(sig1.jaccard(&sig2) < 0.2);
     }
@@ -341,14 +347,14 @@ mod tests {
     #[test]
     fn test_minhash_similar_sets() {
         let mh = MinHash::new(256);
-        
+
         let set1: HashSet<i32> = (0..100).collect();
         let set2: HashSet<i32> = (50..150).collect();
-        
+
         // Actual Jaccard = 50/150 = 0.333...
         let sig1 = mh.signature(&set1);
         let sig2 = mh.signature(&set2);
-        
+
         let estimated = sig1.jaccard(&sig2);
         assert!((estimated - 0.333).abs() < 0.1);
     }
@@ -357,23 +363,23 @@ mod tests {
     fn test_minhash_lsh() {
         let mh = MinHash::new(100);
         let mut lsh = MinHashLSH::new(20, 5);
-        
+
         // Insert some documents
         let doc1: HashSet<&str> = ["the", "quick", "brown", "fox"].into_iter().collect();
         let doc2: HashSet<&str> = ["the", "quick", "brown", "dog"].into_iter().collect();
         let doc3: HashSet<&str> = ["hello", "world", "foo", "bar"].into_iter().collect();
-        
+
         let sig1 = mh.signature(&doc1);
         let sig2 = mh.signature(&doc2);
         let sig3 = mh.signature(&doc3);
-        
+
         lsh.insert(sig1);
         lsh.insert(sig2);
         lsh.insert(sig3.clone());
-        
+
         // Query with doc2's signature should find doc1 as similar
         let results = lsh.query_with_similarity(&mh.signature(&doc2));
-        
+
         assert!(!results.is_empty());
         // Doc1 and doc2 are similar (0, 1 are their IDs)
     }
@@ -381,16 +387,16 @@ mod tests {
     #[test]
     fn test_signature_merge() {
         let mh = MinHash::new(64);
-        
+
         let set1: HashSet<&str> = ["a", "b"].into_iter().collect();
         let set2: HashSet<&str> = ["c", "d"].into_iter().collect();
         let union: HashSet<&str> = ["a", "b", "c", "d"].into_iter().collect();
-        
+
         let sig1 = mh.signature(&set1);
         let sig2 = mh.signature(&set2);
         let sig_union = mh.signature(&union);
         let sig_merged = sig1.merge(&sig2);
-        
+
         // Merged signature should equal union signature
         assert_eq!(sig_merged, sig_union);
     }

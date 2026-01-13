@@ -67,7 +67,12 @@ impl SimpleHnsw {
                 let neighbor_vec = &self.vectors[neighbor_id as usize];
                 let mut with_dist: Vec<(u32, f32)> = self.neighbors[neighbor_id as usize]
                     .iter()
-                    .map(|&n| (n, l2_distance_squared(neighbor_vec, &self.vectors[n as usize])))
+                    .map(|&n| {
+                        (
+                            n,
+                            l2_distance_squared(neighbor_vec, &self.vectors[n as usize]),
+                        )
+                    })
                     .collect();
                 with_dist.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
                 self.neighbors[neighbor_id as usize] =

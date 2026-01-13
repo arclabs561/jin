@@ -58,10 +58,10 @@ impl SimHash {
     /// Features are (item, weight) pairs. Higher weight = more influence.
     pub fn fingerprint<T: Hash>(&self, features: &[(T, f64)]) -> SimHashFingerprint {
         let mut v = vec![0.0f64; self.bits];
-        
+
         for (feature, weight) in features {
             let hash = self.hash_feature(feature);
-            
+
             for i in 0..self.bits {
                 if (hash >> i) & 1 == 1 {
                     v[i] += weight;
@@ -70,7 +70,7 @@ impl SimHash {
                 }
             }
         }
-        
+
         // Convert to binary fingerprint
         let mut fingerprint = 0u128;
         for i in 0..self.bits {
@@ -78,7 +78,7 @@ impl SimHash {
                 fingerprint |= 1u128 << i;
             }
         }
-        
+
         SimHashFingerprint {
             value: fingerprint,
             bits: self.bits,
@@ -98,18 +98,18 @@ impl SimHash {
     pub fn fingerprint_text(&self, text: &str, ngram_size: usize) -> SimHashFingerprint {
         let chars: Vec<char> = text.chars().collect();
         let mut features: Vec<(String, f64)> = Vec::new();
-        
+
         // Generate n-grams
         for window in chars.windows(ngram_size) {
             let ngram: String = window.iter().collect();
             features.push((ngram, 1.0));
         }
-        
+
         // Also add individual words
         for word in text.split_whitespace() {
             features.push((word.to_lowercase(), 2.0)); // Higher weight for words
         }
-        
+
         self.fingerprint(&features)
     }
 
@@ -118,12 +118,12 @@ impl SimHash {
         let mut hasher = DefaultHasher::new();
         feature.hash(&mut hasher);
         let h1 = hasher.finish();
-        
+
         // Use a second hash for bits beyond 64
         let mut hasher2 = DefaultHasher::new();
         h1.hash(&mut hasher2);
         let h2 = hasher2.finish();
-        
+
         (h1 as u128) | ((h2 as u128) << 64)
     }
 
@@ -210,11 +210,11 @@ impl SimHashLSH {
     pub fn new(num_tables: usize, bits_per_table: usize, total_bits: usize) -> Self {
         let mut masks = Vec::with_capacity(num_tables);
         let mut rng_state = 12345u64;
-        
+
         for _ in 0..num_tables {
             let mut bit_indices = Vec::with_capacity(bits_per_table);
             let mut mask = 0u128;
-            
+
             // Select random bits for this table
             while bit_indices.len() < bits_per_table {
                 rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1);
@@ -224,15 +224,17 @@ impl SimHashLSH {
                     mask |= 1u128 << bit;
                 }
             }
-            
+
             bit_indices.sort_unstable();
             masks.push((bit_indices, mask));
         }
-        
+
         Self {
             num_tables,
             bits_per_table,
-            tables: (0..num_tables).map(|_| std::collections::HashMap::new()).collect(),
+            tables: (0..num_tables)
+                .map(|_| std::collections::HashMap::new())
+                .collect(),
             masks,
             fingerprints: Vec::new(),
         }
@@ -241,15 +243,12 @@ impl SimHashLSH {
     /// Insert a fingerprint into the index.
     pub fn insert(&mut self, fingerprint: SimHashFingerprint) -> usize {
         let doc_id = self.fingerprints.len();
-        
+
         for (table_idx, (bit_indices, _)) in self.masks.iter().enumerate() {
             let key = self.extract_bits(&fingerprint, bit_indices);
-            self.tables[table_idx]
-                .entry(key)
-                .or_default()
-                .push(doc_id);
+            self.tables[table_idx].entry(key).or_default().push(doc_id);
         }
-        
+
         self.fingerprints.push(fingerprint);
         doc_id
     }
@@ -257,22 +256,19 @@ impl SimHashLSH {
     /// Query for similar fingerprints.
     pub fn query(&self, fingerprint: &SimHashFingerprint) -> Vec<usize> {
         let mut candidates = std::collections::HashSet::new();
-        
+
         for (table_idx, (bit_indices, _)) in self.masks.iter().enumerate() {
             let key = self.extract_bits(fingerprint, bit_indices);
             if let Some(docs) = self.tables[table_idx].get(&key) {
                 candidates.extend(docs.iter().copied());
             }
         }
-        
+
         candidates.into_iter().collect()
     }
 
     /// Query and return results with Hamming distance.
-    pub fn query_with_distance(
-        &self,
-        fingerprint: &SimHashFingerprint,
-    ) -> Vec<(usize, usize)> {
+    pub fn query_with_distance(&self, fingerprint: &SimHashFingerprint) -> Vec<(usize, usize)> {
         let candidates = self.query(fingerprint);
         let mut results: Vec<(usize, usize)> = candidates
             .into_iter()
@@ -281,7 +277,7 @@ impl SimHashLSH {
                 (id, dist)
             })
             .collect();
-        
+
         results.sort_by_key(|(_, d)| *d);
         results
     }
@@ -317,7 +313,7 @@ mod tests {
         let sh = SimHash::new_64();
         let fp1 = sh.fingerprint_text("hello world", 3);
         let fp2 = sh.fingerprint_text("hello world", 3);
-        
+
         assert_eq!(fp1.hamming_distance(&fp2), 0);
     }
 
@@ -326,7 +322,7 @@ mod tests {
         let sh = SimHash::new_64();
         let fp1 = sh.fingerprint_text("the quick brown fox jumps", 3);
         let fp2 = sh.fingerprint_text("the quick brown dog jumps", 3);
-        
+
         let distance = fp1.hamming_distance(&fp2);
         // Similar texts should have small Hamming distance
         assert!(distance < 20);
@@ -337,7 +333,7 @@ mod tests {
         let sh = SimHash::new_64();
         let fp1 = sh.fingerprint_text("the quick brown fox", 3);
         let fp2 = sh.fingerprint_text("completely different text here", 3);
-        
+
         let distance = fp1.hamming_distance(&fp2);
         // Different texts should have larger Hamming distance
         // (close to 32 for random 64-bit fingerprints)
@@ -348,19 +344,19 @@ mod tests {
     fn test_simhash_lsh() {
         let sh = SimHash::new_64();
         let mut lsh = SimHashLSH::new(10, 8, 64);
-        
+
         let fp1 = sh.fingerprint_text("document about machine learning", 3);
         let fp2 = sh.fingerprint_text("document about deep learning", 3);
         let fp3 = sh.fingerprint_text("recipe for chocolate cake", 3);
-        
+
         lsh.insert(fp1);
         lsh.insert(fp2);
         lsh.insert(fp3);
-        
+
         // Query with similar document
         let query = sh.fingerprint_text("document about neural networks", 3);
         let results = lsh.query_with_distance(&query);
-        
+
         // Should find candidates
         assert!(!results.is_empty());
     }
@@ -370,7 +366,7 @@ mod tests {
         let sh = SimHash::new_64();
         let fp1 = sh.fingerprint_text("hello world", 3);
         let fp2 = sh.fingerprint_text("hello world", 3);
-        
+
         assert!((fp1.estimated_cosine(&fp2) - 1.0).abs() < 0.001);
     }
 }

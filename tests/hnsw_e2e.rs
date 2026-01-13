@@ -96,8 +96,8 @@ fn test_hnsw_achieves_reasonable_recall() {
     let k = 10;
 
     // Create clustered dataset (easier for ANN than uniform random)
-    let database = create_clustered_dataset(50, 20, dim, 42);  // 1000 vectors
-    let queries = create_clustered_dataset(2, 10, dim, 123);   // 20 queries
+    let database = create_clustered_dataset(50, 20, dim, 42); // 1000 vectors
+    let queries = create_clustered_dataset(2, 10, dim, 123); // 20 queries
 
     // Build HNSW index with higher params for better graph quality
     let params = HNSWParams {
@@ -110,7 +110,9 @@ fn test_hnsw_achieves_reasonable_recall() {
     let mut index = HNSWIndex::with_params(dim, params).expect("Failed to create index");
 
     for (i, vec) in database.iter().enumerate() {
-        index.add(i as u32, vec.clone()).expect("Failed to add vector");
+        index
+            .add(i as u32, vec.clone())
+            .expect("Failed to add vector");
     }
     index.build().expect("Failed to build index");
 
@@ -135,11 +137,7 @@ fn test_hnsw_achieves_reasonable_recall() {
         mean_recall * 100.0
     );
 
-    eprintln!(
-        "HNSW recall@{} with ef=100: {:.1}%",
-        k,
-        mean_recall * 100.0
-    );
+    eprintln!("HNSW recall@{} with ef=100: {:.1}%", k, mean_recall * 100.0);
 }
 
 #[test]
@@ -149,8 +147,8 @@ fn test_hnsw_recall_increases_with_ef() {
     let dim = 32;
     let k = 10;
 
-    let database = create_clustered_dataset(50, 20, dim, 42);  // 1000 vectors
-    let queries = create_clustered_dataset(2, 5, dim, 999);    // 10 queries
+    let database = create_clustered_dataset(50, 20, dim, 42); // 1000 vectors
+    let queries = create_clustered_dataset(2, 5, dim, 999); // 10 queries
 
     // Use higher params for better graph quality
     let params = HNSWParams {
@@ -163,7 +161,9 @@ fn test_hnsw_recall_increases_with_ef() {
     let mut index = HNSWIndex::with_params(dim, params).expect("Failed to create index");
 
     for (i, vec) in database.iter().enumerate() {
-        index.add(i as u32, vec.clone()).expect("Failed to add vector");
+        index
+            .add(i as u32, vec.clone())
+            .expect("Failed to add vector");
     }
     index.build().expect("Failed to build index");
 
@@ -215,7 +215,9 @@ fn test_hnsw_search_returns_sorted_results() {
 
     let mut index = HNSWIndex::new(dim, 8, 8).expect("Failed to create index");
     for (i, vec) in database.iter().enumerate() {
-        index.add(i as u32, vec.clone()).expect("Failed to add vector");
+        index
+            .add(i as u32, vec.clone())
+            .expect("Failed to add vector");
     }
     index.build().expect("Failed to build index");
 
@@ -253,13 +255,15 @@ fn test_hnsw_handles_single_vector() {
 fn test_self_retrieval() {
     let dim = 32;
     let database = create_clustered_dataset(10, 10, dim, 42); // 100 vectors
-    
+
     let mut index = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
     for (i, vec) in database.iter().enumerate() {
-        index.add(i as u32, vec.clone()).expect("Failed to add vector");
+        index
+            .add(i as u32, vec.clone())
+            .expect("Failed to add vector");
     }
     index.build().expect("Failed to build index");
-    
+
     // Search for each vector in the database - it should find itself
     let mut self_found = 0;
     for (i, query) in database.iter().enumerate() {
@@ -268,7 +272,7 @@ fn test_self_retrieval() {
             self_found += 1;
         }
     }
-    
+
     // Note: Current HNSW has issues - only ~60% self-retrieval.
     // A well-functioning HNSW should achieve 95%+.
     // TODO: Investigate why self-retrieval is so low
@@ -286,11 +290,11 @@ fn test_scaling_recall() {
     let dim = 32;
     let k = 10;
     let ef = 100;
-    
+
     for n in [100, 500, 1000, 2000] {
         let database = create_clustered_dataset(n / 20, 20, dim, 42);
         let queries = create_clustered_dataset(2, 5, dim, 999);
-        
+
         let params = HNSWParams {
             m: 16,
             m_max: 16,
@@ -299,17 +303,19 @@ fn test_scaling_recall() {
             ..Default::default()
         };
         let mut index = HNSWIndex::with_params(dim, params).expect("Failed to create index");
-        
+
         for (i, vec) in database.iter().enumerate() {
-            index.add(i as u32, vec.clone()).expect("Failed to add vector");
+            index
+                .add(i as u32, vec.clone())
+                .expect("Failed to add vector");
         }
         index.build().expect("Failed to build index");
-        
+
         let ground_truths: Vec<Vec<u32>> = queries
             .iter()
             .map(|q| compute_ground_truth(q, &database, k))
             .collect();
-        
+
         let mut total_recall = 0.0;
         for (query, gt) in queries.iter().zip(&ground_truths) {
             let results = index.search(query, k, ef).expect("Search failed");
@@ -324,43 +330,53 @@ fn test_scaling_recall() {
 #[test]
 fn test_compare_neighbor_selection() {
     use vicinity::hnsw::NeighborhoodDiversification;
-    
+
     let dim = 32;
     let k = 10;
     let ef = 100;
     let n = 1000;
-    
+
     let database = create_clustered_dataset(50, 20, dim, 42);
     let queries = create_clustered_dataset(2, 5, dim, 999);
-    
+
     let ground_truths: Vec<Vec<u32>> = queries
         .iter()
         .map(|q| compute_ground_truth(q, &database, k))
         .collect();
-    
+
     // Test different diversification strategies
     let strategies = [
         ("RND", NeighborhoodDiversification::RelativeNeighborhood),
-        ("MOND_60", NeighborhoodDiversification::MaximumOriented { min_angle_degrees: 60.0 }),
-        ("RRND_1.3", NeighborhoodDiversification::RelaxedRelative { alpha: 1.3 }),
+        (
+            "MOND_60",
+            NeighborhoodDiversification::MaximumOriented {
+                min_angle_degrees: 60.0,
+            },
+        ),
+        (
+            "RRND_1.3",
+            NeighborhoodDiversification::RelaxedRelative { alpha: 1.3 },
+        ),
     ];
-    
+
     for (name, strategy) in strategies {
         let params = HNSWParams {
             m: 16,
-            m_max: 32,  // More connections in base layer
-            ef_construction: 400,  // Higher ef_construction
+            m_max: 32,            // More connections in base layer
+            ef_construction: 400, // Higher ef_construction
             ef_search: ef,
             neighborhood_diversification: strategy,
             ..Default::default()
         };
         let mut index = HNSWIndex::with_params(dim, params).expect("Failed to create index");
-        
+
         for (i, vec) in database.iter().enumerate() {
-            index.add(i as u32, vec.clone()).expect("Failed to add vector");
+            index
+                .add(i as u32, vec.clone())
+                .expect("Failed to add vector");
         }
         index.build().expect("Failed to build index");
-        
+
         let mut total_recall = 0.0;
         for (query, gt) in queries.iter().zip(&ground_truths) {
             let results = index.search(query, k, ef).expect("Search failed");
@@ -378,13 +394,13 @@ fn test_compare_neighbor_selection() {
 fn test_uniform_random_data() {
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
-    
+
     let dim = 32;
     let n = 500;
     let k = 10;
-    
+
     let mut rng = StdRng::seed_from_u64(12345);
-    
+
     // Uniform random normalized vectors (worst case for ANN)
     let database: Vec<Vec<f32>> = (0..n)
         .map(|_| {
@@ -392,14 +408,14 @@ fn test_uniform_random_data() {
             normalize(&v)
         })
         .collect();
-    
+
     let queries: Vec<Vec<f32>> = (0..10)
         .map(|_| {
             let v: Vec<f32> = (0..dim).map(|_| rng.random::<f32>() * 2.0 - 1.0).collect();
             normalize(&v)
         })
         .collect();
-    
+
     let params = HNSWParams {
         m: 32,
         m_max: 64,
@@ -408,17 +424,19 @@ fn test_uniform_random_data() {
         ..Default::default()
     };
     let mut index = HNSWIndex::with_params(dim, params).expect("Failed to create index");
-    
+
     for (i, vec) in database.iter().enumerate() {
-        index.add(i as u32, vec.clone()).expect("Failed to add vector");
+        index
+            .add(i as u32, vec.clone())
+            .expect("Failed to add vector");
     }
     index.build().expect("Failed to build index");
-    
+
     let ground_truths: Vec<Vec<u32>> = queries
         .iter()
         .map(|q| compute_ground_truth(q, &database, k))
         .collect();
-    
+
     let mut total_recall = 0.0;
     for (query, gt) in queries.iter().zip(&ground_truths) {
         let results = index.search(query, k, 200).expect("Search failed");
@@ -426,7 +444,7 @@ fn test_uniform_random_data() {
         total_recall += recall_at_k(gt, &retrieved, k);
     }
     let mean_recall = total_recall / queries.len() as f32;
-    
+
     // Uniform data is harder - expect lower recall than clustered
     // But still should achieve something (random baseline is k/n = 2%)
     assert!(
@@ -434,7 +452,7 @@ fn test_uniform_random_data() {
         "Recall on uniform data too low: {:.1}% (expected >= 20%)",
         mean_recall * 100.0
     );
-    
+
     eprintln!("Uniform random recall@{}: {:.1}%", k, mean_recall * 100.0);
 }
 
@@ -444,25 +462,29 @@ fn test_uniform_random_data() {
 fn test_returned_distances_correct() {
     let dim = 16;
     let database = create_clustered_dataset(5, 20, dim, 42); // 100 vectors
-    
+
     let mut index = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
     for (i, vec) in database.iter().enumerate() {
-        index.add(i as u32, vec.clone()).expect("Failed to add vector");
+        index
+            .add(i as u32, vec.clone())
+            .expect("Failed to add vector");
     }
     index.build().expect("Failed to build index");
-    
+
     let query = &database[0];
     let results = index.search(query, 10, 50).expect("Search failed");
-    
+
     // Verify each returned distance matches our computation
     for (id, returned_dist) in &results {
         let vec = &database[*id as usize];
         let expected_dist = cosine_distance(query, vec);
-        
+
         assert!(
             (returned_dist - expected_dist).abs() < 1e-5,
             "Distance mismatch for id {}: returned {}, expected {}",
-            id, returned_dist, expected_dist
+            id,
+            returned_dist,
+            expected_dist
         );
     }
 }
@@ -471,15 +493,15 @@ fn test_returned_distances_correct() {
 fn test_high_ef_search() {
     let dim = 32;
     let k = 10;
-    
+
     let database = create_clustered_dataset(50, 20, dim, 42);
     let queries = create_clustered_dataset(2, 5, dim, 999);
-    
+
     let ground_truths: Vec<Vec<u32>> = queries
         .iter()
         .map(|q| compute_ground_truth(q, &database, k))
         .collect();
-    
+
     let params = HNSWParams {
         m: 32,
         m_max: 64,
@@ -488,12 +510,14 @@ fn test_high_ef_search() {
         ..Default::default()
     };
     let mut index = HNSWIndex::with_params(dim, params).expect("Failed to create index");
-    
+
     for (i, vec) in database.iter().enumerate() {
-        index.add(i as u32, vec.clone()).expect("Failed to add vector");
+        index
+            .add(i as u32, vec.clone())
+            .expect("Failed to add vector");
     }
     index.build().expect("Failed to build index");
-    
+
     for ef in [50, 100, 200, 400, 800] {
         let mut total_recall = 0.0;
         for (query, gt) in queries.iter().zip(&ground_truths) {
@@ -518,7 +542,7 @@ use vicinity::streaming::{IndexOps, StreamingCoordinator};
 fn test_streaming_inplace_insert_search_delete() {
     let dim = 8;
     let k = 5;
-    
+
     // Create normalized test vectors
     let vectors: Vec<Vec<f32>> = (0..20)
         .map(|i| {
@@ -526,62 +550,70 @@ fn test_streaming_inplace_insert_search_delete() {
             normalize(&v)
         })
         .collect();
-    
+
     // Create MappedInPlaceIndex with external ID tracking
     let mut index = MappedInPlaceIndex::new(dim, InPlaceConfig::default());
-    
+
     // Insert vectors via IndexOps trait
     for (i, v) in vectors.iter().enumerate() {
         index.insert(i as u32, v.clone()).expect("Insert failed");
     }
-    
+
     // Search - should find inserted vectors
     let query = &vectors[0];
     let results = index.search(query, k).expect("Search failed");
-    
+
     // Verify we get results back
     assert!(!results.is_empty(), "Should find vectors after insert");
-    
+
     // The closest result should be the query vector itself (id=0)
     let ids: Vec<u32> = results.iter().map(|(id, _)| *id).collect();
     assert!(ids.contains(&0), "Query vector should be in top-k results");
-    
+
     // Delete the first vector
     index.delete(0).expect("Delete failed");
-    
+
     // Search again - should NOT find deleted vector
     let results_after_delete = index.search(query, k).expect("Search failed");
     let ids_after: Vec<u32> = results_after_delete.iter().map(|(id, _)| *id).collect();
-    assert!(!ids_after.contains(&0), "Deleted vector should not appear in results");
+    assert!(
+        !ids_after.contains(&0),
+        "Deleted vector should not appear in results"
+    );
 }
 
 /// End-to-end test: StreamingCoordinator wrapping InPlaceIndex
 #[test]
 fn test_streaming_coordinator_with_inplace() {
     let dim = 8;
-    
+
     let vectors: Vec<Vec<f32>> = (0..50)
         .map(|i| {
             let v: Vec<f32> = (0..dim).map(|j| ((i * 11 + j) % 17) as f32).collect();
             normalize(&v)
         })
         .collect();
-    
+
     // StreamingCoordinator wraps any IndexOps implementation
     let inner = InPlaceIndex::new(dim, InPlaceConfig::default());
     let mut coordinator = StreamingCoordinator::new(inner);
-    
+
     // Batch inserts through coordinator
     for (i, v) in vectors.iter().enumerate() {
-        coordinator.insert(i as u32, v.clone()).expect("Insert failed");
+        coordinator
+            .insert(i as u32, v.clone())
+            .expect("Insert failed");
     }
-    
+
     // Search through coordinator
     let query = &vectors[25];
     let results = coordinator.search(query, 10).expect("Search failed");
-    
-    assert!(!results.is_empty(), "Should find vectors through coordinator");
-    
+
+    assert!(
+        !results.is_empty(),
+        "Should find vectors through coordinator"
+    );
+
     // Note: With raw InPlaceIndex, external IDs are ignored (it generates its own)
     // The test verifies the pipeline works, not ID preservation
     // For ID preservation, use MappedInPlaceIndex
@@ -594,52 +626,68 @@ fn test_streaming_recall_after_updates() {
     let n_initial = 100;
     let n_added = 50;
     let k = 10;
-    
+
     // Create two batches of vectors
     let initial: Vec<Vec<f32>> = (0..n_initial)
-        .map(|i| normalize(&(0..dim).map(|j| ((i * 7 + j) % 19) as f32).collect::<Vec<_>>()))
+        .map(|i| {
+            normalize(
+                &(0..dim)
+                    .map(|j| ((i * 7 + j) % 19) as f32)
+                    .collect::<Vec<_>>(),
+            )
+        })
         .collect();
-    
+
     let added: Vec<Vec<f32>> = (0..n_added)
-        .map(|i| normalize(&(0..dim).map(|j| ((i * 13 + j + 100) % 23) as f32).collect::<Vec<_>>()))
+        .map(|i| {
+            normalize(
+                &(0..dim)
+                    .map(|j| ((i * 13 + j + 100) % 23) as f32)
+                    .collect::<Vec<_>>(),
+            )
+        })
         .collect();
-    
+
     let mut index = MappedInPlaceIndex::new(dim, InPlaceConfig::default());
-    
+
     // Insert initial batch
     for (i, v) in initial.iter().enumerate() {
         index.insert(i as u32, v.clone()).unwrap();
     }
-    
+
     // Add more vectors (simulating streaming updates)
     for (i, v) in added.iter().enumerate() {
         index.insert((n_initial + i) as u32, v.clone()).unwrap();
     }
-    
+
     // Combine all vectors for ground truth computation
     let all_vectors: Vec<Vec<f32>> = initial.iter().chain(added.iter()).cloned().collect();
-    
+
     // Test recall on a few queries
     let mut total_recall = 0.0;
     let n_queries = 10;
-    
+
     for query_idx in 0..n_queries {
         let query = &all_vectors[query_idx * 10];
-        
+
         // Compute ground truth
         let gt = compute_ground_truth(query, &all_vectors, k);
-        
+
         // Search via index
         let results = index.search(query, k).unwrap();
         let retrieved: Vec<u32> = results.iter().map(|(id, _)| *id).collect();
-        
+
         let recall = recall_at_k(&gt, &retrieved, k);
         total_recall += recall;
     }
-    
+
     let mean_recall = total_recall / n_queries as f32;
     eprintln!("Streaming HNSW recall@{}: {:.1}%", k, mean_recall * 100.0);
-    
+
     // InPlaceIndex should achieve reasonable recall (>50%)
-    assert!(mean_recall > 0.5, "Streaming HNSW recall should be >50%, got {:.1}%", mean_recall * 100.0);
+    assert!(
+        mean_recall > 0.5,
+        "Streaming HNSW recall should be >50%, got {:.1}%",
+        mean_recall * 100.0
+    );
 }

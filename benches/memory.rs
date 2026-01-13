@@ -67,7 +67,10 @@ fn bench_memory_vs_size(c: &mut Criterion) {
 
     // Print summary
     eprintln!("\n=== HNSW Memory (dim={}, m={}) ===", dimension, m);
-    eprintln!("{:>12} {:>12} {:>12} {:>12}", "n_vectors", "raw_MB", "total_MB", "bytes/vec");
+    eprintln!(
+        "{:>12} {:>12} {:>12} {:>12}",
+        "n_vectors", "raw_MB", "total_MB", "bytes/vec"
+    );
     for n in [1_000usize, 10_000, 100_000, 1_000_000] {
         let (raw, total, bpv) = hnsw_memory(n, dimension, m);
         eprintln!(
@@ -99,7 +102,10 @@ fn bench_memory_vs_dimension(c: &mut Criterion) {
 
     // Print summary
     eprintln!("\n=== HNSW Memory (n={}, m={}) ===", n_vectors, m);
-    eprintln!("{:>8} {:>12} {:>12} {:>12}", "dim", "raw_MB", "total_MB", "bytes/vec");
+    eprintln!(
+        "{:>8} {:>12} {:>12} {:>12}",
+        "dim", "raw_MB", "total_MB", "bytes/vec"
+    );
     for dim in [32, 64, 128, 256, 512, 768, 1536] {
         let (raw, total, bpv) = hnsw_memory(n_vectors, dim, m);
         eprintln!(
@@ -127,14 +133,22 @@ fn bench_ivfpq_compression(c: &mut Criterion) {
             continue;
         }
 
-        group.bench_with_input(BenchmarkId::new("subquantizers", n_sq), &n_sq, |b, &n_sq| {
-            b.iter(|| ivf_pq_memory(n_vectors, dimension, n_clusters, n_sq))
-        });
+        group.bench_with_input(
+            BenchmarkId::new("subquantizers", n_sq),
+            &n_sq,
+            |b, &n_sq| b.iter(|| ivf_pq_memory(n_vectors, dimension, n_clusters, n_sq)),
+        );
     }
 
     // Print summary
-    eprintln!("\n=== IVF-PQ Memory (n={}, dim={}, clusters={}) ===", n_vectors, dimension, n_clusters);
-    eprintln!("{:>8} {:>12} {:>12} {:>12} {:>12}", "n_sq", "raw_MB", "total_MB", "bytes/vec", "compress");
+    eprintln!(
+        "\n=== IVF-PQ Memory (n={}, dim={}, clusters={}) ===",
+        n_vectors, dimension, n_clusters
+    );
+    eprintln!(
+        "{:>8} {:>12} {:>12} {:>12} {:>12}",
+        "n_sq", "raw_MB", "total_MB", "bytes/vec", "compress"
+    );
     for n_sq in [8, 16, 32, 64] {
         if dimension % n_sq != 0 {
             continue;
@@ -173,10 +187,23 @@ fn bench_memory_comparison(c: &mut Criterion) {
     let (ivfpq_raw, ivfpq_total, ivfpq_bpv, ivfpq_compress) =
         ivf_pq_memory(n_vectors, dimension, 1024, 16);
 
-    eprintln!("\n=== Memory Comparison (n={}, dim={}) ===", n_vectors, dimension);
+    eprintln!(
+        "\n=== Memory Comparison (n={}, dim={}) ===",
+        n_vectors, dimension
+    );
     eprintln!("{:>12} {:>12} {:>12}", "Index", "total_MB", "bytes/vec");
-    eprintln!("{:>12} {:>12.2} {:>12.1}", "HNSW", hnsw_total as f64 / 1e6, hnsw_bpv);
-    eprintln!("{:>12} {:>12.2} {:>12.1}", "IVF-PQ", ivfpq_total as f64 / 1e6, ivfpq_bpv);
+    eprintln!(
+        "{:>12} {:>12.2} {:>12.1}",
+        "HNSW",
+        hnsw_total as f64 / 1e6,
+        hnsw_bpv
+    );
+    eprintln!(
+        "{:>12} {:>12.2} {:>12.1}",
+        "IVF-PQ",
+        ivfpq_total as f64 / 1e6,
+        ivfpq_bpv
+    );
     eprintln!(
         "IVF-PQ achieves {:.1}x memory reduction vs raw vectors",
         ivfpq_compress

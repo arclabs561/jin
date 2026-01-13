@@ -44,4 +44,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Check MSRV
-        run: cargo check
+        run: |
+          # Cargo.lock v4 requires Cargo 1.83+, delete for MSRV check
+          rm -f Cargo.lock
+          cargo check

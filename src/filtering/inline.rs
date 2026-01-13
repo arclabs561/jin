@@ -43,7 +43,12 @@ impl FilterStrategySelector {
         Self { config }
     }
 
-    pub fn select(&self, estimated_selectivity: f32, k: usize, total_docs: usize) -> FilterStrategy {
+    pub fn select(
+        &self,
+        estimated_selectivity: f32,
+        k: usize,
+        total_docs: usize,
+    ) -> FilterStrategy {
         if estimated_selectivity < self.config.pre_filter_threshold {
             return FilterStrategy::PreFilter;
         }
@@ -93,9 +98,9 @@ fn estimate_predicate_selectivity(
                 .unwrap_or(0);
             matching as f32 / total_docs as f32
         }
-        FilterPredicate::And(predicates) => predicates
-            .iter()
-            .fold(1.0, |acc, p| acc * estimate_predicate_selectivity(p, metadata, total_docs)),
+        FilterPredicate::And(predicates) => predicates.iter().fold(1.0, |acc, p| {
+            acc * estimate_predicate_selectivity(p, metadata, total_docs)
+        }),
         FilterPredicate::Or(predicates) => {
             if predicates.is_empty() {
                 return 0.0;
@@ -171,7 +176,11 @@ pub fn post_filter_results(
         .collect()
 }
 
-pub fn calculate_oversearch_k(k: usize, estimated_selectivity: f32, oversearch_factor: f32) -> usize {
+pub fn calculate_oversearch_k(
+    k: usize,
+    estimated_selectivity: f32,
+    oversearch_factor: f32,
+) -> usize {
     if estimated_selectivity <= 0.0 {
         return k * 100;
     }
@@ -179,4 +188,3 @@ pub fn calculate_oversearch_k(k: usize, estimated_selectivity: f32, oversearch_f
     let with_factor = (base_oversearch as f32 * oversearch_factor).ceil() as usize;
     with_factor.max(k).min(k * 100)
 }
-

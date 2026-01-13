@@ -511,9 +511,9 @@ pub fn index_factory(dimension: usize, factory_string: &str) -> Result<AnyANNInd
             use crate::scann::search::SCANNParams;
             let params = SCANNParams {
                 num_partitions,
-                num_reorder: 100,    // Default reranking count
-                num_codebooks: 8,    // Default: 8 subspaces
-                codebook_size: 256,  // Default: 8-bit quantization (256 codewords)
+                num_reorder: 100,   // Default reranking count
+                num_codebooks: 8,   // Default: 8 subspaces
+                codebook_size: 256, // Default: 8-bit quantization (256 codewords)
             };
 
             let index = crate::scann::search::SCANNIndex::new(dimension, params)?;

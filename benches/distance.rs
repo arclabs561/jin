@@ -10,10 +10,7 @@ use rand::prelude::*;
 
 /// Euclidean (L2) distance squared.
 fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y) * (x - y))
-        .sum()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
 }
 
 /// Dot product.
@@ -57,70 +54,70 @@ fn normalized_vectors(n: usize, dim: usize) -> Vec<Vec<f32>> {
 
 fn bench_l2_dimensions(c: &mut Criterion) {
     let mut group = c.benchmark_group("l2_squared");
-    
+
     for dim in [64, 128, 256, 384, 768, 1536].iter() {
         group.throughput(Throughput::Elements(*dim as u64));
-        
+
         let vectors = random_vectors(2, *dim);
         let a = &vectors[0];
         let b = &vectors[1];
-        
+
         group.bench_with_input(BenchmarkId::from_parameter(dim), dim, |bench, _| {
             bench.iter(|| l2_squared(black_box(a), black_box(b)));
         });
     }
-    
+
     group.finish();
 }
 
 fn bench_dot_dimensions(c: &mut Criterion) {
     let mut group = c.benchmark_group("dot_product");
-    
+
     for dim in [64, 128, 256, 384, 768, 1536].iter() {
         group.throughput(Throughput::Elements(*dim as u64));
-        
+
         let vectors = random_vectors(2, *dim);
         let a = &vectors[0];
         let b = &vectors[1];
-        
+
         group.bench_with_input(BenchmarkId::from_parameter(dim), dim, |bench, _| {
             bench.iter(|| dot_product(black_box(a), black_box(b)));
         });
     }
-    
+
     group.finish();
 }
 
 fn bench_cosine_dimensions(c: &mut Criterion) {
     let mut group = c.benchmark_group("cosine_distance");
-    
+
     for dim in [64, 128, 256, 384, 768, 1536].iter() {
         group.throughput(Throughput::Elements(*dim as u64));
-        
+
         let vectors = normalized_vectors(2, *dim);
         let a = &vectors[0];
         let b = &vectors[1];
-        
+
         group.bench_with_input(BenchmarkId::from_parameter(dim), dim, |bench, _| {
             bench.iter(|| cosine_distance(black_box(a), black_box(b)));
         });
     }
-    
+
     group.finish();
 }
 
 fn bench_batch_distances(c: &mut Criterion) {
     let mut group = c.benchmark_group("batch_l2");
-    
+
     let dim = 384; // Common embedding dimension
-    
+
     for n in [10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(*n as u64));
-        
+
         let vectors = random_vectors(*n + 1, dim);
         let query = &vectors[0];
         let candidates: Vec<&[f32]> = vectors[1..].iter().map(|v| v.as_slice()).collect();
-        
+
         group.bench_with_input(BenchmarkId::from_parameter(n), n, |bench, _| {
             bench.iter(|| {
                 candidates
@@ -130,7 +127,7 @@ fn bench_batch_distances(c: &mut Criterion) {
             });
         });
     }
-    
+
     group.finish();
 }
 

@@ -51,7 +51,11 @@ mod idpaq_integration {
         // Verify meaningful compression
         let uncompressed_size = posting_list.len() * 4;
         let ratio = uncompressed_size as f64 / compressed.len() as f64;
-        assert!(ratio > 1.5, "Should achieve some compression, got {:.2}x", ratio);
+        assert!(
+            ratio > 1.5,
+            "Should achieve some compression, got {:.2}x",
+            ratio
+        );
     }
 
     /// Test edge cases that might occur in ANN indexes
@@ -107,7 +111,7 @@ mod feature_compilation {
 /// These tests document and verify the intended dependency structure
 mod dependency_documentation {
     /// Document the compression dependency chain
-    /// 
+    ///
     /// vicinity (id-compression) -> idpaq
     #[test]
     fn compression_dependency_chain() {
@@ -131,18 +135,18 @@ mod dependency_documentation {
         // the innr feature is enabled (which is part of default features)
         //
         // Dependency chain:
-        // - `vicinity::simd::{dot, cosine, l2_distance, ...}` 
+        // - `vicinity::simd::{dot, cosine, l2_distance, ...}`
         // - => `innr::{dot, cosine, l2_distance, ...}` when innr feature enabled
         // - => portable fallback when innr feature disabled
         //
         // Verify the functions are available
         let a = [1.0_f32, 0.0, 0.0];
         let b = [0.707, 0.707, 0.0];
-        
+
         let d = vicinity::simd::dot(&a, &b);
         let c = vicinity::simd::cosine(&a, &b);
         let n = vicinity::simd::norm(&a);
-        
+
         assert!((d - 0.707).abs() < 0.01);
         assert!((c - 0.707).abs() < 0.01);
         assert!((n - 1.0).abs() < 0.001);

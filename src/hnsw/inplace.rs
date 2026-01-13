@@ -796,7 +796,9 @@ impl IndexOps for MappedInPlaceIndex {
         Ok(results
             .into_iter()
             .filter_map(|(internal_id, dist)| {
-                self.reverse_map.get(&internal_id).map(|&external_id| (external_id, dist))
+                self.reverse_map
+                    .get(&internal_id)
+                    .map(|&external_id| (external_id, dist))
             })
             .collect())
     }
@@ -824,7 +826,7 @@ impl IndexOps for InPlaceIndex {
 #[cfg(test)]
 mod streaming_tests {
     use super::*;
-    use crate::streaming::{StreamingCoordinator, IndexOps};
+    use crate::streaming::{IndexOps, StreamingCoordinator};
 
     #[test]
     fn test_inplace_with_streaming_coordinator() {
@@ -852,7 +854,7 @@ mod streaming_tests {
         // Search should return the external IDs
         let results = index.search(&[1.0, 0.0, 0.0, 0.0], 2).unwrap();
         assert!(!results.is_empty());
-        
+
         // Verify we get back our external IDs
         let ids: Vec<u32> = results.iter().map(|(id, _)| *id).collect();
         assert!(ids.contains(&100) || ids.contains(&200));

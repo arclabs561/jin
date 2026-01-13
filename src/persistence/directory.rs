@@ -243,7 +243,13 @@ impl Directory for MemoryDirectory {
     }
 
     fn open_file(&self, path: &str) -> PersistenceResult<Box<dyn Read>> {
-        let files = self.files.read().map_err(|_| PersistenceError::LockFailed { resource: "memory files".into(), reason: "lock poisoned".into() })?;
+        let files = self
+            .files
+            .read()
+            .map_err(|_| PersistenceError::LockFailed {
+                resource: "memory files".into(),
+                reason: "lock poisoned".into(),
+            })?;
         let data = files
             .get(path)
             .ok_or_else(|| PersistenceError::NotFound(path.to_string()))?
@@ -252,19 +258,31 @@ impl Directory for MemoryDirectory {
     }
 
     fn exists(&self, path: &str) -> bool {
-        self.files.read().map(|f| f.contains_key(path)).unwrap_or(false)
+        self.files
+            .read()
+            .map(|f| f.contains_key(path))
+            .unwrap_or(false)
     }
 
     fn delete(&self, path: &str) -> PersistenceResult<()> {
-        self.files.write()
-            .map_err(|_| PersistenceError::LockFailed { resource: "memory files".into(), reason: "lock poisoned".into() })?
+        self.files
+            .write()
+            .map_err(|_| PersistenceError::LockFailed {
+                resource: "memory files".into(),
+                reason: "lock poisoned".into(),
+            })?
             .remove(path);
         Ok(())
     }
 
     fn atomic_rename(&self, from: &str, to: &str) -> PersistenceResult<()> {
-        let mut files = self.files.write()
-            .map_err(|_| PersistenceError::LockFailed { resource: "memory files".into(), reason: "lock poisoned".into() })?;
+        let mut files = self
+            .files
+            .write()
+            .map_err(|_| PersistenceError::LockFailed {
+                resource: "memory files".into(),
+                reason: "lock poisoned".into(),
+            })?;
         if let Some(data) = files.remove(from) {
             files.insert(to.to_string(), data);
         }
@@ -278,8 +296,13 @@ impl Directory for MemoryDirectory {
 
     fn list_dir(&self, path: &str) -> PersistenceResult<Vec<String>> {
         // Return files that start with the path prefix
-        let files = self.files.read()
-            .map_err(|_| PersistenceError::LockFailed { resource: "memory files".into(), reason: "lock poisoned".into() })?;
+        let files = self
+            .files
+            .read()
+            .map_err(|_| PersistenceError::LockFailed {
+                resource: "memory files".into(),
+                reason: "lock poisoned".into(),
+            })?;
         let prefix = if path.is_empty() {
             "".to_string()
         } else {
@@ -304,7 +327,10 @@ impl Directory for MemoryDirectory {
         let existing = self
             .files
             .read()
-            .map_err(|_| PersistenceError::LockFailed { resource: "memory files".into(), reason: "lock poisoned".into() })?
+            .map_err(|_| PersistenceError::LockFailed {
+                resource: "memory files".into(),
+                reason: "lock poisoned".into(),
+            })?
             .get(&path)
             .cloned()
             .unwrap_or_default();
@@ -318,8 +344,13 @@ impl Directory for MemoryDirectory {
     fn atomic_write(&self, path: &str, data: &[u8]) -> PersistenceResult<()> {
         // For memory directory, atomic_write is just a regular write
         // (no need for temp file + rename in memory)
-        let mut files = self.files.write()
-            .map_err(|_| PersistenceError::LockFailed { resource: "memory files".into(), reason: "lock poisoned".into() })?;
+        let mut files = self
+            .files
+            .write()
+            .map_err(|_| PersistenceError::LockFailed {
+                resource: "memory files".into(),
+                reason: "lock poisoned".into(),
+            })?;
         files.insert(path.to_string(), data.to_vec());
         Ok(())
     }
@@ -343,7 +374,9 @@ impl Write for MemoryWriter {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        let mut files = self.files.write()
+        let mut files = self
+            .files
+            .write()
             .map_err(|_| std::io::Error::other("lock poisoned"))?;
         files.insert(self.path.clone(), self.buffer.clone());
         Ok(())
@@ -370,7 +403,9 @@ impl Write for MemoryAppendWriter {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        let mut files = self.files.write()
+        let mut files = self
+            .files
+            .write()
             .map_err(|_| std::io::Error::other("lock poisoned"))?;
         files.insert(self.path.clone(), self.buffer.clone());
         Ok(())
@@ -390,8 +425,7 @@ mod tests {
     #[test]
     fn test_fs_directory() {
         // Use a unique temp directory with timestamp/pid to avoid conflicts
-        let temp_dir = std::env::temp_dir()
-            .join(format!("vicinity_test_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir().join(format!("vicinity_test_{}", std::process::id()));
         // Clean up any leftover from previous runs
         let _ = std::fs::remove_dir_all(&temp_dir);
         let dir = FsDirectory::new(&temp_dir).unwrap();

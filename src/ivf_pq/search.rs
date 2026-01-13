@@ -286,10 +286,8 @@ impl IVFPQIndex {
         }
 
         // Stage 1: k-means clustering for IVF
-        let mut kmeans = crate::scann::partitioning::KMeans::new(
-            self.dimension,
-            self.params.num_clusters,
-        )?;
+        let mut kmeans =
+            crate::scann::partitioning::KMeans::new(self.dimension, self.params.num_clusters)?;
         kmeans.fit(&self.vectors, self.num_vectors)?;
         self.centroids = kmeans.centroids().to_vec();
 
@@ -402,8 +400,7 @@ impl IVFPQIndex {
             })
             .collect();
 
-        cluster_distances
-            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
+        cluster_distances.sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
 
         // Search in top nprobe clusters
         let mut candidates = Vec::new();
@@ -425,8 +422,7 @@ impl IVFPQIndex {
         }
 
         // Sort and return top k
-        candidates
-            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
+        candidates.sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
         Ok(candidates.into_iter().take(k).collect())
     }
 
@@ -499,8 +495,7 @@ impl IVFPQIndex {
             })
             .collect();
 
-        cluster_distances
-            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
+        cluster_distances.sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
 
         // Search in top nprobe clusters, skipping those without matching vectors
         let mut candidates = Vec::new();
@@ -532,8 +527,7 @@ impl IVFPQIndex {
         }
 
         // Sort and return top k
-        candidates
-            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
+        candidates.sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
         Ok(candidates.into_iter().take(k).collect())
     }
 

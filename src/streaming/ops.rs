@@ -4,19 +4,11 @@
 #[derive(Debug, Clone)]
 pub enum UpdateOp {
     /// Insert a new vector.
-    Insert {
-        id: u32,
-        vector: Vec<f32>,
-    },
+    Insert { id: u32, vector: Vec<f32> },
     /// Delete an existing vector.
-    Delete {
-        id: u32,
-    },
+    Delete { id: u32 },
     /// Update (atomic delete + insert).
-    Update {
-        id: u32,
-        vector: Vec<f32>,
-    },
+    Update { id: u32, vector: Vec<f32> },
 }
 
 impl UpdateOp {
@@ -84,10 +76,12 @@ impl IntoIterator for UpdateBatch {
 }
 
 impl UpdateBatch {
-
     /// Count inserts in batch.
     pub fn insert_count(&self) -> usize {
-        self.ops.iter().filter(|op| matches!(op, UpdateOp::Insert { .. })).count()
+        self.ops
+            .iter()
+            .filter(|op| matches!(op, UpdateOp::Insert { .. }))
+            .count()
     }
 
     /// Count deletes in batch.
@@ -97,7 +91,10 @@ impl UpdateBatch {
 
     /// Count updates in batch.
     pub fn update_count(&self) -> usize {
-        self.ops.iter().filter(|op| matches!(op, UpdateOp::Update { .. })).count()
+        self.ops
+            .iter()
+            .filter(|op| matches!(op, UpdateOp::Update { .. }))
+            .count()
     }
 }
 
@@ -129,9 +126,15 @@ mod tests {
     #[test]
     fn test_batch() {
         let mut batch = UpdateBatch::new();
-        batch.push(UpdateOp::Insert { id: 0, vector: vec![1.0] });
+        batch.push(UpdateOp::Insert {
+            id: 0,
+            vector: vec![1.0],
+        });
         batch.push(UpdateOp::Delete { id: 1 });
-        batch.push(UpdateOp::Update { id: 2, vector: vec![2.0] });
+        batch.push(UpdateOp::Update {
+            id: 2,
+            vector: vec![2.0],
+        });
 
         assert_eq!(batch.len(), 3);
         assert_eq!(batch.insert_count(), 1);

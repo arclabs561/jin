@@ -76,7 +76,11 @@ pub fn mean_recall(ground_truths: &[Vec<u32>], retrievals: &[Vec<u32>], k: usize
 /// Compute recall at multiple k values.
 ///
 /// Returns recall@1, recall@10, recall@100, etc.
-pub fn recall_curve(ground_truth: &[u32], retrieved: &[u32], k_values: &[usize]) -> Vec<(usize, f32)> {
+pub fn recall_curve(
+    ground_truth: &[u32],
+    retrieved: &[u32],
+    k_values: &[usize],
+) -> Vec<(usize, f32)> {
     k_values
         .iter()
         .map(|&k| (k, recall_at_k(ground_truth, retrieved, k)))
@@ -141,7 +145,11 @@ impl EvaluationSummary {
         let mean_recall = recalls.iter().sum::<f32>() / n as f32;
         let min_recall = recalls.iter().cloned().fold(f32::INFINITY, f32::min);
         let max_recall = recalls.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        let recall_variance: f32 = recalls.iter().map(|r| (r - mean_recall).powi(2)).sum::<f32>() / n as f32;
+        let recall_variance: f32 = recalls
+            .iter()
+            .map(|r| (r - mean_recall).powi(2))
+            .sum::<f32>()
+            / n as f32;
         let recall_std = recall_variance.sqrt();
 
         // Latency stats
