@@ -513,12 +513,15 @@ pub fn estimate_lid_batch(
     for i in 0..n {
         let query = &vectors[i * dimension..(i + 1) * dimension];
 
-        // Compute distances to all other points
+        // Compute EUCLIDEAN distances to all other points.
+        // Note: LID estimation requires Euclidean distance (L2), not cosine distance,
+        // because the MLE formula is derived from the volume growth rate in Euclidean
+        // space: V(r) ∝ r^d implies P(dist ≤ r) ∝ r^d.
         let mut distances: Vec<f32> = (0..n)
             .filter(|&j| j != i)
             .map(|j| {
                 let other = &vectors[j * dimension..(j + 1) * dimension];
-                distance::cosine_distance(query, other)
+                distance::l2_distance(query, other)
             })
             .collect();
 
@@ -831,6 +834,53 @@ mod tests {
         );
 
         assert!(dim_with_discard.is_finite());
+    }
+
+    #[test]
+    fn test_twonn_with_ci() {
+        // Create synthetic ratios
+        let mu_ratios: Vec<f32> = (1..=200).map(|i| 1.0 + (i as f32 * 0.015)).collect();
+
+        let result = estimate_twonn_with_ci(&mu_ratios, 0.1);
+
+        println!(
+            "TwoNN with CI: d={:.2}, SE={:.3}, 95% CI=[{:.2}, {:.2}], n={}",
+            result.dimension, result.std_error, result.ci_lower, result.ci_upper, result.n_samples
+        );
+
+        assert!(result.dimension.is_finite());
+        assert!(result.std_error.is_finite());
+        assert!(result.std_error > 0.0);
+        assert!(result.ci_lower <= result.dimension);
+        assert!(result.dimension <= result.ci_upper);
+        assert!(result.n_samples > 0);
+    }
+
+    #[test]
+    fn test_twonn_equidistant_neighbors() {
+        // All ratios exactly 1.0 (equidistant neighbors)
+        let mu_ratios: Vec<f32> = vec![1.0; 100];
+
+        let dim = estimate_twonn(&mu_ratios, 0.1);
+        let result = estimate_twonn_with_ci(&mu_ratios, 0.1);
+
+        // Should return NaN since log(1) = 0
+        assert!(dim.is_nan());
+        assert!(result.dimension.is_nan());
+    }
+
+    #[test]
+    fn test_twonn_mixed_equidistant() {
+        // Mix of equidistant and non-equidistant
+        let mut mu_ratios: Vec<f32> = vec![1.0; 50];
+        mu_ratios.extend((1..=50).map(|i| 1.0 + i as f32 * 0.02));
+
+        let dim = estimate_twonn(&mu_ratios, 0.1);
+        let result = estimate_twonn_with_ci(&mu_ratios, 0.1);
+
+        // Should still give valid results from the non-degenerate ratios
+        assert!(dim.is_finite());
+        assert!(result.dimension.is_finite());
     }
 
     #[test]

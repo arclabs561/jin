@@ -205,3 +205,9 @@ pub use merge::{
     cross_graph_traversal_merge, intra_graph_traversal_merge, naive_graph_merge, MergeConfig,
     MergeGraph, MergeNode, MergeStats,
 };
+
+// Dual-Branch HNSW with LID-based insertion and skip bridges (arXiv 2501.13992)
+#[cfg(feature = "hnsw")]
+pub mod dual_branch;
+#[cfg(feature = "hnsw")]
+pub use dual_branch::{DualBranchConfig, DualBranchHNSW, DualBranchStats, SkipBridge};

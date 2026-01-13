@@ -60,6 +60,7 @@ pub mod partitioning;
 
 pub mod filtering;
 pub mod lid;
+pub mod pq_simd;
 pub mod simd;
 
 // Hash-based methods (LSH, MinHash, SimHash)

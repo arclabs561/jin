@@ -379,8 +379,29 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                 })
                 .collect();
 
+            // Pre-compute existing neighbors of current_id (needed for pruning current_id's list)
+            let current_existing_neighbors: Vec<u32> = if layer_idx < index.layers.len() {
+                index.layers[layer_idx]
+                    .get_neighbors(current_id as u32)
+                    .iter()
+                    .copied()
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
+            // Pre-compute distances from current to all its existing neighbors
+            let current_neighbor_distances: std::collections::HashMap<u32, f32> =
+                current_existing_neighbors
+                    .iter()
+                    .map(|&id| {
+                        let vec = index.get_vector(id as usize);
+                        let dist = distance::cosine_distance(&current_vector, vec);
+                        (id, dist)
+                    })
+                    .collect();
+
             // Pre-compute existing neighbor data for reverse connections
-            // Need to extract this before mutable borrow
             let existing_neighbor_lists: Vec<Vec<u32>> = selected
                 .iter()
                 .map(|&neighbor_id| {
@@ -396,7 +417,7 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                 })
                 .collect();
 
-            // Now compute distances for existing neighbors
+            // Compute distances for existing neighbors of each selected neighbor
             let mut existing_neighbor_data: Vec<Vec<(u32, f32)>> = Vec::new();
             for (idx, _neighbor_id) in selected.iter().enumerate() {
                 let neighbor_vec = &neighbor_data[idx].1;
@@ -422,7 +443,7 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
 
                 // Prune if too many connections
                 if neighbors.len() > m_actual {
-                    // Compute distances for all neighbors (using pre-computed where possible)
+                    // Use pre-computed distances for ALL neighbors
                     let mut neighbor_candidates: Vec<(u32, f32)> = neighbors
                         .iter()
                         .map(|&id| {
@@ -431,17 +452,17 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                                 neighbor_data.iter().find(|(nid, _, _)| *nid == id)
                             {
                                 (id, *dist)
+                            } else if let Some(&dist) = current_neighbor_distances.get(&id) {
+                                // Use pre-computed distance from existing neighbors
+                                (id, dist)
                             } else {
-                                // Need to compute distance (but can't borrow index here)
-                                // Store neighbor IDs for later pruning
-                                (id, f32::INFINITY) // Placeholder - will be computed after
+                                // This should not happen if pre-computation is complete
+                                // Keep the edge rather than incorrectly pruning it
+                                (id, 0.0) // Use 0.0 to preserve edge rather than lose it
                             }
                         })
                         .collect();
 
-                    // For neighbors not in selected, we need to compute distances
-                    // But we can't borrow index here, so we'll do a simpler approach:
-                    // Just keep the first m_actual neighbors (they're already sorted by insertion order)
                     neighbor_candidates.sort_by(|a, b| a.1.total_cmp(&b.1));
                     neighbor_candidates.truncate(m_actual);
                     *neighbors = neighbor_candidates.iter().map(|(id, _)| *id).collect();
@@ -466,9 +487,8 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                                 {
                                     (id, *dist)
                                 } else {
-                                    // For neighbors not in pre-computed list, use placeholder
-                                    // In practice, this should be rare
-                                    (id, f32::INFINITY)
+                                    // Keep edge rather than incorrectly prune it
+                                    (id, 0.0)
                                 }
                             })
                             .collect();

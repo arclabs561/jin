@@ -419,10 +419,12 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 [[package]]
 name = "idpaq"
 version = "0.1.0"
+source = "git+https://github.com/arclabs561/idpaq.git#6dadd93a220db211f619cd5b09dfc05519321374"
 
 [[package]]
 name = "innr"
 version = "0.1.0"
+source = "git+https://github.com/arclabs561/innr.git#16cadf02b405a6f8469241ff8a930a39ec8eca42"
 
 [[package]]
 name = "is-terminal"

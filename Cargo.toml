@@ -21,11 +21,11 @@ rayon = "1.10"
 thiserror = "2.0"
 log = "0.4"
 
-# SIMD primitives - use innr when available
-innr = { path = "../innr", optional = true }
+# SIMD primitives (ecosystem crate)
+innr = { git = "https://github.com/arclabs561/innr.git", optional = true }
 
-# ID compression primitives - use idpaq for ROC/ANS compression
-idpaq = { path = "../idpaq", optional = true }
+# ID compression primitives (ecosystem crate)
+idpaq = { git = "https://github.com/arclabs561/idpaq.git", optional = true }
 
 # Persistence & IO
 byteorder = "1.5"
