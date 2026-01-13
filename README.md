@@ -1,13 +1,10 @@
 <p align="center"><b>vicinity</b></p>
 
-```
-    query
-      │
-      ▼
-  ┌───────┐     ┌───────┐     ┌───────┐
-  │ HNSW  │ ──▶ │  PQ   │ ──▶ │  top  │
-  │ graph │     │rescore│     │   k   │
-  └───────┘     └───────┘     └───────┘
+```mermaid
+flowchart LR
+    Q[query] --> HNSW[HNSW graph]
+    HNSW --> PQ[PQ rescore]
+    PQ --> K[top k]
 ```
 
 Approximate Nearest Neighbor search in Rust.
