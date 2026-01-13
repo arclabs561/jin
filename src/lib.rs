@@ -67,5 +67,6 @@ pub use ann::traits::ANNIndex;
 pub use error::{Result, RetrieveError};
 
 pub mod persistence;
+pub mod benchmark;
 pub mod compression;
 pub mod error;

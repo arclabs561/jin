@@ -32,7 +32,7 @@ bytemuck = { version = "1.14", optional = true, features = ["derive"] }
 constriction = { version = "0.4", optional = true }
 
 [features]
-default = []
+default = ["hnsw"]
 persistence = ["dep:postcard", "dep:bytemuck", "dep:memmap2", "dep:constriction"]
 hnsw = []
 ivf_pq = []
@@ -61,3 +61,27 @@ persistence-bincode = []
 rabitq = []
 saq = []
 turboquant = []
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.4"
+
+[[bench]]
+name = "hnsw"
+harness = false
+
+[[bench]]
+name = "distance"
+harness = false
+
+[[bench]]
+name = "recall"
+harness = false
+
+[[bench]]
+name = "memory"
+harness = false
+
+[[bench]]
+name = "scaling"
+harness = false

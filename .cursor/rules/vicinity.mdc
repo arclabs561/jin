@@ -1,0 +1,55 @@
+---
+title: "Vicinity Rules"
+id: vicinity-rules
+description: "Rules for Vicinity ANN indexing primitives"
+priority: 100
+alwaysApply: true
+---
+
+# Vicinity Rules
+
+## General Principles
+
+- **Performance is critical**: This is the indexing primitive for the entire stack.
+- **Zero-copy**: Avoid unnecessary allocations.
+- **SIMD**: Use SIMD where possible (via `simsimd` or portable packed_simd).
+
+## Architecture
+
+Vicinity provides standalone ANN algorithms:
+- HNSW
+- IVF-PQ
+- DiskANN
+- ScaNN
+- Alpha-CNG
+
+**Rule**: Do not add heavy dependencies. Vicinity is a primitive used by `ordino`, `subsume`, and `grafene`.
+
+## Rust Standards
+
+- All code must compile (`cargo check`).
+- All code must be formatted (`cargo fmt`).
+- All clippy warnings must be fixed (`cargo clippy -- -D warnings`).
+- Tests should pass (`cargo test`).
+- Use `Result<T, E>` for fallible operations.
+- Avoid `unwrap()` in production code.
+
+## Documentation
+
+- Comprehensive docstrings explaining algorithm details.
+- Benchmarks are required for performance claims.
+
+## Integration
+
+Vicinity is used by:
+- `ordino-retrieve`: Dense retrieval backend
+- `grafene`: Graph embedding search
+- `hop`: Document embedding search
+
+## Anti-Sycophancy
+
+- Challenge assumptions and identify issues.
+- Present alternative approaches with trade-offs.
+- Use direct technical language.
+
+See also: `scholar-stack-base.mdc` for shared Rust standards.
