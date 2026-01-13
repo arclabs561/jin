@@ -1,7 +1,7 @@
 //! Tree-based ANN methods.
 
 #[cfg(feature = "annoy")]
-pub mod annoy;
+pub mod rp_forest;  // Random Projection Forest (Annoy-style)
 
 #[cfg(feature = "kdtree")]
 pub mod kdtree;

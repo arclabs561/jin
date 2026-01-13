@@ -357,7 +357,7 @@ impl ANNIndex for crate::sng::SNGIndex {
 
 // Implement ANNIndex for LSH
 #[cfg(feature = "lsh")]
-impl ANNIndex for crate::classic::lsh::search::LSHIndex {
+impl ANNIndex for crate::hash::search::LSHIndex {
     fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
         self.add(doc_id, vector)
     }

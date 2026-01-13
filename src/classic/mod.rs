@@ -6,8 +6,7 @@
 
 #![allow(dead_code)]
 
-#[cfg(feature = "lsh")]
-pub mod lsh;
+// Note: LSH methods moved to top-level `hash` module
 
 #[cfg(any(
     feature = "annoy",

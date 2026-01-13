@@ -1,8 +1,9 @@
 [package]
-name = "prox"
+name = "vicinity"
 version = "0.1.0"
 edition = "2021"
-description = "Approximate Nearest Neighbor Search primitives: HNSW, DiskANN, IVF-PQ, ScaNN."
+description = "Approximate Nearest Neighbor Search: HNSW, DiskANN, IVF-PQ, ScaNN, quantization"
+repository = "https://github.com/arclabs561/vicinity"
 license = "MIT OR Apache-2.0"
 
 [dependencies]

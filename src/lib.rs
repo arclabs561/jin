@@ -1,6 +1,13 @@
-//! prox: Approximate Nearest Neighbor Search primitives.
-//! 
-//! Provides standalone implementations of state-of-the-art ANN algorithms.
+//! vicinity: Approximate Nearest Neighbor Search primitives.
+//!
+//! Provides standalone implementations of state-of-the-art ANN algorithms
+//! organized by algorithmic approach:
+//!
+//! - `graph/`: Graph-based (HNSW, NSW, Vamana, SNG)
+//! - `tree/`: Tree-based (K-D tree, Ball tree, RP forest)
+//! - `hash/`: Hash-based (LSH, MinHash, SimHash)
+//! - `partition/`: Partition-based (IVF, ScaNN)
+//! - `quantize/`: Quantization (PQ, RaBitQ, SAQ)
 
 pub mod ann;
 pub mod classic;
@@ -19,6 +26,10 @@ pub mod partitioning;
 
 pub mod filtering;
 pub mod simd;
+
+// Hash-based methods (LSH, MinHash, SimHash)
+#[cfg(feature = "lsh")]
+pub mod hash;
 
 // Re-exports
 pub use ann::traits::ANNIndex;
