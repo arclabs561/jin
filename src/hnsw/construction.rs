@@ -266,7 +266,11 @@ pub fn get_vector(vectors: &[f32], dimension: usize, idx: usize) -> &[f32] {
 
 /// Construct HNSW graph layers.
 ///
-/// Implements the insertion algorithm from the HNSW paper.
+/// Implements the insertion algorithm from the HNSW paper (Malkov & Yashunin, 2018).
+///
+/// Key insight: When descending through layers, we use the closest node found
+/// in the layer above as the entry point for the next layer. This ensures
+/// we start searching from a good position, not an arbitrary node.
 pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
     if index.num_vectors == 0 {
         return Err(RetrieveError::EmptyIndex);
@@ -280,14 +284,14 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
         .map(|_| Layer::new_uncompressed(vec![SmallVec::new(); index.num_vectors]))
         .collect();
 
-    // Entry point: first vector in highest layer
-    let mut entry_point = 0u32;
-    let mut entry_layer = 0u8;
+    // Global entry point: node in highest layer (updated as we insert)
+    let mut global_entry_point = 0u32;
+    let mut global_entry_layer = 0u8;
 
     for (idx, &layer) in index.layer_assignments.iter().enumerate() {
-        if layer > entry_layer {
-            entry_point = idx as u32;
-            entry_layer = layer;
+        if layer > global_entry_layer {
+            global_entry_point = idx as u32;
+            global_entry_layer = layer;
         }
     }
 
@@ -296,15 +300,16 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
         let current_layer = index.layer_assignments[current_id] as usize;
         let current_vector = index.get_vector(current_id).to_vec(); // Copy to avoid borrowing
 
+        // Track closest node found while descending through upper layers.
+        // This is the key fix: we propagate the closest node down through layers
+        // instead of always starting from node 0.
+        let mut layer_entry_point = global_entry_point;
+
         // For each layer from current_layer down to 0
         for layer_idx in (0..=current_layer.min(max_layer)).rev() {
-            // Find candidates in this layer
+            // Find candidates in this layer, starting from best entry point
             let mut candidates = Vec::with_capacity(index.params.ef_construction);
-            let to_explore = vec![if layer_idx == current_layer {
-                entry_point
-            } else {
-                0
-            }];
+            let to_explore = vec![layer_entry_point];
             let mut visited =
                 std::collections::HashSet::with_capacity(index.params.ef_construction);
 
@@ -334,6 +339,18 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                         }
                     }
                 }
+            }
+
+            // Update entry point for next layer: use closest candidate found
+            // This is crucial for HNSW performance - we want to start the next
+            // layer's search from the best position found so far.
+            if !candidates.is_empty() {
+                let closest = candidates
+                    .iter()
+                    .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|(id, _)| *id)
+                    .unwrap_or(layer_entry_point);
+                layer_entry_point = closest;
             }
 
             // Select neighbors using configured diversification strategy
