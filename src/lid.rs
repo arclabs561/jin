@@ -68,10 +68,27 @@
 //! - **Adaptive search**: Adjust ef_search based on local complexity.
 //! - **Compression guidance**: ID provides lower bound on effective dimensions.
 //!
+//! # Future Work: ABIDE (Adaptive Binomial ID Estimator)
+//!
+//! The current implementation provides MLE and TwoNN estimators. A more robust
+//! approach is ABIDE (Di Noia et al., 2024), which:
+//!
+//! 1. Uses a likelihood ratio test to find the optimal neighborhood size k*
+//!    for each point where constant-density assumption holds
+//! 2. Iteratively refines both ID and k* until convergence (~5 iterations)
+//! 3. Achieves robustness to both measurement noise (small scale) and
+//!    manifold curvature (large scale)
+//!
+//! Key parameters from ABIDE:
+//! - Optimal radius ratio: τ ≈ c*^(1/d) where c* = 0.2032
+//! - Convergence criterion: δ ≈ 10^(-4)
+//! - Rejection threshold: D_thr = 6.635 (χ² at α=0.01)
+//!
 //! # References
 //!
 //! - Levina & Bickel (2004) "Maximum Likelihood Estimation of Intrinsic Dimension"
 //! - Facco et al. (2017) "Estimating the intrinsic dimension of datasets"
+//! - Denti et al. (2022) "A two-component mixture model for ID estimation"
 //! - Gomtsyan et al. (2019) "Geometry-Aware Maximum Likelihood Estimation"
 //! - Di Noia et al. (2024) "Beyond the noise: intrinsic dimension estimation"
 //! - Dual-Branch HNSW (arXiv 2501.13992, 2025) "LID-based insertion"
@@ -217,12 +234,22 @@ pub fn estimate_lid(neighbor_distances: &[f32], config: &LidConfig) -> LidEstima
 ///
 /// # Arguments
 ///
-/// * `mu_ratios` - Array of μ = r₂/r₁ ratios for each point
-/// * `discard_fraction` - Fraction of largest ratios to discard as outliers (default: 0.1)
+/// * `mu_ratios` - Array of μ = r₂/r₁ ratios for each point. Note that μ ≥ 1
+///   by definition since r₂ ≥ r₁ (2nd neighbor is at least as far as 1st).
+/// * `discard_fraction` - Fraction of largest ratios to discard as outliers
+///   (default: 0.1). This improves robustness to boundary effects.
 ///
 /// # Returns
 ///
 /// Estimated intrinsic dimension (global estimate for the dataset).
+///
+/// # Failure Modes
+///
+/// - **Noise at small scales**: Measurement noise at nearest-neighbor scale
+///   causes μ ratios to be noisy, overestimating ID.
+/// - **High curvature**: When manifold curves within NN distances, ID is
+///   overestimated. Consider ABIDE (Di Noia et al., 2024) for robustness.
+/// - **Non-uniform density**: Sharp density gradients bias the estimate.
 ///
 /// # Example
 ///
@@ -239,52 +266,168 @@ pub fn estimate_twonn(mu_ratios: &[f32], discard_fraction: f32) -> f32 {
         return f32::NAN;
     }
 
-    let n = mu_ratios.len();
-
-    // Sort ratios and discard largest (likely outliers)
+    // Filter valid ratios: μ = r₂/r₁ ≥ 1.0 by definition
+    // (second neighbor is at least as far as first neighbor)
     let mut sorted: Vec<f32> = mu_ratios
         .iter()
-        .filter(|&&x| x.is_finite() && x > 0.0)
+        .filter(|&&x| x.is_finite() && x >= 1.0)
         .copied()
         .collect();
-    sorted.sort_by(|a, b| a.total_cmp(b));
-
-    let keep_count = ((n as f32) * (1.0 - discard_fraction)).max(2.0) as usize;
-    let sorted = &sorted[..keep_count.min(sorted.len())];
 
     if sorted.len() < 2 {
         return f32::NAN;
     }
 
-    // Empirical CDF: F_emp(μ_i) = i / n
-    // We fit: -log(1 - F_emp) = d * log(μ)
-    // Using simple least squares with intercept forced to 0
+    sorted.sort_by(|a, b| a.total_cmp(b));
 
-    let mut sum_xy = 0.0f32;
-    let mut sum_xx = 0.0f32;
+    // Discard largest ratios (boundary effects / outliers)
+    let keep_count = ((sorted.len() as f32) * (1.0 - discard_fraction)).max(2.0) as usize;
+    let sorted = &sorted[..keep_count.min(sorted.len())];
+    let n_kept = sorted.len();
 
-    for (i, &mu) in sorted.iter().enumerate() {
-        let f_emp = (i + 1) as f32 / n as f32;
-
-        // Avoid log(0) and log(1)
-        if f_emp >= 1.0 || mu <= 1.0 {
-            continue;
-        }
-
-        let x = mu.ln();
-        let y = -(1.0 - f_emp).ln();
-
-        if x.is_finite() && y.is_finite() {
-            sum_xy += x * y;
-            sum_xx += x * x;
-        }
-    }
-
-    if sum_xx.abs() < 1e-10 {
+    if n_kept < 2 {
         return f32::NAN;
     }
 
-    sum_xy / sum_xx // slope = d
+    // Empirical CDF: F_emp(μ_i) = i / n_kept
+    // We fit: -log(1 - F_emp) = d * log(μ)
+    // Using simple least squares with intercept forced to 0
+    //
+    // Note: We use n_kept (trimmed count) for proper CDF normalization,
+    // matching scikit-dimension's approach after discarding outliers.
+
+    let mut sum_xy = 0.0f64; // Use f64 for accumulation precision
+    let mut sum_xx = 0.0f64;
+    let mut valid_count = 0usize;
+
+    for (i, &mu) in sorted.iter().enumerate() {
+        let f_emp = (i + 1) as f64 / n_kept as f64;
+
+        // Skip if F_emp ≈ 1 (would cause -log(0))
+        // Skip if μ ≈ 1 (would cause log(1) = 0, degenerate - equidistant neighbors)
+        if f_emp >= 0.9999 || mu < 1.0001 {
+            continue;
+        }
+
+        let x = (mu as f64).ln();
+        let y = -(1.0 - f_emp).ln();
+
+        if x.is_finite() && y.is_finite() && x > 0.0 {
+            sum_xy += x * y;
+            sum_xx += x * x;
+            valid_count += 1;
+        }
+    }
+
+    if valid_count < 2 || sum_xx.abs() < 1e-12 {
+        return f32::NAN;
+    }
+
+    (sum_xy / sum_xx) as f32 // slope = d
+}
+
+/// Extended TwoNN result with confidence interval.
+#[derive(Debug, Clone, Copy)]
+pub struct TwoNNResult {
+    /// Estimated intrinsic dimension.
+    pub dimension: f32,
+    /// Standard error of the estimate.
+    pub std_error: f32,
+    /// Number of valid ratios used.
+    pub n_samples: usize,
+    /// 95% confidence interval lower bound.
+    pub ci_lower: f32,
+    /// 95% confidence interval upper bound.
+    pub ci_upper: f32,
+}
+
+/// TwoNN estimator with confidence interval (Denti et al., 2022).
+///
+/// Returns the dimension estimate along with uncertainty quantification.
+/// The confidence interval is based on the asymptotic normality of the
+/// MLE formulation of TwoNN.
+///
+/// # Theory
+///
+/// The TwoNN estimator in MLE form is:
+/// ```text
+/// d̂ = n / Σᵢ log(μᵢ)
+/// ```
+///
+/// With asymptotic variance approximately d²/n, giving standard error d/√n.
+///
+/// # Arguments
+///
+/// * `mu_ratios` - Array of μ = r₂/r₁ ratios
+/// * `discard_fraction` - Fraction of largest ratios to discard (default: 0.1)
+#[must_use]
+pub fn estimate_twonn_with_ci(mu_ratios: &[f32], discard_fraction: f32) -> TwoNNResult {
+    // Filter and sort
+    let mut sorted: Vec<f32> = mu_ratios
+        .iter()
+        .filter(|&&x| x.is_finite() && x >= 1.0)
+        .copied()
+        .collect();
+
+    if sorted.len() < 2 {
+        return TwoNNResult {
+            dimension: f32::NAN,
+            std_error: f32::NAN,
+            n_samples: 0,
+            ci_lower: f32::NAN,
+            ci_upper: f32::NAN,
+        };
+    }
+
+    sorted.sort_by(|a, b| a.total_cmp(b));
+
+    let keep_count = ((sorted.len() as f32) * (1.0 - discard_fraction)).max(2.0) as usize;
+    let sorted = &sorted[..keep_count.min(sorted.len())];
+
+    // MLE formulation: d̂ = n / Σᵢ log(μᵢ)
+    // Filter out μ ≈ 1 to avoid log(1) = 0
+    let valid_ratios: Vec<f32> = sorted.iter().filter(|&&mu| mu > 1.0001).copied().collect();
+    let n = valid_ratios.len();
+
+    if n < 2 {
+        return TwoNNResult {
+            dimension: f32::NAN,
+            std_error: f32::NAN,
+            n_samples: n,
+            ci_lower: f32::NAN,
+            ci_upper: f32::NAN,
+        };
+    }
+
+    let sum_log_mu: f64 = valid_ratios.iter().map(|&mu| (mu as f64).ln()).sum();
+
+    if sum_log_mu.abs() < 1e-12 {
+        return TwoNNResult {
+            dimension: f32::NAN,
+            std_error: f32::NAN,
+            n_samples: n,
+            ci_lower: f32::NAN,
+            ci_upper: f32::NAN,
+        };
+    }
+
+    let d = (n as f64) / sum_log_mu;
+
+    // Asymptotic variance: Var(d̂) ≈ d² / n
+    // Standard error: SE = d / √n
+    let std_error = d / (n as f64).sqrt();
+
+    // 95% CI using z = 1.96
+    let ci_lower = (d - 1.96 * std_error).max(0.0);
+    let ci_upper = d + 1.96 * std_error;
+
+    TwoNNResult {
+        dimension: d as f32,
+        std_error: std_error as f32,
+        n_samples: n,
+        ci_lower: ci_lower as f32,
+        ci_upper: ci_upper as f32,
+    }
 }
 
 /// Methods for aggregating pointwise LID estimates into a global estimate.

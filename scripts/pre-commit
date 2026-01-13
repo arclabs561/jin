@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Pre-commit hook for Rust projects
+# Install: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+#
+# Skip with: git commit --no-verify
+# Or set: SKIP_PRECOMMIT=1
+
+set -e
+
+if [ -n "$SKIP_PRECOMMIT" ]; then
+    exit 0
+fi
+
+echo "pre-commit: running checks..."
+echo
+
+# 1. Format check (fast)
+printf "  [1/4] format ....... "
+if ! cargo fmt --check >/dev/null 2>&1; then
+    echo "FAIL"
+    echo "  Run: cargo fmt"
+    exit 1
+fi
+echo "ok"
+
+# 2. Filenames - no spaces or special chars
+printf "  [2/4] filenames .... "
+bad_files=$(git diff --cached --name-only | grep -E ' |[^a-zA-Z0-9_./-]' || true)
+if [ -n "$bad_files" ]; then
+    echo "FAIL"
+    echo "  Bad filename: $bad_files"
+    exit 1
+fi
+echo "ok"
+
+# 3. File sizes - no huge files (>1MB)
+printf "  [3/4] file sizes ... "
+large_files=""
+while IFS= read -r f; do
+    if [ -f "$f" ]; then
+        size=$(wc -c < "$f" 2>/dev/null || echo 0)
+        if [ "$size" -gt 1048576 ]; then
+            large_files="$large_files $f"
+        fi
+    fi
+done < <(git diff --cached --name-only)
+if [ -n "$large_files" ]; then
+    echo "FAIL"
+    echo "  Files >1MB:$large_files"
+    exit 1
+fi
+echo "ok"
+
+# 4. No secrets (basic patterns)
+printf "  [4/4] secrets ...... "
+secrets_found=$(git diff --cached -U0 | grep -iE '(api_key|secret|password|token)\s*[:=]\s*["\047][^"\047]+["\047]' || true)
+if [ -n "$secrets_found" ]; then
+    echo "WARN"
+    echo "  Possible secrets detected - review before pushing"
+else
+    echo "ok"
+fi
+
+echo
+echo "pre-commit: passed"

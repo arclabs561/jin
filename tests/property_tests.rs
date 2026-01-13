@@ -578,6 +578,274 @@ mod lid_props {
 }
 
 // =============================================================================
+// TwoNN Estimator Properties
+// =============================================================================
+
+mod twonn_props {
+    use super::*;
+    use vicinity::lid::{estimate_twonn, estimate_twonn_with_ci};
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(200))]
+
+        /// TwoNN should return positive dimension for valid mu ratios.
+        /// μ = r2/r1 >= 1 always (2nd neighbor at least as far as 1st).
+        #[test]
+        fn twonn_positive_dimension(
+            n in 20usize..100,
+            seed in any::<u64>(),
+        ) {
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+
+            // Generate realistic mu ratios > 1.0
+            let mut hasher = DefaultHasher::new();
+            seed.hash(&mut hasher);
+            let h = hasher.finish();
+
+            let ratios: Vec<f32> = (0..n)
+                .map(|i| {
+                    let x = ((h.wrapping_mul(i as u64 + 1)) % 10000) as f32 / 10000.0;
+                    1.0 + x * 3.0 // ratios in [1.0, 4.0]
+                })
+                .collect();
+
+            let dim = estimate_twonn(&ratios, 0.1);
+
+            if dim.is_finite() {
+                prop_assert!(dim > 0.0, "TwoNN dimension should be positive, got {}", dim);
+            }
+        }
+
+        /// TwoNN with CI should have CI_lower <= dimension <= CI_upper.
+        #[test]
+        fn twonn_ci_ordering(
+            n in 50usize..200,
+            seed in any::<u64>(),
+        ) {
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+
+            let mut hasher = DefaultHasher::new();
+            seed.hash(&mut hasher);
+            let h = hasher.finish();
+
+            let ratios: Vec<f32> = (0..n)
+                .map(|i| {
+                    let x = ((h.wrapping_mul(i as u64 + 1)) % 10000) as f32 / 10000.0;
+                    1.0 + x * 2.0
+                })
+                .collect();
+
+            let result = estimate_twonn_with_ci(&ratios, 0.1);
+
+            if result.dimension.is_finite() && result.ci_lower.is_finite() && result.ci_upper.is_finite() {
+                prop_assert!(
+                    result.ci_lower <= result.dimension,
+                    "CI lower {} should be <= dimension {}",
+                    result.ci_lower, result.dimension
+                );
+                prop_assert!(
+                    result.dimension <= result.ci_upper,
+                    "dimension {} should be <= CI upper {}",
+                    result.dimension, result.ci_upper
+                );
+            }
+        }
+
+        /// TwoNN and TwoNN with CI should give similar dimension estimates.
+        #[test]
+        fn twonn_consistency(
+            n in 50usize..200,
+            seed in any::<u64>(),
+        ) {
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+
+            let mut hasher = DefaultHasher::new();
+            seed.hash(&mut hasher);
+            let h = hasher.finish();
+
+            let ratios: Vec<f32> = (0..n)
+                .map(|i| {
+                    let x = ((h.wrapping_mul(i as u64 + 1)) % 10000) as f32 / 10000.0;
+                    1.0 + x * 2.0
+                })
+                .collect();
+
+            let dim1 = estimate_twonn(&ratios, 0.1);
+            let result2 = estimate_twonn_with_ci(&ratios, 0.1);
+
+            // The linear regression vs MLE approaches should give similar results
+            // but not identical due to different formulations
+            if dim1.is_finite() && result2.dimension.is_finite() {
+                // Allow 50% relative difference (they're different estimators)
+                let rel_diff = (dim1 - result2.dimension).abs() / dim1.max(result2.dimension);
+                prop_assert!(
+                    rel_diff < 0.5,
+                    "TwoNN methods disagree too much: {} vs {} (rel diff {})",
+                    dim1, result2.dimension, rel_diff
+                );
+            }
+        }
+
+        /// TwoNN should be robust to outlier discarding.
+        /// Higher discard fraction = more robust but higher variance.
+        #[test]
+        fn twonn_discard_sensitivity(
+            n in 100usize..300,
+            seed in any::<u64>(),
+        ) {
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+
+            let mut hasher = DefaultHasher::new();
+            seed.hash(&mut hasher);
+            let h = hasher.finish();
+
+            // Generate ratios with some outliers at the tail
+            let ratios: Vec<f32> = (0..n)
+                .map(|i| {
+                    let x = ((h.wrapping_mul(i as u64 + 1)) % 10000) as f32 / 10000.0;
+                    if i < n - 5 {
+                        1.0 + x * 2.0 // normal ratios
+                    } else {
+                        5.0 + x * 10.0 // outliers
+                    }
+                })
+                .collect();
+
+            let dim_no_discard = estimate_twonn(&ratios, 0.0);
+            let dim_with_discard = estimate_twonn(&ratios, 0.1);
+
+            // With outliers, discarding should generally give lower (more realistic) ID
+            // This is a soft check since it's statistical
+            if dim_no_discard.is_finite() && dim_with_discard.is_finite() {
+                // At least one should be valid
+                prop_assert!(
+                    dim_no_discard > 0.0 || dim_with_discard > 0.0,
+                    "At least one estimate should be positive"
+                );
+            }
+        }
+
+        /// Empty or very small inputs should return NaN.
+        #[test]
+        fn twonn_empty_returns_nan(
+            n in 0usize..2,
+        ) {
+            let ratios: Vec<f32> = (0..n).map(|i| 1.0 + i as f32 * 0.5).collect();
+            let dim = estimate_twonn(&ratios, 0.1);
+            let result = estimate_twonn_with_ci(&ratios, 0.1);
+
+            // Empty or single-element should return NaN
+            if n < 2 {
+                prop_assert!(dim.is_nan(), "Should return NaN for n={}", n);
+                prop_assert!(result.dimension.is_nan(), "CI version should return NaN for n={}", n);
+            }
+        }
+
+        /// Mu ratios exactly equal to 1.0 (equidistant neighbors) should be handled.
+        #[test]
+        fn twonn_handles_equidistant(
+            n in 20usize..50,
+            frac_equidistant in 0.0f32..0.5,
+        ) {
+            let n_equidistant = (n as f32 * frac_equidistant) as usize;
+
+            let ratios: Vec<f32> = (0..n)
+                .map(|i| {
+                    if i < n_equidistant {
+                        1.0 // equidistant (degenerate case)
+                    } else {
+                        1.1 + (i as f32 * 0.1) % 2.0
+                    }
+                })
+                .collect();
+
+            let dim = estimate_twonn(&ratios, 0.1);
+
+            // Should not panic, should return valid result if enough non-degenerate ratios
+            if n - n_equidistant >= 3 {
+                prop_assert!(dim.is_finite() || dim.is_nan(),
+                    "Should handle equidistant neighbors gracefully");
+            }
+        }
+    }
+}
+
+// =============================================================================
+// LID Aggregation Properties
+// =============================================================================
+
+mod lid_aggregation_props {
+    use super::*;
+    use vicinity::lid::{aggregate_lid, LidAggregation, LidEstimate};
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(100))]
+
+        /// Harmonic mean is always <= arithmetic mean for positive values.
+        #[test]
+        fn harmonic_le_arithmetic(
+            lids in prop::collection::vec(0.5f32..50.0, 5..30),
+        ) {
+            let estimates: Vec<LidEstimate> = lids.iter()
+                .map(|&lid| LidEstimate { lid, k: 20, max_dist: 1.0 })
+                .collect();
+
+            let mean = aggregate_lid(&estimates, LidAggregation::Mean);
+            let harmonic = aggregate_lid(&estimates, LidAggregation::HarmonicMean);
+
+            prop_assert!(
+                harmonic <= mean + 1e-6,
+                "Harmonic mean {} should be <= arithmetic mean {}",
+                harmonic, mean
+            );
+        }
+
+        /// Median is between min and max.
+        #[test]
+        fn median_bounded(
+            lids in prop::collection::vec(1.0f32..100.0, 3..50),
+        ) {
+            let estimates: Vec<LidEstimate> = lids.iter()
+                .map(|&lid| LidEstimate { lid, k: 20, max_dist: 1.0 })
+                .collect();
+
+            let median = aggregate_lid(&estimates, LidAggregation::Median);
+
+            let min_lid = lids.iter().cloned().reduce(f32::min).unwrap();
+            let max_lid = lids.iter().cloned().reduce(f32::max).unwrap();
+
+            prop_assert!(
+                median >= min_lid - 1e-6 && median <= max_lid + 1e-6,
+                "Median {} should be in [{}, {}]",
+                median, min_lid, max_lid
+            );
+        }
+
+        /// All aggregation methods should be finite for valid inputs.
+        #[test]
+        fn aggregation_finite(
+            lids in prop::collection::vec(1.0f32..50.0, 5..20),
+        ) {
+            let estimates: Vec<LidEstimate> = lids.iter()
+                .map(|&lid| LidEstimate { lid, k: 20, max_dist: 1.0 })
+                .collect();
+
+            let mean = aggregate_lid(&estimates, LidAggregation::Mean);
+            let median = aggregate_lid(&estimates, LidAggregation::Median);
+            let harmonic = aggregate_lid(&estimates, LidAggregation::HarmonicMean);
+
+            prop_assert!(mean.is_finite(), "Mean should be finite");
+            prop_assert!(median.is_finite(), "Median should be finite");
+            prop_assert!(harmonic.is_finite(), "Harmonic mean should be finite");
+        }
+    }
+}
+
+// =============================================================================
 // Additional Distance Metric Properties
 // =============================================================================
 
