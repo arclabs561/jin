@@ -1,4 +1,14 @@
-# vicinity
+<p align="center"><b>vicinity</b></p>
+
+```
+    query
+      │
+      ▼
+  ┌───────┐     ┌───────┐     ┌───────┐
+  │ HNSW  │ ──▶ │  PQ   │ ──▶ │  top  │
+  │ graph │     │rescore│     │   k   │
+  └───────┘     └───────┘     └───────┘
+```
 
 Approximate Nearest Neighbor search in Rust.
 
