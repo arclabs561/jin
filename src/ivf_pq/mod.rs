@@ -1,32 +1,117 @@
-//! IVF-PQ (Inverted File Index with Product Quantization) implementation.
+//! IVF-PQ: Inverted File with Product Quantization.
 //!
-//! Memory-efficient ANN algorithm combining:
-//! - **IVF**: Inverted file index (clustering-based partitioning)
-//! - **PQ**: Product quantization (vector compression)
+//! The workhorse of billion-scale similarity search. Combines two ideas:
 //!
-//! Best for billion-scale datasets with memory constraints.
+//! 1. **IVF (Inverted File)**: Partition space into Voronoi cells, only search
+//!    cells near the query
+//! 2. **PQ (Product Quantization)**: Compress vectors to 8-32 bytes while
+//!    preserving distance estimation
 //!
-//! # References
+//! ## Why IVF?
 //!
-//! - Jégou et al. (2011): "Product Quantization for Nearest Neighbor Search"
+//! Brute-force search is O(n). With IVF:
+//! - Partition n vectors into k clusters (k ≈ √n)
+//! - At query time, only search `nprobe` nearest clusters
+//! - Effective search cost: O(nprobe × n/k)
 //!
-//! # Status: Experimental
+//! ```text
+//!           Query
+//!             |
+//!     +-------+-------+
+//!     |               |
+//!   Cell A          Cell B      (probe 2 cells)
+//!   |__|__|         |__|__|
+//!   v  v  v         v  v  v
+//!  [vectors]       [vectors]    (compare within cells)
+//! ```
 //!
-//! Some fields (e.g., `pq_codebooks`) are placeholders for Product Quantization
-//! integration that is under active development.
+//! ## Why Product Quantization?
+//!
+//! A 128-dim float32 vector is 512 bytes. At 1 billion vectors, that's 500GB.
+//! PQ compresses to ~16 bytes (32x compression) while keeping 90%+ recall.
+//!
+//! **The Key Insight** ([Jégou et al. 2011](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf)):
+//!
+//! Split the vector into M subvectors. Quantize each independently using a
+//! small codebook (256 entries). Store only the codebook indices.
+//!
+//! ```text
+//! Original:  [v₁ v₂ v₃ v₄ ... v₁₂₈]  (128 floats = 512 bytes)
+//!            └──┴──┘ └──┴──┘ ... └──┘
+//!              ↓       ↓         ↓
+//!            [c₁]    [c₂]  ... [cₘ]   (M=8 codebook indices = 8 bytes)
+//! ```
+//!
+//! **Distance estimation**: Precompute distances from query subvectors to all
+//! codebook entries. Then distance to any compressed vector is just M table lookups.
+//!
+//! ## Asymmetric Distance Computation (ADC)
+//!
+//! Don't compress the query—only compress database vectors.
+//!
+//! ```text
+//! query (exact) → codebook distances → lookup for each DB vector
+//!
+//! d(query, db) ≈ Σᵢ lookup[i][db_code[i]]
+//! ```
+//!
+//! This gives better accuracy than symmetric (both compressed) at same memory.
+//!
+//! ## OPQ: Optimized Product Quantization
+//!
+//! PQ assumes subspaces are independent. Real data has correlations.
+//! OPQ learns a rotation matrix R that decorrelates dimensions before
+//! quantization, improving accuracy by 10-30%.
+//!
+//! ## Usage
+//!
+//! ```rust,ignore
+//! use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
+//!
+//! let params = IVFPQParams {
+//!     num_centroids: 1024,  // sqrt(n) is a good default
+//!     num_codebooks: 8,     // 8 bytes per vector
+//!     codebook_bits: 8,     // 256 codewords per codebook
+//!     nprobe: 10,           // search 10 nearest cells
+//! };
+//!
+//! let mut index = IVFPQIndex::new(128, params)?;
+//! index.train(&training_vectors)?;
+//! index.add_batch(&vectors)?;
+//!
+//! let results = index.search(&query, 10)?;
+//! ```
+//!
+//! ## Trade-offs
+//!
+//! | Parameter | ↑ Effect |
+//! |-----------|----------|
+//! | nprobe | Better recall, slower search |
+//! | num_centroids | Better partitioning, slower training |
+//! | num_codebooks | More memory, better accuracy |
+//!
+//! ## References
+//!
+//! - Jégou, Douze, Schmid (2011). "Product Quantization for Nearest Neighbor Search."
+//! - Ge et al. (2014). "Optimized Product Quantization."
+//! - See `opq.rs` for the rotation learning algorithm.
 
-#![allow(dead_code)]
-
-mod ivf;
+#[cfg(feature = "scann")]
+pub mod ivf;
 #[cfg(feature = "scann")]
 mod online_pq;
 #[cfg(feature = "scann")]
-mod opq;
+pub mod opq;
+#[cfg(feature = "scann")]
 pub mod pq;
+#[cfg(feature = "scann")]
 pub mod search;
 
 #[cfg(feature = "scann")]
-pub use online_pq::OnlineProductQuantizer;
+pub use ivf::{IVFIndex, IVFParams};
 #[cfg(feature = "scann")]
-pub use opq::OptimizedProductQuantizer;
-pub use search::{IVFPQIndex, IVFPQParams};
+pub use online_pq::OnlinePQ;
+#[cfg(feature = "scann")]
+pub use opq::{OPQParams, OptimizedPQ};
+#[cfg(feature = "scann")]
+pub use pq::ProductQuantizer;
