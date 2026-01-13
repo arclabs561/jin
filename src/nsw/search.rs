@@ -29,6 +29,13 @@ impl Ord for Candidate {
 }
 
 /// Greedy search in flat NSW graph.
+///
+/// # Performance Note
+///
+/// Uses `HashSet` for visited tracking. For very large graphs (>1M nodes) with
+/// high ef values, a `BitVec` could reduce memory overhead, but `HashSet` with
+/// pre-allocation performs well for typical workloads and doesn't require
+/// knowing the total node count upfront.
 pub fn greedy_search(
     query: &[f32],
     entry_point: u32,
@@ -37,7 +44,8 @@ pub fn greedy_search(
     dimension: usize,
     ef: usize,
 ) -> Result<Vec<(u32, f32)>, RetrieveError> {
-    // Pre-allocate with capacity for better performance
+    // Pre-allocate with capacity - HashSet is O(1) average for insert/lookup.
+    // For dense graphs with known size, BitVec would be more cache-efficient.
     let mut visited = HashSet::with_capacity(ef * 2);
     let mut candidates = BinaryHeap::with_capacity(ef * 2);
     let mut results = BinaryHeap::with_capacity(ef);
