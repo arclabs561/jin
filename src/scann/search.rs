@@ -152,9 +152,12 @@ impl SCANNIndex {
     }
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
-        if !self.built { return Err(RetrieveError::Other("Not built".into())); }
+        if !self.built { 
+            return Err(RetrieveError::Other("Not built".into())); 
+        }
         
-        let quantizer = self.quantizer.as_ref().unwrap();
+        let quantizer = self.quantizer.as_ref()
+            .ok_or_else(|| RetrieveError::Other("Quantizer not initialized".into()))?;
 
         // 1. Find top partitions
         // Compute dot product with all centroids

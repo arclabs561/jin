@@ -343,7 +343,10 @@ where
             }
         }
 
-        let Reverse(current) = frontier.pop().unwrap();
+        // SAFETY: We just peeked successfully, so pop will succeed
+        let Some(Reverse(current)) = frontier.pop() else {
+            break;
+        };
 
         for &nb in &graph[current.id as usize] {
             if !visited.insert(nb) {
@@ -353,14 +356,16 @@ where
             let d = distance_fn(query_id, nb);
             let cand = Candidate { dist: d, id: nb };
 
-            if working_set.len() < beam_width {
-                working_set.push(cand);
-                frontier.push(Reverse(cand));
-            } else if d < working_set.peek().unwrap().dist {
+        if working_set.len() < beam_width {
+            working_set.push(cand);
+            frontier.push(Reverse(cand));
+        } else if let Some(worst) = working_set.peek() {
+            if d < worst.dist {
                 working_set.pop();
                 working_set.push(cand);
                 frontier.push(Reverse(cand));
             }
+        }
         }
     }
 

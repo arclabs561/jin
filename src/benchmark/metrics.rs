@@ -152,7 +152,7 @@ impl EvaluationSummary {
         let p50_latency_us = latencies[n / 2];
         let p95_latency_us = latencies[(n as f64 * 0.95) as usize];
         let p99_latency_us = latencies[(n as f64 * 0.99) as usize];
-        let max_latency_us = *latencies.last().unwrap();
+        let max_latency_us = latencies.last().copied().unwrap_or(0);
 
         // QPS (queries per second)
         let total_time_us: u64 = latencies.iter().sum();

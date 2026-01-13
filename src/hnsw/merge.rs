@@ -85,14 +85,14 @@ impl MergeGraph {
         if node.max_layer > self.max_layer {
             self.max_layer = node.max_layer;
         }
-        if self.entry_point.is_none()
-            || node.max_layer
-                > self
-                    .nodes
-                    .get(&self.entry_point.unwrap())
-                    .map(|n| n.max_layer)
-                    .unwrap_or(0)
-        {
+        let should_update_entry = match self.entry_point {
+            None => true,
+            Some(ep) => {
+                let current_max = self.nodes.get(&ep).map(|n| n.max_layer).unwrap_or(0);
+                node.max_layer > current_max
+            }
+        };
+        if should_update_entry {
             self.entry_point = Some(node.id);
         }
         self.nodes.insert(node.id, node);
@@ -176,9 +176,8 @@ pub fn naive_graph_merge(
 
     // Add all nodes from graph B (may overlap)
     for node in graph_b.nodes.values() {
-        if merged.nodes.contains_key(&node.id) {
+        if let Some(existing) = merged.nodes.get_mut(&node.id) {
             // Node exists in both - merge neighbor lists
-            let existing = merged.nodes.get_mut(&node.id).unwrap();
             for (layer, neighbors) in node.neighbors.iter().enumerate() {
                 if layer < existing.neighbors.len() {
                     for &neighbor in neighbors {
@@ -606,8 +605,10 @@ fn refine_all_edges(graph: &mut MergeGraph, config: &MergeConfig, stats: &mut Me
     let node_ids: Vec<u32> = graph.nodes.keys().copied().collect();
 
     for id in node_ids {
+        let Some(node) = graph.nodes.get(&id) else {
+            continue;
+        };
         let (query, candidates) = {
-            let node = graph.nodes.get(&id).unwrap();
             let query = node.vector.clone();
             let candidates: Vec<(u32, f32)> = node
                 .neighbors

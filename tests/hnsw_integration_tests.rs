@@ -437,3 +437,168 @@ fn test_hnsw_orthogonal_vectors() {
     assert_eq!(results[1].0, 1);
     assert!((results[1].1 - 1.0).abs() < 0.01, "Orthogonal vector distance should be ~1");
 }
+
+/// Property: Recall should be monotonically non-decreasing with ef_search.
+/// 
+/// This is a fundamental HNSW property: larger search effort (ef) explores
+/// more candidates, so recall should not decrease.
+#[test]
+fn test_hnsw_recall_monotonic_with_ef() {
+    let dim = 32;
+    let n = 500;
+    let k = 10;
+    
+    let vectors: Vec<Vec<f32>> = random_vectors(n, dim, 42)
+        .into_iter()
+        .map(|v| normalize(&v))
+        .collect();
+    
+    let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
+    
+    for (i, v) in vectors.iter().enumerate() {
+        hnsw.add(i as u32, v.clone()).expect("Failed to add vector");
+    }
+    hnsw.build().expect("Failed to build index");
+    
+    // Test with several queries
+    let test_queries: Vec<Vec<f32>> = random_vectors(20, dim, 999)
+        .into_iter()
+        .map(|v| normalize(&v))
+        .collect();
+    
+    let ef_values = [10, 20, 50, 100, 200];
+    
+    for query in &test_queries {
+        let exact = exact_knn_cosine(&vectors, query, k);
+        
+        let mut prev_recall = 0.0_f32;
+        
+        for &ef in &ef_values {
+            let results = hnsw.search(query, k, ef).expect("Search failed");
+            let recall = recall_at_k(&exact, &results, k);
+            
+            // Recall should not decrease as ef increases
+            // Allow small tolerance for floating point and edge cases
+            assert!(
+                recall >= prev_recall - 0.1,
+                "Recall decreased from {} to {} when ef increased to {}",
+                prev_recall, recall, ef
+            );
+            
+            prev_recall = recall;
+        }
+    }
+}
+
+/// Property: Search should return valid indices within the indexed range.
+#[test]
+fn test_hnsw_search_returns_valid_indices() {
+    let dim = 16;
+    let n = 200;
+    
+    let vectors: Vec<Vec<f32>> = random_vectors(n, dim, 123)
+        .into_iter()
+        .map(|v| normalize(&v))
+        .collect();
+    
+    let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
+    
+    for (i, v) in vectors.iter().enumerate() {
+        hnsw.add(i as u32, v.clone()).expect("Failed to add vector");
+    }
+    hnsw.build().expect("Failed to build index");
+    
+    // Run many queries
+    let test_queries: Vec<Vec<f32>> = random_vectors(50, dim, 456)
+        .into_iter()
+        .map(|v| normalize(&v))
+        .collect();
+    
+    for query in &test_queries {
+        let results = hnsw.search(query, 20, DEFAULT_EF).expect("Search failed");
+        
+        for (idx, dist) in &results {
+            // Index must be valid
+            assert!(
+                (*idx as usize) < n,
+                "Search returned invalid index {} (n={})",
+                idx, n
+            );
+            
+            // Distance must be non-negative (cosine distance is in [0, 2])
+            assert!(
+                *dist >= 0.0 && *dist <= 2.0 + 1e-5,
+                "Invalid cosine distance: {}",
+                dist
+            );
+        }
+    }
+}
+
+/// Property: Identical queries should return identical results (determinism).
+#[test]
+fn test_hnsw_deterministic_search() {
+    let dim = 32;
+    let n = 300;
+    
+    let vectors: Vec<Vec<f32>> = random_vectors(n, dim, 789)
+        .into_iter()
+        .map(|v| normalize(&v))
+        .collect();
+    
+    let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
+    
+    for (i, v) in vectors.iter().enumerate() {
+        hnsw.add(i as u32, v.clone()).expect("Failed to add vector");
+    }
+    hnsw.build().expect("Failed to build index");
+    
+    let query = normalize(&vec![1.0; dim]);
+    
+    // Run the same query multiple times
+    let results1 = hnsw.search(&query, 10, DEFAULT_EF).expect("Search failed");
+    let results2 = hnsw.search(&query, 10, DEFAULT_EF).expect("Search failed");
+    let results3 = hnsw.search(&query, 10, DEFAULT_EF).expect("Search failed");
+    
+    // All results should be identical
+    assert_eq!(results1, results2, "Search should be deterministic");
+    assert_eq!(results2, results3, "Search should be deterministic");
+}
+
+/// Property: Results should be unique (no duplicate indices).
+#[test]
+fn test_hnsw_results_unique() {
+    let dim = 32;
+    let n = 400;
+    let k = 50;
+    
+    let vectors: Vec<Vec<f32>> = random_vectors(n, dim, 321)
+        .into_iter()
+        .map(|v| normalize(&v))
+        .collect();
+    
+    let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create index");
+    
+    for (i, v) in vectors.iter().enumerate() {
+        hnsw.add(i as u32, v.clone()).expect("Failed to add vector");
+    }
+    hnsw.build().expect("Failed to build index");
+    
+    let test_queries: Vec<Vec<f32>> = random_vectors(30, dim, 654)
+        .into_iter()
+        .map(|v| normalize(&v))
+        .collect();
+    
+    for query in &test_queries {
+        let results = hnsw.search(query, k, 100).expect("Search failed");
+        
+        let indices: Vec<u32> = results.iter().map(|(i, _)| *i).collect();
+        let unique: HashSet<u32> = indices.iter().copied().collect();
+        
+        assert_eq!(
+            indices.len(),
+            unique.len(),
+            "Search returned duplicate indices"
+        );
+    }
+}
