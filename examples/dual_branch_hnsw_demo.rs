@@ -1,46 +1,39 @@
-//! Dual-Branch HNSW Demo
+//! LID-Aware Graph Construction Demo
 //!
-//! Demonstrates LID-aware HNSW construction with skip bridges for better
-//! handling of outliers and non-uniform data distributions.
+//! Demonstrates how Local Intrinsic Dimensionality (LID) can identify
+//! "hard" points in your data that need special treatment in ANN indices.
+//!
+//! This is a research concept demo, not production-ready code.
 //!
 //! ```bash
 //! cargo run --example dual_branch_hnsw_demo --release
 //! ```
 
-use std::collections::HashSet;
-use std::time::Instant;
-use vicinity::hnsw::dual_branch::{DualBranchConfig, DualBranchHNSW};
-use vicinity::hnsw::HNSWIndex;
-use vicinity::lid::{estimate_lid_batch, LidConfig, LidStats};
+use vicinity::lid::{estimate_lid_batch, LidCategory, LidConfig, LidStats};
 
-fn main() -> vicinity::Result<()> {
-    println!("Dual-Branch HNSW with LID-Aware Construction");
-    println!("=============================================\n");
+fn main() {
+    println!("Local Intrinsic Dimensionality for ANN Index Quality");
+    println!("=====================================================\n");
 
-    println!("Key ideas:");
-    println!("  1. Local Intrinsic Dimensionality (LID) identifies 'outlier' points");
-    println!("  2. High-LID points get more neighbors (better connectivity)");
-    println!("  3. Skip bridges connect high-LID nodes for faster navigation\n");
+    println!("Key insight: Some points are inherently harder to find via ANN.");
+    println!("LID helps identify these points so we can handle them specially.\n");
 
-    demo_lid_detection()?;
-    demo_clustered_with_outliers()?;
-    demo_stats()?;
-
-    Ok(())
+    demo_lid_detection();
+    demo_lid_for_index_quality();
+    demo_research_directions();
 }
 
-fn demo_lid_detection() -> vicinity::Result<()> {
-    println!("1. LID Detection on Clustered Data");
-    println!("   --------------------------------\n");
+fn demo_lid_detection() {
+    println!("1. LID Identifies Outliers");
+    println!("   -----------------------\n");
 
-    let dim = 16;
+    let dim = 32;
     let n_clusters = 5;
-    let points_per_cluster = 50;
+    let points_per_cluster = 100;
     let n_outliers = 10;
 
-    // Generate clusters
+    // Generate clustered data
     let mut data: Vec<f32> = Vec::new();
-
     for c in 0..n_clusters {
         let center: Vec<f32> = (0..dim)
             .map(|j| ((c * dim + j) as f32 * 0.618).sin() * 10.0)
@@ -61,17 +54,15 @@ fn demo_lid_detection() -> vicinity::Result<()> {
 
     let n_normal = n_clusters * points_per_cluster;
 
-    // Add outliers (random high-dimensional noise)
+    // Add outliers (far from clusters)
     for i in 0..n_outliers {
         let outlier: Vec<f32> = (0..dim)
-            .map(|j| ((i * dim + j) as f32 * 0.7).sin() * 50.0) // Far from clusters
+            .map(|j| ((i * dim + j) as f32 * 0.7).sin() * 50.0)
             .collect();
         data.extend(outlier);
     }
 
-    let n_total = n_normal + n_outliers;
-
-    // Estimate LID for all points
+    // Estimate LID
     let config = LidConfig {
         k: 15,
         epsilon: 1e-10,
@@ -80,256 +71,129 @@ fn demo_lid_detection() -> vicinity::Result<()> {
     let stats = LidStats::from_estimates(&estimates);
 
     println!(
-        "   Generated {} cluster points + {} outliers",
-        n_normal, n_outliers
+        "   Generated {} cluster points + {} outliers in {}D\n",
+        n_normal, n_outliers, dim
     );
-    println!("   LID statistics:");
-    println!("     Mean:   {:.2}", stats.mean);
-    println!("     Median: {:.2}", stats.median);
-    println!("     Std:    {:.2}", stats.std_dev);
+    println!("   LID distribution:");
+    println!("     Mean:      {:.2}", stats.mean);
+    println!("     Median:    {:.2}", stats.median);
+    println!("     Std Dev:   {:.2}", stats.std_dev);
+    println!("     Range:     [{:.2}, {:.2}]", stats.min, stats.max);
     println!(
-        "     High threshold: {:.2} (median + 1 sigma)",
+        "     Threshold: {:.2} (median + 1*std)",
         stats.high_lid_threshold()
     );
 
-    // Count detected outliers
-    let high_lid_threshold = stats.high_lid_threshold();
-    let mut detected_as_outlier = 0;
-    let mut cluster_detected_as_high = 0;
+    // Count detection accuracy
+    let threshold = stats.high_lid_threshold();
+    let mut true_positives = 0;
+    let mut false_positives = 0;
 
-    for (i, estimate) in estimates.iter().enumerate() {
-        let is_actual_outlier = i >= n_normal;
-        let is_high_lid = estimate.lid > high_lid_threshold;
+    for (i, est) in estimates.iter().enumerate() {
+        let is_outlier = i >= n_normal;
+        let detected_high = est.lid > threshold;
 
-        if is_actual_outlier && is_high_lid {
-            detected_as_outlier += 1;
-        } else if !is_actual_outlier && is_high_lid {
-            cluster_detected_as_high += 1;
+        if is_outlier && detected_high {
+            true_positives += 1;
+        } else if !is_outlier && detected_high {
+            false_positives += 1;
         }
     }
 
-    println!("\n   Outlier detection:");
+    println!("\n   Detection accuracy:");
     println!(
-        "     True outliers detected: {}/{}",
-        detected_as_outlier, n_outliers
+        "     True outliers found: {}/{}",
+        true_positives, n_outliers
     );
+    println!("     False positives:     {}/{}", false_positives, n_normal);
     println!(
-        "     Cluster points flagged: {}/{}",
-        cluster_detected_as_high, n_normal
+        "     Precision: {:.0}%",
+        true_positives as f64 / (true_positives + false_positives).max(1) as f64 * 100.0
     );
     println!();
-
-    Ok(())
 }
 
-fn demo_clustered_with_outliers() -> vicinity::Result<()> {
-    println!("2. Dual-Branch HNSW on Non-Uniform Data");
-    println!("   ------------------------------------\n");
+fn demo_lid_for_index_quality() {
+    println!("2. Why LID Matters for ANN Quality");
+    println!("   --------------------------------\n");
 
-    let dim = 32;
-    let n_clusters = 10;
-    let points_per_cluster = 100;
-    let n_outliers = 50;
+    println!("   High-LID points are problematic because:");
+    println!("     - They have few true near neighbors");
+    println!("     - Greedy search can miss them entirely");
+    println!("     - Standard graph construction under-connects them\n");
 
-    // Generate data
-    let mut data: Vec<f32> = Vec::new();
+    println!("   LID categorization:");
+    println!("     Low LID    (<median-std): Dense region, easy to find");
+    println!("     Normal LID (within 1std): Typical point");
+    println!("     High LID   (>median+std): Sparse region, hard to find\n");
 
-    for c in 0..n_clusters {
-        let center: Vec<f32> = (0..dim)
-            .map(|j| ((c * dim + j) as f32 * 0.618).sin() * 20.0)
-            .collect();
+    // Generate example and show LID categories
+    let dim = 64;
+    let n = 500;
+    let data: Vec<f32> = (0..n * dim)
+        .map(|i| ((i as f32 * 0.618).fract() * 2.0 - 1.0))
+        .collect();
 
-        for i in 0..points_per_cluster {
-            let point: Vec<f32> = center
-                .iter()
-                .enumerate()
-                .map(|(j, &v)| {
-                    let noise = ((c * points_per_cluster + i) * dim + j) as f32 * 0.01;
-                    v + noise.sin() * 1.0
-                })
-                .collect();
-            data.extend(point);
+    let config = LidConfig {
+        k: 20,
+        epsilon: 1e-10,
+    };
+    let estimates = estimate_lid_batch(&data, dim, &config);
+    let stats = LidStats::from_estimates(&estimates);
+
+    let mut counts = [0usize; 3]; // low, medium, high
+    for est in &estimates {
+        match stats.categorize(est.lid) {
+            LidCategory::Low => counts[0] += 1,
+            LidCategory::Normal => counts[1] += 1,
+            LidCategory::High => counts[2] += 1,
         }
     }
 
-    let n_normal = n_clusters * points_per_cluster;
-
-    // Add scattered outliers
-    for i in 0..n_outliers {
-        let outlier: Vec<f32> = (0..dim)
-            .map(|j| ((i * dim + j) as f32 * 1.414).sin() * 100.0)
-            .collect();
-        data.extend(outlier);
-    }
-
-    let n_total = n_normal + n_outliers;
-
-    // Build vectors for search
-    let vectors: Vec<Vec<f32>> = (0..n_total)
-        .map(|i| data[i * dim..(i + 1) * dim].to_vec())
-        .collect();
-
-    // Generate queries (some from clusters, some outliers)
-    let n_queries = 50;
-    let queries: Vec<Vec<f32>> = (0..n_queries)
-        .map(|i| {
-            if i < n_queries / 2 {
-                // Query near a cluster
-                let cluster_idx = (i * 7) % n_normal;
-                let base = &vectors[cluster_idx];
-                base.iter()
-                    .enumerate()
-                    .map(|(j, &v)| v + ((i * dim + j) as f32 * 0.001).sin() * 0.1)
-                    .collect()
-            } else {
-                // Query in sparse region
-                (0..dim)
-                    .map(|j| ((i * dim + j) as f32 * 0.999).cos() * 80.0)
-                    .collect()
-            }
-        })
-        .collect();
-
-    // Build standard HNSW
-    let standard_build_start = Instant::now();
-    let mut standard_index = HNSWIndex::new(dim, 16, 32)?;
-    for (i, vec) in vectors.iter().enumerate() {
-        standard_index.add(i as u32, vec.clone())?;
-    }
-    standard_index.build()?;
-    let standard_build_time = standard_build_start.elapsed();
-
-    // Build Dual-Branch HNSW
-    let dual_config = DualBranchConfig {
-        m: 16,
-        m_high_lid: 24, // More edges for outliers
-        ef_construction: 100,
-        ef_search: 50,
-        lid_k: 15,
-        lid_threshold_sigma: 1.0,
-        skip_bridge_probability: 0.3,
-        max_skip_length: 3,
-        seed: Some(42),
-    };
-
-    let dual_build_start = Instant::now();
-    let mut dual_index = DualBranchHNSW::new(dim, dual_config);
-    dual_index.add_vectors(&data)?;
-    dual_index.build()?;
-    let dual_build_time = dual_build_start.elapsed();
-
+    println!("   Example ({} points, {}D):", n, dim);
     println!(
-        "   Dataset: {} points ({}+{} outliers), dim={}",
-        n_total, n_normal, n_outliers, dim
-    );
-    println!("   Build time:");
-    println!("     Standard HNSW: {:?}", standard_build_time);
-    println!("     Dual-Branch:   {:?}", dual_build_time);
-
-    // Search and compare
-    let k = 10;
-    let ef = 50;
-
-    // Brute force ground truth
-    let ground_truth: Vec<Vec<u32>> = queries
-        .iter()
-        .map(|q| {
-            let mut dists: Vec<(u32, f32)> = vectors
-                .iter()
-                .enumerate()
-                .map(|(i, v)| (i as u32, l2_distance(q, v)))
-                .collect();
-            dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-            dists.into_iter().take(k).map(|(id, _)| id).collect()
-        })
-        .collect();
-
-    // Standard HNSW search
-    let standard_start = Instant::now();
-    let mut standard_results = Vec::with_capacity(n_queries);
-    for query in &queries {
-        let results = standard_index.search(query, k, ef)?;
-        standard_results.push(results.iter().map(|r| r.0).collect::<Vec<_>>());
-    }
-    let standard_search_time = standard_start.elapsed();
-
-    // Dual-Branch search
-    let dual_start = Instant::now();
-    let mut dual_results = Vec::with_capacity(n_queries);
-    for query in &queries {
-        let results = dual_index.search(query, k)?;
-        dual_results.push(results.iter().map(|r| r.0).collect::<Vec<_>>());
-    }
-    let dual_search_time = dual_start.elapsed();
-
-    // Calculate recall
-    let standard_recall = calculate_recall(&ground_truth, &standard_results, k);
-    let dual_recall = calculate_recall(&ground_truth, &dual_results, k);
-
-    println!("\n   Search ({} queries, k={}):", n_queries, k);
-    println!(
-        "     Standard: {:?}, recall@{}: {:.1}%",
-        standard_search_time,
-        k,
-        standard_recall * 100.0
+        "     Low LID:    {:>4} points ({:.0}%)",
+        counts[0],
+        counts[0] as f64 / n as f64 * 100.0
     );
     println!(
-        "     Dual-Branch: {:?}, recall@{}: {:.1}%",
-        dual_search_time,
-        k,
-        dual_recall * 100.0
+        "     Normal LID: {:>4} points ({:.0}%)",
+        counts[1],
+        counts[1] as f64 / n as f64 * 100.0
     );
-
-    // Get dual-branch stats
-    let stats = dual_index.stats();
-    println!("\n   Dual-Branch structure:");
-    println!("     High-LID nodes: {}", stats.high_lid_nodes);
-    println!("     Skip bridges: {}", stats.num_skip_bridges);
-    println!("     Total edges: {}", stats.num_edges);
-    let avg_degree = if stats.num_vectors > 0 {
-        stats.num_edges as f64 / stats.num_vectors as f64
-    } else {
-        0.0
-    };
-    println!("     Avg neighbors: {:.1}", avg_degree);
-
+    println!(
+        "     High LID:   {:>4} points ({:.0}%)",
+        counts[2],
+        counts[2] as f64 / n as f64 * 100.0
+    );
     println!();
-    Ok(())
 }
 
-fn demo_stats() -> vicinity::Result<()> {
-    println!("3. Understanding Skip Bridges");
-    println!("   --------------------------\n");
+fn demo_research_directions() {
+    println!("3. Research Applications");
+    println!("   ----------------------\n");
 
-    println!("   Skip bridges are long-range connections from high-LID nodes");
-    println!("   to distant reachable nodes. They help search escape local minima.");
-    println!("\n   When are they useful?");
-    println!("     - Data with isolated clusters");
-    println!("     - Non-uniform density distributions");
-    println!("     - Queries in sparse regions");
-    println!("\n   Configuration parameters:");
-    println!("     - m_high_lid: extra neighbors for high-LID nodes (default: 1.5x m)");
-    println!("     - lid_threshold_sigma: how many std devs above median = 'high' LID");
-    println!("     - max_skip_length: random walk steps to find bridge targets");
-    println!("     - num_skip_bridges: bridges per high-LID node");
-
-    Ok(())
-}
-
-fn l2_distance(a: &[f32], b: &[f32]) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum::<f32>()
-        .sqrt()
-}
-
-fn calculate_recall(ground_truth: &[Vec<u32>], results: &[Vec<u32>], k: usize) -> f64 {
-    let mut total = 0.0;
-    for (gt, res) in ground_truth.iter().zip(results.iter()) {
-        let gt_set: HashSet<u32> = gt.iter().take(k).copied().collect();
-        let res_set: HashSet<u32> = res.iter().take(k).copied().collect();
-        total += gt_set.intersection(&res_set).count() as f64 / k as f64;
-    }
-    total / ground_truth.len() as f64
+    println!("   Using LID to improve ANN indices:");
+    println!();
+    println!("   a) Adaptive neighbor count:");
+    println!("      - Low-LID points:  m neighbors (standard)");
+    println!("      - High-LID points: 1.5-2x m neighbors (more connectivity)");
+    println!();
+    println!("   b) Skip bridges (Dual-Branch HNSW):");
+    println!("      - Connect high-LID points with long-range edges");
+    println!("      - Helps search escape local minima");
+    println!();
+    println!("   c) Query-time adaptation:");
+    println!("      - Estimate query LID on-the-fly");
+    println!("      - Use higher ef_search for high-LID queries");
+    println!();
+    println!("   d) Index quality diagnostics:");
+    println!("      - Track recall by LID category");
+    println!("      - Identify systematic failure modes");
+    println!();
+    println!("   References:");
+    println!("     - Amsaleg et al. (2015): LID estimation methods");
+    println!("     - Houle (2017): Dimensionality, discriminability, and ANN");
+    println!("     - Dual-Branch HNSW (2025): LID-aware graph construction");
+    println!();
 }

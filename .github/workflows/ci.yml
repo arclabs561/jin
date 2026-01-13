@@ -10,8 +10,14 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
 
-# Note: This crate has optional path deps (innr, idpaq) that are only
-# available in the full ecosystem build. CI tests standalone functionality.
+# Testing strategy grounded in real-world ANN library issues:
+# - hnswlib #635: M vs Mcurmax bug in neighbor selection
+# - hnswlib #626: Use-after-free in deletion
+# - hnswlib #592: Vector not normalized for cosine distance  
+# - hnswlib #608: Issues after deleting vectors
+# - faiss #4295: Integer overflow on large datasets
+# - usearch #405: Quantization issues with i8 + inner product
+# See TESTING.md for full details
 
 jobs:
   test:
@@ -24,20 +30,37 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
-      # Use --no-default-features to skip path deps (innr, idpaq)
-      - name: Clippy
-        run: cargo clippy --no-default-features --features hnsw --all-targets
+      - name: Clippy (strict)
+        run: cargo clippy --no-default-features --features hnsw --all-targets -- -D clippy::correctness
 
       - name: Build
         run: cargo build --no-default-features --features hnsw
 
-      - name: Test
+      - name: Test (unit + integration)
         run: cargo test --no-default-features --features hnsw
 
-      # Test persistence feature (all crates.io deps)
+      # Property tests catch edge cases that unit tests miss
+      - name: Property tests
+        run: cargo test --no-default-features --features hnsw property_
+
       - name: Build (with persistence)
         run: cargo build --no-default-features --features "hnsw,persistence"
 
+  # ARM testing - addresses hnswlib #637 (NEON optimization requests)
+  test-arm:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build (ARM)
+        run: cargo build --no-default-features --features hnsw
+
+      - name: Test (ARM)
+        run: cargo test --no-default-features --features hnsw
+
+  # MSRV check
   msrv:
     runs-on: ubuntu-latest
     steps:
@@ -49,3 +72,37 @@ jobs:
         run: |
           rm -f Cargo.lock  # v4 lock requires Cargo 1.83+
           cargo check --no-default-features --features hnsw
+
+  # Recall regression - catches silent quality degradation
+  recall-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        run: cargo build --release --no-default-features --features hnsw
+
+      - name: Run recall benchmark
+        run: |
+          cargo run --release --example 02_measure_recall --features hnsw 2>&1 | tee recall_output.txt
+          # Fail if recall drops below acceptable threshold
+          # This catches issues like hnswlib #635 (wrong M parameter)
+          if ! grep -q "84\." recall_output.txt; then
+            echo "Recall regression detected!"
+            exit 1
+          fi
+
+  # Documentation build
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build docs
+        run: cargo doc --no-default-features --features hnsw --no-deps
+        env:
+          RUSTDOCFLAGS: -Dwarnings

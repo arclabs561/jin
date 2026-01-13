@@ -1,6 +1,9 @@
 // Crate-level lint configuration
 // Dead code is allowed since this is research code with partial implementations
 #![allow(dead_code)]
+// Allow unsafe operations in unsafe fn without explicit unsafe blocks
+// (Rust 2024 edition strictness - this is a SIMD crate where unsafe is pervasive)
+#![allow(unsafe_op_in_unsafe_fn)]
 
 //! vicinity: Approximate Nearest Neighbor Search primitives.
 //!
