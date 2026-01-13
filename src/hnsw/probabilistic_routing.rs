@@ -297,7 +297,7 @@ impl ProbabilisticRouter {
         }
 
         // Sort by probability (highest first)
-        candidates.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(Ordering::Equal));
+        candidates.sort_by(|a, b| b.2.total_cmp(&a.2));
 
         // Determine how many to test
         let total = candidates.len();
@@ -432,7 +432,7 @@ impl ProbabilisticRouter {
         // Extract results
         let mut final_results: Vec<(u32, f32)> =
             results.into_iter().map(|c| (c.id, -c.distance)).collect();
-        final_results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+        final_results.sort_by(|a, b| a.1.total_cmp(&b.1));
         final_results
     }
 
@@ -483,7 +483,7 @@ impl ProbabilisticEdgeSelector {
         scored.sort_by(|a, b| {
             b.2.partial_cmp(&a.2)
                 .unwrap_or(Ordering::Equal)
-                .then_with(|| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal))
+                .then_with(|| a.1.total_cmp(&b.1))
         });
 
         scored.into_iter().map(|(id, dist, _)| (id, dist)).collect()

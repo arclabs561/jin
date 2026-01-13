@@ -1,14 +1,16 @@
 //! Error types for persistence operations.
 
-use std::fmt;
+use thiserror::Error;
 
 /// Errors that can occur during persistence operations.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum PersistenceError {
     /// I/O error (file operations, disk I/O)
-    Io(std::io::Error),
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
 
     /// Format error (invalid magic bytes, version mismatch, corruption)
+    #[error("format error: {message}{}", format_expected_actual(.expected, .actual))]
     Format {
         message: String,
         expected: Option<String>,
@@ -16,94 +18,59 @@ pub enum PersistenceError {
     },
 
     /// Serialization error (bincode, serde)
+    #[error("serialization error: {0}")]
     Serialization(String),
 
     /// Deserialization error
+    #[error("deserialization error: {0}")]
     Deserialization(String),
 
     /// Checksum mismatch (data corruption detected)
+    #[error("checksum mismatch: expected {expected}, got {actual}")]
     ChecksumMismatch { expected: u32, actual: u32 },
 
     /// Lock acquisition failed (concurrent access conflict)
+    #[error("failed to acquire lock on {resource}: {reason}")]
     LockFailed { resource: String, reason: String },
 
     /// Invalid state (e.g., operation not allowed in current state)
+    #[error("invalid state: {0}")]
     InvalidState(String),
 
     /// Resource not found (file, segment, etc.)
+    #[error("resource not found: {0}")]
     NotFound(String),
 
     /// Invalid configuration
+    #[error("invalid configuration: {0}")]
     InvalidConfig(String),
 
     /// Operation not supported
+    #[error("operation not supported: {0}")]
     NotSupported(String),
 }
 
-impl fmt::Display for PersistenceError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(e) => write!(f, "I/O error: {}", e),
-            Self::Format {
-                message,
-                expected,
-                actual,
-            } => {
-                write!(f, "Format error: {}", message)?;
-                if let Some(e) = expected {
-                    write!(f, " (expected: {})", e)?;
-                }
-                if let Some(a) = actual {
-                    write!(f, " (actual: {})", a)?;
-                }
-                Ok(())
-            }
-            Self::Serialization(msg) => write!(f, "Serialization error: {}", msg),
-            Self::Deserialization(msg) => write!(f, "Deserialization error: {}", msg),
-            Self::ChecksumMismatch { expected, actual } => {
-                write!(
-                    f,
-                    "Checksum mismatch: expected {}, got {}",
-                    expected, actual
-                )
-            }
-            Self::LockFailed { resource, reason } => {
-                write!(f, "Failed to acquire lock on {}: {}", resource, reason)
-            }
-            Self::InvalidState(msg) => write!(f, "Invalid state: {}", msg),
-            Self::NotFound(resource) => write!(f, "Resource not found: {}", resource),
-            Self::InvalidConfig(msg) => write!(f, "Invalid configuration: {}", msg),
-            Self::NotSupported(msg) => write!(f, "Operation not supported: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for PersistenceError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io(e) => Some(e),
-            _ => None,
-        }
-    }
-}
-
-impl From<std::io::Error> for PersistenceError {
-    fn from(e: std::io::Error) -> Self {
-        Self::Io(e)
+/// Helper to format expected/actual values for error messages.
+fn format_expected_actual(expected: &Option<String>, actual: &Option<String>) -> String {
+    match (expected, actual) {
+        (Some(e), Some(a)) => format!(" (expected: {}, actual: {})", e, a),
+        (Some(e), None) => format!(" (expected: {})", e),
+        (None, Some(a)) => format!(" (actual: {})", a),
+        (None, None) => String::new(),
     }
 }
 
 #[cfg(feature = "persistence")]
 impl From<postcard::Error> for PersistenceError {
     fn from(e: postcard::Error) -> Self {
-        Self::Serialization(format!("Postcard error: {}", e))
+        Self::Serialization(format!("postcard error: {}", e))
     }
 }
 
 #[cfg(all(feature = "persistence", feature = "persistence-bincode"))]
 impl From<bincode::Error> for PersistenceError {
     fn from(e: bincode::Error) -> Self {
-        Self::Serialization(format!("Bincode error (legacy): {}", e))
+        Self::Serialization(format!("bincode error (legacy): {}", e))
     }
 }
 

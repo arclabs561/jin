@@ -1,3 +1,7 @@
+// Crate-level lint configuration
+// Dead code is allowed since this is research code with partial implementations
+#![allow(dead_code)]
+
 //! vicinity: Approximate Nearest Neighbor Search primitives.
 //!
 //! Provides standalone implementations of state-of-the-art ANN algorithms

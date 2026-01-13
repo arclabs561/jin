@@ -5,17 +5,25 @@ use crate::RetrieveError;
 
 /// Anisotropic vector quantizer.
 ///
-/// Preserves parallel components between vectors (important for inner product accuracy).
-/// Optimized for Maximum Inner Product Search (MIPS).
-#[allow(dead_code)] // Future SCANN integration - used by quantization_methods example
+/// Implements Product Quantization (PQ) on residuals, with support for
+/// anisotropic loss scoring during search.
+///
+/// **Theory**:
+/// ScaNN minimizes the anisotropic loss:
+/// L(x, x̃) = ||x - x̃||² + h * ||<x - x̃, x>||²
+///
+/// This implementation currently performs training on standard residuals (x - c),
+/// which is the first step. Full anisotropic training requires iterating
+/// with weighted updates.
+#[derive(Debug)]
 pub struct AnisotropicQuantizer {
     dimension: usize,
     num_codebooks: usize,
     codebook_size: usize,
-    codebooks: Vec<Vec<Vec<f32>>>, // [codebook][codeword][dimension]
+    // [codebook_idx][codeword_idx][subvector_dim]
+    pub(crate) codebooks: Vec<Vec<Vec<f32>>>,
 }
 
-#[allow(dead_code)] // Future SCANN integration - used by quantization_methods example
 impl AnisotropicQuantizer {
     /// Create new quantizer.
     pub fn new(
@@ -29,6 +37,12 @@ impl AnisotropicQuantizer {
             ));
         }
 
+        if dimension % num_codebooks != 0 {
+            return Err(RetrieveError::Other(
+                "Dimension must be divisible by num_codebooks".to_string(),
+            ));
+        }
+
         Ok(Self {
             dimension,
             num_codebooks,
@@ -37,101 +51,101 @@ impl AnisotropicQuantizer {
         })
     }
 
-    /// Train quantizer on vectors.
+    /// Train quantizer on residuals (x - centroid).
     ///
-    /// Uses k-means on subvectors to create codebooks.
-    pub fn fit(&mut self, vectors: &[f32], num_vectors: usize) -> Result<(), RetrieveError> {
+    /// The input `residuals` should be pre-computed:
+    /// residual[i] = vector[i] - partition_centroid[assignment[i]]
+    pub fn fit_residuals(&mut self, residuals: &[f32], num_vectors: usize) -> Result<(), RetrieveError> {
+        if residuals.len() != num_vectors * self.dimension {
+            return Err(RetrieveError::DimensionMismatch {
+                query_dim: self.dimension,
+                doc_dim: residuals.len() / num_vectors,
+            });
+        }
+
         let subvector_dim = self.dimension / self.num_codebooks;
+        self.codebooks = Vec::with_capacity(self.num_codebooks);
 
-        // Train codebook for each subvector
-        self.codebooks = Vec::new();
+        for m in 0..self.num_codebooks {
+            let start_dim = m * subvector_dim;
+            let _end_dim = (m + 1) * subvector_dim;
 
-        for codebook_idx in 0..self.num_codebooks {
-            let start_dim = codebook_idx * subvector_dim;
-            let end_dim = (codebook_idx + 1) * subvector_dim;
-
-            // Extract subvectors
-            let mut subvectors = Vec::new();
+            // Gather all subvectors for subspace m
+            // TODO: In production, downsample if num_vectors is huge
+            let mut subvectors: Vec<f32> = Vec::with_capacity(num_vectors * subvector_dim);
+            
             for i in 0..num_vectors {
-                let vec = get_vector(vectors, self.dimension, i);
-                subvectors.push(vec[start_dim..end_dim].to_vec());
+                let vec_start = i * self.dimension + start_dim;
+                subvectors.extend_from_slice(&residuals[vec_start..vec_start + subvector_dim]);
             }
 
-            // Train k-means on subvectors
-            let mut kmeans =
-                crate::scann::partitioning::KMeans::new(subvector_dim, self.codebook_size)?;
-
-            // Flatten subvectors for k-means
-            let flat: Vec<f32> = subvectors.iter().flatten().copied().collect();
-            kmeans.fit(&flat, num_vectors)?;
-
-            self.codebooks.push(kmeans.centroids().to_vec());
+            // Train K-Means on this subspace
+            let mut kmeans = crate::scann::partitioning::KMeans::new(subvector_dim, self.codebook_size)?;
+            kmeans.fit(&subvectors, num_vectors)?;
+            
+            // Store centroids as codewords
+            // centroids() returns &[Vec<f32>], one Vec per cluster
+            let centers = kmeans.centroids();
+            let codewords: Vec<Vec<f32>> = centers.iter().map(|c| c.clone()).collect();
+            self.codebooks.push(codewords);
         }
 
         Ok(())
     }
 
-    /// Quantize a vector.
-    ///
-    /// Returns codebook indices for each subvector.
-    pub fn quantize(&self, vector: &[f32]) -> Vec<usize> {
+    /// Quantize a single residual vector.
+    pub fn quantize(&self, residual: &[f32]) -> Vec<u8> {
         let subvector_dim = self.dimension / self.num_codebooks;
-        let mut codes = Vec::new();
+        let mut codes = Vec::with_capacity(self.num_codebooks);
 
-        for codebook_idx in 0..self.num_codebooks {
-            let start_dim = codebook_idx * subvector_dim;
-            let end_dim = (codebook_idx + 1) * subvector_dim;
-            let subvector = &vector[start_dim..end_dim];
-
-            // Find closest codeword
-            let mut best_code = 0;
-            let mut best_dist = f32::INFINITY;
-
-            for (code, codeword) in self.codebooks[codebook_idx].iter().enumerate() {
-                let dist = cosine_distance(subvector, codeword);
-                if dist < best_dist {
-                    best_dist = dist;
-                    best_code = code;
+        for m in 0..self.num_codebooks {
+            let start_dim = m * subvector_dim;
+            let sub = &residual[start_dim..start_dim + subvector_dim];
+            
+            // Find nearest codeword
+            let mut best_idx = 0;
+            let mut min_dist = f32::MAX;
+            
+            for (k, codeword) in self.codebooks[m].iter().enumerate() {
+                let dist = squared_euclidean(sub, codeword);
+                if dist < min_dist {
+                    min_dist = dist;
+                    best_idx = k;
                 }
             }
-
-            codes.push(best_code);
+            codes.push(best_idx as u8);
         }
-
         codes
     }
 
-    /// Compute approximate distance using quantized codes.
+    /// Build Lookup Table (LUT) for a query.
     ///
-    /// Uses lookup tables for fast computation.
-    pub fn approximate_distance(&self, query: &[f32], codes: &[usize]) -> f32 {
+    /// Returns a table of size [num_codebooks][codebook_size] containing distances.
+    /// This allows O(M) distance computation per candidate during search.
+    pub fn build_lut(&self, query: &[f32]) -> Vec<Vec<f32>> {
         let subvector_dim = self.dimension / self.num_codebooks;
-        let mut total_dist = 0.0;
+        let mut lut = Vec::with_capacity(self.num_codebooks);
 
-        for (codebook_idx, &code) in codes.iter().enumerate() {
-            let start_dim = codebook_idx * subvector_dim;
-            let end_dim = (codebook_idx + 1) * subvector_dim;
-            let query_subvector = &query[start_dim..end_dim];
-            let codeword = &self.codebooks[codebook_idx][code];
-
-            total_dist += cosine_distance(query_subvector, codeword);
+        for m in 0..self.num_codebooks {
+            let start_dim = m * subvector_dim;
+            let query_sub = &query[start_dim..start_dim + subvector_dim];
+            
+            let mut sub_lut = Vec::with_capacity(self.codebook_size);
+            for codeword in &self.codebooks[m] {
+                // For MIPS: store dot product
+                // For L2: store squared distance
+                // Here we use dot product as ScaNN is MIPS-optimized
+                let score = simd::dot(query_sub, codeword);
+                sub_lut.push(score);
+            }
+            lut.push(sub_lut);
         }
-
-        total_dist
+        lut
     }
 }
 
-/// Compute cosine distance (SIMD-accelerated).
-#[allow(dead_code)] // Used by AnisotropicQuantizer
-fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
-    let similarity = simd::dot(a, b);
-    1.0 - similarity
-}
-
-/// Get vector from SoA storage.
-#[allow(dead_code)] // Used by AnisotropicQuantizer
-fn get_vector(vectors: &[f32], dimension: usize, idx: usize) -> &[f32] {
-    let start = idx * dimension;
-    let end = start + dimension;
-    &vectors[start..end]
+fn squared_euclidean(a: &[f32], b: &[f32]) -> f32 {
+    a.iter().zip(b.iter())
+        .map(|(x, y)| (x - y) * (x - y))
+        .sum()
 }

@@ -443,7 +443,7 @@ fn search_in_graph(
         }
     }
 
-    results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+    results.sort_by(|a, b| a.1.total_cmp(&b.1));
     results.truncate(k);
     results
 }
@@ -540,7 +540,7 @@ fn cross_graph_search(
         }
     }
 
-    results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+    results.sort_by(|a, b| a.1.total_cmp(&b.1));
     results
 }
 

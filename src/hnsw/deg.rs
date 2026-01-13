@@ -161,7 +161,7 @@ impl DEGIndex {
                 .map(|j| (j as u32, self.distance(i as u32, j as u32)))
                 .collect();
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            distances.sort_by(|a, b| a.1.total_cmp(&b.1));
 
             // Compute average distance to k nearest
             let k_neighbors: Vec<_> = distances.iter().take(k).collect();
@@ -223,7 +223,7 @@ impl DEGIndex {
             .map(|j| (j, self.distance(node_id, j)))
             .collect();
 
-        candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.sort_by(|a, b| a.1.total_cmp(&b.1));
 
         // Select neighbors with alpha-pruning
         let mut neighbors = Vec::new();
@@ -271,7 +271,7 @@ impl DEGIndex {
             .density
             .iter()
             .enumerate()
-            .max_by(|a, b| a.1.density.partial_cmp(&b.1.density).unwrap())
+            .max_by(|a, b| a.1.density.total_cmp(&b.1.density))
             .map(|(i, _)| i as u32);
 
         if let Some(entry) = best {
@@ -370,7 +370,7 @@ impl DEGIndex {
         // Convert results
         let mut result_vec: Vec<(u32, f32)> =
             results.into_iter().map(|c| (c.id, c.distance)).collect();
-        result_vec.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        result_vec.sort_by(|a, b| a.1.total_cmp(&b.1));
         result_vec.truncate(k);
 
         Ok(result_vec)

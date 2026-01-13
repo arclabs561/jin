@@ -22,7 +22,7 @@ fn select_neighbors_rnd(
 
     // Sort by distance to query
     let mut sorted: Vec<(u32, f32)> = candidates.to_vec();
-    sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| a.1.total_cmp(&b.1));
 
     let mut selected = Vec::with_capacity(m.min(sorted.len()));
 
@@ -91,7 +91,7 @@ fn select_neighbors_mond(
 
     // Sort by distance to query
     let mut sorted: Vec<(u32, f32)> = candidates.to_vec();
-    sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| a.1.total_cmp(&b.1));
 
     let mut selected = Vec::with_capacity(m.min(sorted.len()));
 
@@ -181,7 +181,7 @@ fn select_neighbors_rrnd(
 
     // Sort by distance to query
     let mut sorted: Vec<(u32, f32)> = candidates.to_vec();
-    sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| a.1.total_cmp(&b.1));
 
     let mut selected = Vec::with_capacity(m.min(sorted.len()));
 
@@ -347,7 +347,7 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
             if !candidates.is_empty() {
                 let closest = candidates
                     .iter()
-                    .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+                    .min_by(|a, b| a.1.total_cmp(&b.1))
                     .map(|(id, _)| *id)
                     .unwrap_or(layer_entry_point);
                 layer_entry_point = closest;
@@ -442,7 +442,7 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                     // For neighbors not in selected, we need to compute distances
                     // But we can't borrow index here, so we'll do a simpler approach:
                     // Just keep the first m_actual neighbors (they're already sorted by insertion order)
-                    neighbor_candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    neighbor_candidates.sort_by(|a, b| a.1.total_cmp(&b.1));
                     neighbor_candidates.truncate(m_actual);
                     *neighbors = neighbor_candidates.iter().map(|(id, _)| *id).collect();
                 }
@@ -472,7 +472,7 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                                 }
                             })
                             .collect();
-                        reverse_candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                        reverse_candidates.sort_by(|a, b| a.1.total_cmp(&b.1));
                         reverse_candidates.truncate(m_actual);
                         *reverse_neighbors = reverse_candidates.iter().map(|(id, _)| *id).collect();
                     }

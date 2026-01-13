@@ -638,7 +638,7 @@ impl HNSWIndex {
 
                 // Sort by distance and collect top candidates
                 candidates
-                    .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+                    .sort_by(|a, b| a.1.total_cmp(&b.1));
                 let selected_neighbors: Vec<u32> = candidates
                     .iter()
                     .take(max_intra_edges)
@@ -879,7 +879,7 @@ impl HNSWIndex {
             // Return top k (pre-allocate with capacity k)
             let mut results: Vec<(u32, f32)> = Vec::with_capacity(k);
             results.extend(base_results.into_iter().take(k));
-            results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            results.sort_by(|a, b| a.1.total_cmp(&b.1));
 
             // Clear decompression caches after search
             #[cfg(feature = "id-compression")]
@@ -1058,7 +1058,7 @@ impl HNSWIndex {
             })
             .collect();
 
-        results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| a.1.total_cmp(&b.1));
         Ok(results.into_iter().take(k).collect())
     }
 

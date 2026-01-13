@@ -402,44 +402,8 @@ impl ANNIndex for crate::hash::search::LSHIndex {
     }
 }
 
-// Implement ANNIndex for Random Projection Tree Forest (Annoy)
-#[cfg(feature = "annoy")]
-impl ANNIndex for crate::classic::trees::annoy::AnnoyIndex {
-    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
-        self.add(doc_id, vector)
-    }
-
-    fn build(&mut self) -> Result<(), RetrieveError> {
-        self.build()
-    }
-
-    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
-        self.search(query, k)
-    }
-
-    fn size_bytes(&self) -> usize {
-        self.vectors.len() * std::mem::size_of::<f32>()
-            // Approximate tree structure size
-            + self.trees.len() * self.num_vectors * std::mem::size_of::<u32>()
-    }
-
-    fn stats(&self) -> ANNStats {
-        ANNStats {
-            num_vectors: self.num_vectors,
-            dimension: self.dimension,
-            size_bytes: self.size_bytes(),
-            algorithm: "RP-Tree-Forest".to_string(), // Technical name (vendor: Annoy)
-        }
-    }
-
-    fn dimension(&self) -> usize {
-        self.dimension
-    }
-
-    fn num_vectors(&self) -> usize {
-        self.num_vectors
-    }
-}
+// NOTE: Annoy (Random Projection Tree Forest) impl removed - module not yet implemented.
+// The rp_forest module provides similar functionality via RPForestIndex.
 
 // Implement ANNIndex for Flat NSW
 #[cfg(feature = "nsw")]

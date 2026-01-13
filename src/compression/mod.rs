@@ -7,20 +7,17 @@
 //! Based on "Lossless Compression of Vector IDs for Approximate Nearest Neighbor Search"
 //! (Severo et al., 2025).
 //!
-//! # Compression Methods
+//! # Implementation
 //!
-//! - **ROC (Random Order Coding)**: Compress sets of IDs using bits-back coding with ANS
-//! - **Elias-Fano**: Baseline compression for sorted sequences
-//! - **Wavelet Trees**: Full random access compression (future)
-//!
-//! # Status: Experimental
-//!
-//! ANS codec fields are placeholders for future integration.
+//! When the `id-compression` feature is enabled, compression primitives are
+//! provided by the `idpaq` crate, which implements:
+//! - **ROC (Random Order Coding)**: Compress sets using bits-back coding with ANS
+//! - **Delta encoding**: Simple baseline with varint
 //!
 //! # Usage
 //!
 //! ```rust,ignore
-//! use ordino_retrieve::compression::{RocCompressor, IdSetCompressor};
+//! use vicinity::compression::{RocCompressor, IdSetCompressor};
 //!
 //! let compressor = RocCompressor::new();
 //! let ids: Vec<u32> = vec![1, 5, 10, 20, 50];
@@ -35,18 +32,20 @@
 
 #![allow(dead_code)]
 
+// When id-compression feature is enabled, re-export everything from idpaq
 #[cfg(feature = "id-compression")]
-mod ans;
+pub use idpaq::{CompressionError, IdSetCompressor, RocCompressor};
+
+// Fallback types when id-compression is not enabled
+#[cfg(not(feature = "id-compression"))]
 mod error;
-#[cfg(feature = "id-compression")]
-mod roc;
+#[cfg(not(feature = "id-compression"))]
 mod traits;
 
+#[cfg(not(feature = "id-compression"))]
 pub use error::CompressionError;
+#[cfg(not(feature = "id-compression"))]
 pub use traits::IdSetCompressor;
-
-#[cfg(feature = "id-compression")]
-pub use roc::RocCompressor;
 
 /// Compression method selection.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -60,4 +59,36 @@ pub enum IdCompressionMethod {
     Roc,
     /// Wavelet tree (full random access, future).
     WaveletTree,
+}
+
+#[cfg(all(test, feature = "id-compression"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_idpaq_integration() {
+        let compressor = RocCompressor::new();
+        let ids: Vec<u32> = vec![1, 5, 10, 20, 50, 100];
+        let universe_size = 1000;
+
+        let compressed = compressor.compress_set(&ids, universe_size).unwrap();
+        let decompressed = compressor
+            .decompress_set(&compressed, universe_size)
+            .unwrap();
+
+        assert_eq!(ids, decompressed);
+    }
+
+    #[test]
+    fn test_compression_ratio() {
+        let compressor = RocCompressor::new();
+        let ids: Vec<u32> = (0..1000).collect();
+        let universe_size = 100_000;
+
+        let compressed = compressor.compress_set(&ids, universe_size).unwrap();
+        let ratio = (ids.len() * 4) as f64 / compressed.len() as f64;
+
+        // Should achieve compression
+        assert!(ratio > 1.5, "Expected compression ratio > 1.5, got {}", ratio);
+    }
 }

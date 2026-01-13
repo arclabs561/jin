@@ -272,7 +272,7 @@ impl MatryoshkaIndex {
         }
 
         let mut results: Vec<_> = heap.into_iter().map(|c| (c.id, c.distance)).collect();
-        results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+        results.sort_by(|a, b| a.1.total_cmp(&b.1));
         results
     }
 
@@ -305,7 +305,7 @@ impl MatryoshkaIndex {
             })
             .collect();
 
-        refined.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+        refined.sort_by(|a, b| a.1.total_cmp(&b.1));
         refined.truncate(k);
 
         // Compute savings

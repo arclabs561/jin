@@ -25,7 +25,8 @@ impl PartialOrd for Candidate {
 
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+        // Use total_cmp for IEEE 754 total ordering (NaN-safe)
+        self.distance.total_cmp(&other.distance).reverse()
     }
 }
 
@@ -122,6 +123,6 @@ pub fn search(
 
     // Extract top-k results from cache (already sorted by distance)
     let mut results: Vec<(u32, f32)> = distance_cache.into_iter().collect();
-    results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| a.1.total_cmp(&b.1));
     Ok(results.into_iter().take(k).collect())
 }

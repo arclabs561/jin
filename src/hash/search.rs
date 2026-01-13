@@ -190,7 +190,7 @@ impl LSHIndex {
 
         // Sort and return top k (unstable for better performance)
         candidates
-            .sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
         Ok(candidates.into_iter().take(k).collect())
     }
 

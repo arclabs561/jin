@@ -24,7 +24,7 @@
 //! - Broder et al. (2000). "Min-wise independent permutations"
 
 use std::collections::HashSet;
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 
 /// MinHash signature generator.
 #[derive(Debug, Clone)]
@@ -279,7 +279,7 @@ impl MinHashLSH {
             })
             .collect();
         
-        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| b.1.total_cmp(&a.1));
         results
     }
 

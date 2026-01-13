@@ -96,22 +96,10 @@
 //! - Ge et al. (2014). "Optimized Product Quantization."
 //! - See `opq.rs` for the rotation learning algorithm.
 
-#[cfg(feature = "scann")]
-pub mod ivf;
-#[cfg(feature = "scann")]
-mod online_pq;
-#[cfg(feature = "scann")]
-pub mod opq;
-#[cfg(feature = "scann")]
-pub mod pq;
-#[cfg(feature = "scann")]
+// IVF-PQ core implementation (always available when ivf_pq feature is enabled)
 pub mod search;
+pub use search::{IVFPQIndex, IVFPQParams};
 
-#[cfg(feature = "scann")]
-pub use ivf::{IVFIndex, IVFParams};
-#[cfg(feature = "scann")]
-pub use online_pq::OnlinePQ;
-#[cfg(feature = "scann")]
-pub use opq::{OPQParams, OptimizedPQ};
-#[cfg(feature = "scann")]
-pub use pq::ProductQuantizer;
+// NOTE: Advanced IVF-PQ components (OPQ, pure IVF) are stubs awaiting implementation.
+// The core IVFPQIndex in search.rs provides the main functionality.
+// TODO: Implement full OPQ (rotation matrix learning) and separate IVF index

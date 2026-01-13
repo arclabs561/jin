@@ -68,7 +68,7 @@ pub fn prune_candidates_martingale(
 
     // Sort by distance
     let mut sorted: Vec<(u32, f32)> = candidates.to_vec();
-    sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| a.1.total_cmp(&b.1));
 
     // Apply truncation: keep only candidates within distance R
     let mut pruned = Vec::new();

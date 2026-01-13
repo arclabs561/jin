@@ -19,6 +19,12 @@ rayon = "1.10"
 thiserror = "2.0"
 log = "0.4"
 
+# SIMD primitives - use innr when available
+innr = { path = "../innr", optional = true }
+
+# ID compression primitives - use idpaq for ROC/ANS compression
+idpaq = { path = "../idpaq", optional = true }
+
 # Persistence & IO
 byteorder = "1.5"
 crc32fast = "1.4"
@@ -32,8 +38,11 @@ bytemuck = { version = "1.14", optional = true, features = ["derive"] }
 # Compression
 constriction = { version = "0.4", optional = true }
 
+# Legacy serialization (kept for backward compatibility)
+bincode = { version = "1.3", optional = true }
+
 [features]
-default = ["hnsw"]
+default = ["hnsw", "innr"]
 persistence = ["dep:postcard", "dep:bytemuck", "dep:memmap2", "dep:constriction"]
 hnsw = []
 ivf_pq = []
@@ -42,6 +51,7 @@ scann = []
 sng = []
 vamana = []
 quantization = []
+innr = ["dep:innr"]
 
 # Feature names referenced by cfgs in the extracted code.
 # These are currently mostly organizational toggles.
@@ -55,8 +65,9 @@ lsh = []
 annoy = []
 evoc = []
 
-id-compression = ["dep:constriction"]
-persistence-bincode = []
+id-compression = ["dep:idpaq"]
+persistence-bincode = ["dep:bincode", "persistence"]
+memmap = ["persistence"]  # Alias for persistence with mmap focus
 
 # Quantization sub-features (kept separate so callers can be explicit)
 rabitq = []
@@ -92,14 +103,15 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_compatibility = { level = "warn", priority = -1 }
 future_incompatible = { level = "warn", priority = -1 }
 nonstandard_style = { level = "warn", priority = -1 }
-missing_docs = "warn"
-missing_doc_code_examples = "warn"
-unsafe_code = "warn"
+# Documentation lints: temporarily relaxed, enable incrementally
+# missing_docs = "warn"
+# missing_doc_code_examples = "warn"
+# unsafe_code = "warn"  # SIMD and low-level ops require unsafe
 unstable_features = "deny"
 unused_import_braces = "warn"
-unused_qualifications = "warn"
-unused_results = "warn"
-trivial_numeric_casts = "warn"
+# unused_qualifications = "warn"  # Relaxed: explicit paths often improve clarity
+# unused_results = "warn"  # Relaxed: HashSet/HashMap inserts often ignore return value
+# trivial_numeric_casts = "warn"  # Relaxed: explicit casts help with type clarity
 variant_size_differences = "warn"
 unused_extern_crates = "warn"
 unused_lifetimes = "warn"

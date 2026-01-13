@@ -23,7 +23,8 @@ impl PartialOrd for Candidate {
 
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+        // Use total_cmp for IEEE 754 total ordering (NaN-safe)
+        self.distance.total_cmp(&other.distance).reverse()
     }
 }
 
@@ -93,7 +94,7 @@ pub fn greedy_search(
     let mut sorted_results: Vec<(u32, f32)> =
         results.into_iter().map(|c| (c.id, c.distance)).collect();
     sorted_results
-        .sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)); // Unstable for better performance
+        .sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
 
     Ok(sorted_results)
 }

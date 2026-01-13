@@ -403,7 +403,7 @@ impl IVFPQIndex {
             .collect();
 
         cluster_distances
-            .sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)); // Unstable for better performance
+            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
 
         // Search in top nprobe clusters
         let mut candidates = Vec::new();
@@ -426,7 +426,7 @@ impl IVFPQIndex {
 
         // Sort and return top k
         candidates
-            .sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)); // Unstable for better performance
+            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1)); // Unstable for better performance
         Ok(candidates.into_iter().take(k).collect())
     }
 
@@ -500,7 +500,7 @@ impl IVFPQIndex {
             .collect();
 
         cluster_distances
-            .sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
 
         // Search in top nprobe clusters, skipping those without matching vectors
         let mut candidates = Vec::new();
@@ -533,7 +533,7 @@ impl IVFPQIndex {
 
         // Sort and return top k
         candidates
-            .sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            .sort_unstable_by(|a, b| a.1.total_cmp(&b.1));
         Ok(candidates.into_iter().take(k).collect())
     }
 

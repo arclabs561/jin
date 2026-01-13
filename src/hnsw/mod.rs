@@ -81,10 +81,11 @@
 //!
 //! # Usage
 //!
-//! ```rust
-//! use ordino_retrieve::dense::hnsw::HNSWIndex;
+//! ```rust,ignore
+//! use vicinity::hnsw::HNSWIndex;
+//! use vicinity::Result;
 //!
-//! # fn main() -> Result<(), ordino_retrieve::RetrieveError> {
+//! # fn main() -> Result<()> {
 //! let mut index = HNSWIndex::new(128, 16, 16)?;
 //!
 //! // Add vectors

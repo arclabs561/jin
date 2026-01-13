@@ -273,7 +273,7 @@ impl BallTreeIndex {
             })
             .collect();
 
-        results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        results.sort_by(|a, b| a.1.total_cmp(&b.1));
         results.truncate(k);
 
         Ok(results)

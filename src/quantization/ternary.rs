@@ -168,7 +168,7 @@ impl TernaryQuantizer {
                     })
                     .collect();
 
-                values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                values.sort_by(|a, b| a.total_cmp(b));
 
                 // Find thresholds for target sparsity
                 let zero_fraction = target_sparsity;

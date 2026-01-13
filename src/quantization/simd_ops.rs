@@ -253,7 +253,7 @@ pub fn pack_extended_interleaved(codes: &[u16], packed: &mut [u8], ex_bits: usiz
         return;
     }
 
-    let dim = codes.len();
+    let _dim = codes.len();
     let mut bit_pos = 0;
 
     for &code in codes {

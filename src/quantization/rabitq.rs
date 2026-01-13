@@ -246,10 +246,8 @@ impl RaBitQQuantizer {
             )));
         }
 
-        let centroid = self
-            .centroid
-            .as_ref()
-            .unwrap_or(&vec![0.0f32; self.dimension]);
+        let default_centroid = vec![0.0f32; self.dimension];
+        let centroid = self.centroid.as_ref().unwrap_or(&default_centroid);
         self.quantize_with_centroid(vector, centroid)
     }
 
@@ -281,7 +279,7 @@ impl RaBitQQuantizer {
         }
 
         // Step 4: Compute extended codes (magnitude refinement)
-        let (extended_codes_unpacked, ipnorm_inv) = if ex_bits > 0 {
+        let (extended_codes_unpacked, _ipnorm_inv) = if ex_bits > 0 {
             self.compute_extended_codes(&rotated, ex_bits)
         } else {
             (vec![0u16; dim], 1.0)
@@ -428,11 +426,12 @@ impl RaBitQQuantizer {
             )));
         }
 
+        let default_centroid = vec![0.0f32; self.dimension];
         let centroid = self
             .centroid
             .as_ref()
             .map(|c| c.as_slice())
-            .unwrap_or(&vec![0.0f32; self.dimension]);
+            .unwrap_or(&default_centroid);
 
         // Center and rotate query
         let query_residual: Vec<f32> = query

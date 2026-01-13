@@ -148,7 +148,7 @@ pub fn compute_ground_truth(query: &[f32], database: &[Vec<f32>], k: usize) -> V
         .collect();
 
     // Partial sort - only need top k
-    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    distances.sort_by(|a, b| a.1.total_cmp(&b.1));
 
     distances.into_iter().take(k).map(|(id, _)| id).collect()
 }

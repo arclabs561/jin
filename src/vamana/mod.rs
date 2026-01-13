@@ -22,10 +22,11 @@
 //!
 //! # Usage
 //!
-//! ```rust
-//! use ordino_retrieve::dense::vamana::{VamanaIndex, VamanaParams};
+//! ```rust,ignore
+//! use vicinity::vamana::{VamanaIndex, VamanaParams};
+//! use vicinity::Result;
 //!
-//! # fn main() -> Result<(), ordino_retrieve::RetrieveError> {
+//! # fn main() -> Result<()> {
 //! let params = VamanaParams {
 //!     max_degree: 64,
 //!     alpha: 1.3,

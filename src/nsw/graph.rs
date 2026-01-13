@@ -186,7 +186,7 @@ impl NSWIndex {
 
         // Return top k
         let mut sorted_results: Vec<(u32, f32)> = results.into_iter().take(k).collect();
-        sorted_results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        sorted_results.sort_by(|a, b| a.1.total_cmp(&b.1));
         Ok(sorted_results)
     }
 

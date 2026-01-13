@@ -132,7 +132,7 @@ impl EVoC {
         }
 
         // Sort by distance (for MST)
-        edges.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        edges.sort_by(|a, b| a.2.total_cmp(&b.2));
 
         // Build MST using Kruskal's algorithm
         let mut mst_edges = Vec::new();
@@ -180,7 +180,7 @@ impl EVoC {
     fn compute_thresholds(&self, hierarchy: &ClusterHierarchy) -> Result<Vec<f32>, RetrieveError> {
         // Extract thresholds from hierarchy nodes
         let mut thresholds = hierarchy.get_all_distances();
-        thresholds.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        thresholds.sort_by(|a, b| a.total_cmp(b));
 
         // Select representative thresholds (every Nth)
         let step = (thresholds.len() / 10).max(1);

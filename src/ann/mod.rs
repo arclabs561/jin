@@ -23,15 +23,16 @@
 //! index.build()?;
 //! ```
 
-// TODO: autotune requires benchmark module that doesn't exist
-// #[cfg(any(
-//     feature = "hnsw",
-//     feature = "nsw",
-//     feature = "ivf_pq",
-//     feature = "scann",
-//     feature = "dense"
-// ))]
-// pub mod autotune;
+// Autotune for automatic parameter optimization
+#[cfg(any(
+    feature = "hnsw",
+    feature = "nsw",
+    feature = "ivf_pq",
+    feature = "scann",
+    feature = "dense"
+))]
+pub mod autotune;
+
 #[cfg(any(
     feature = "hnsw",
     feature = "nsw",
