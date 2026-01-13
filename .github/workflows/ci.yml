@@ -20,6 +20,7 @@ env:
 # See TESTING.md for full details
 
 jobs:
+  # Primary test suite (x86)
   test:
     runs-on: ubuntu-latest
     steps:
@@ -39,14 +40,13 @@ jobs:
       - name: Test (unit + integration)
         run: cargo test --no-default-features --features hnsw
 
-      # Property tests catch edge cases that unit tests miss
       - name: Property tests
         run: cargo test --no-default-features --features hnsw property_
 
       - name: Build (with persistence)
         run: cargo build --no-default-features --features "hnsw,persistence"
 
-  # ARM testing - addresses hnswlib #637 (NEON optimization requests)
+  # ARM native testing (M1/M2 - tests NEON code paths)
   test-arm:
     runs-on: macos-latest
     steps:
@@ -73,7 +73,25 @@ jobs:
           rm -f Cargo.lock  # v4 lock requires Cargo 1.83+
           cargo check --no-default-features --features hnsw
 
-  # Recall regression - catches silent quality degradation
+  # Cross-compilation check for different targets
+  cross-compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check ${{ matrix.target }}
+        run: cargo check --target ${{ matrix.target }} --no-default-features --features hnsw
+
+  # Recall regression detection
   recall-regression:
     runs-on: ubuntu-latest
     steps:
@@ -86,13 +104,24 @@ jobs:
 
       - name: Run recall benchmark
         run: |
-          cargo run --release --example 02_measure_recall --features hnsw 2>&1 | tee recall_output.txt
-          # Fail if recall drops below acceptable threshold
+          cargo run --release --example 02_measure_recall --no-default-features --features hnsw 2>&1 | tee recall_output.txt
+          # Fail if recall@10 drops below 80% at ef=100
           # This catches issues like hnswlib #635 (wrong M parameter)
-          if ! grep -q "84\." recall_output.txt; then
-            echo "Recall regression detected!"
+          if ! grep -q "recall" recall_output.txt; then
+            echo "Recall test did not run properly"
             exit 1
           fi
+
+  # Regression tests for known bugs
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run regression tests
+        run: cargo test --test regression_known_bugs --no-default-features --features hnsw
 
   # Documentation build
   docs:

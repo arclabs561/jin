@@ -131,7 +131,7 @@ fn demo_lid_for_index_quality() {
     let dim = 64;
     let n = 500;
     let data: Vec<f32> = (0..n * dim)
-        .map(|i| ((i as f32 * 0.618).fract() * 2.0 - 1.0))
+        .map(|i| (i as f32 * 0.618).fract() * 2.0 - 1.0)
         .collect();
 
     let config = LidConfig {

@@ -334,7 +334,7 @@ fn test_compare_neighbor_selection() {
     let dim = 32;
     let k = 10;
     let ef = 100;
-    let n = 1000;
+    let _n = 1000; // 50 clusters * 20 points = 1000 vectors
 
     let database = create_clustered_dataset(50, 20, dim, 42);
     let queries = create_clustered_dataset(2, 5, dim, 999);

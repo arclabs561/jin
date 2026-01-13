@@ -101,6 +101,11 @@ harness = false
 name = "scaling"
 harness = false
 
+# Examples with feature requirements
+[[example]]
+name = "lsh_demo"
+required-features = ["lsh"]
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
@@ -124,9 +129,9 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_compatibility = { level = "warn", priority = -1 }
 future_incompatible = { level = "warn", priority = -1 }
 nonstandard_style = { level = "warn", priority = -1 }
-# Allow cfg checks for internal feature toggles (classic ANN algorithms)
+# Allow cfg checks for internal feature toggles (classic ANN algorithms and optional data formats)
 unexpected_cfgs = { level = "warn", check-cfg = [
-    "cfg(feature, values(\"nsw\", \"kdtree\", \"balltree\", \"kmeans_tree\", \"rptree\", \"lsh\", \"annoy\", \"simd\", \"rand\"))"
+    "cfg(feature, values(\"nsw\", \"kdtree\", \"balltree\", \"kmeans_tree\", \"rptree\", \"lsh\", \"annoy\", \"simd\", \"rand\", \"hdf5\"))"
 ] }
 # Documentation lints: temporarily relaxed, enable incrementally
 # missing_docs = "warn"
