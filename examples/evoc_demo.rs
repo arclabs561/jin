@@ -5,9 +5,22 @@
 //!   - MST-based hierarchical clustering (HDBSCAN-style)
 //!   - Multi-granularity cluster extraction
 //!
-//! When to use EVōC vs K-means:
-//!   - EVōC: Unknown cluster count, hierarchical structure, outlier detection
-//!   - K-means: Known k, fast training, spherical clusters
+//! # Ecosystem Context: Clustering in the Scholar Stack
+//!
+//! | Crate     | Algorithm        | Best For                      |
+//! |-----------|------------------|-------------------------------|
+//! | vicinity  | EVōC             | Embedding exploration, outliers |
+//! | stratify  | K-means, GMM     | Known k, production speed     |
+//! | stratify  | Leiden           | Graph community detection     |
+//! | stratify  | Hierarchical     | Dendrograms, any-k extraction |
+//! | hop       | RAPTOR           | RAG tree summarization        |
+//!
+//! **Decision Flow:**
+//! 1. Don't know k? -> EVōC (explores structure) or stratify::HierarchicalClustering
+//! 2. Know k, need speed? -> stratify::Kmeans or stratify::KmeansElkan
+//! 3. Need soft assignments? -> stratify::Gmm
+//! 4. Graph/community structure? -> stratify::Leiden
+//! 5. RAG summaries? -> hop (uses stratify internally)
 //!
 //! ```bash
 //! cargo run --example evoc_demo --release
@@ -161,24 +174,59 @@ fn demo_hierarchy_exploration() -> vicinity::Result<()> {
 }
 
 fn demo_when_to_use() -> vicinity::Result<()> {
-    println!("3. When to Use What");
-    println!("   -----------------\n");
+    println!("3. Clustering Decision Guide");
+    println!("   -------------------------\n");
 
-    println!("   | Criterion           | EVōC           | K-means        |");
-    println!("   |---------------------|----------------|----------------|");
-    println!("   | Known cluster count | No             | Yes            |");
-    println!("   | Cluster shape       | Arbitrary      | Spherical      |");
-    println!("   | Outlier handling    | Built-in       | None           |");
-    println!("   | Hierarchy           | Yes            | No             |");
-    println!("   | Speed               | O(n² log n)    | O(n·k·iter)    |");
-    println!("   | Best for            | Exploration    | Production     |");
+    println!(
+        "   | Criterion           | EVōC (vicinity)  | K-means (stratify) | GMM (stratify)   |"
+    );
+    println!(
+        "   |---------------------|------------------|--------------------|--------------------|"
+    );
+    println!(
+        "   | Known cluster count | No               | Yes                | Yes                |"
+    );
+    println!(
+        "   | Cluster shape       | Arbitrary        | Spherical          | Ellipsoidal        |"
+    );
+    println!(
+        "   | Outlier handling    | Built-in         | None               | Soft (low prob)    |"
+    );
+    println!(
+        "   | Hierarchy           | Yes              | No                 | No                 |"
+    );
+    println!(
+        "   | Speed               | O(n^2 log n)     | O(n*k*iter)        | O(n*k^2*iter)      |"
+    );
+    println!(
+        "   | Best for            | Exploration      | Production         | Soft assignments   |"
+    );
     println!();
 
     println!("   Pipeline recommendation:");
-    println!("     1. Use EVōC to EXPLORE data and understand natural clusters");
-    println!("     2. Use K-means with discovered k for PRODUCTION (faster)");
-    println!("     3. Use hierarchical cut for multi-granularity retrieval");
+    println!("     1. EVōC (vicinity) to EXPLORE and discover natural cluster count");
+    println!("     2. stratify::Kmeans with discovered k for PRODUCTION (10-100x faster)");
+    println!("     3. stratify::Gmm if you need probability per cluster");
+    println!("     4. stratify::Leiden for graph community structure");
     println!();
+
+    println!("   Cross-crate integration example:");
+    println!("     ```rust,ignore");
+    println!("     // Explore with EVōC");
+    println!("     let evoc_labels = evoc.fit_predict(&embeddings, n)?;");
+    println!("     let k = evoc_labels.iter().filter_map(|&x| x).max().unwrap_or(0) + 1;");
+    println!("     ");
+    println!("     // Production with stratify");
+    println!("     use stratify::{{Kmeans, Clustering}};");
+    println!("     let kmeans = Kmeans::new(k);");
+    println!("     let labels = kmeans.fit_predict(&data)?;");
+    println!("     ```");
+    println!();
+
+    println!("   See also:");
+    println!("     - stratify/clustering_demo.rs: K-means, GMM, hierarchical comparison");
+    println!("     - stratify/community_detection.rs: Leiden algorithm for graphs");
+    println!("     - hop: RAPTOR tree building (uses stratify clustering internally)");
 
     Ok(())
 }

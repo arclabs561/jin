@@ -1,22 +1,46 @@
-//! Locality Sensitive Hashing Demo
+//! Locality Sensitive Hashing: When and Why
 //!
 //! LSH is the opposite of traditional hashing: similar items *should* collide.
 //! This enables sublinear search by only comparing items in the same bucket.
+//!
+//! # When to Use LSH vs HNSW
+//!
+//! | Criterion         | LSH           | HNSW          |
+//! |-------------------|---------------|---------------|
+//! | Index time        | O(1) per item | O(n log n)    |
+//! | Query time        | O(n^(1/c))    | O(log n)      |
+//! | Memory            | O(n)          | O(n * degree) |
+//! | Streaming inserts | Excellent     | Good          |
+//! | Distance metric   | Specific only | Arbitrary     |
+//! | Theory guarantees | Yes           | Empirical     |
+//!
+//! **Use LSH when:**
+//! - You need guaranteed recall bounds (LSH has provable guarantees)
+//! - Streaming/append-only workloads (no graph maintenance)
+//! - Set similarity (Jaccard via MinHash)
+//! - Binary fingerprinting at scale (SimHash)
+//!
+//! **Use HNSW when:**
+//! - Best possible recall/speed trade-off needed
+//! - Arbitrary distance metrics
+//! - Read-heavy workloads (amortize index cost)
 //!
 //! ```bash
 //! cargo run --example lsh_demo --features lsh
 //! ```
 
 use std::collections::HashSet;
+use std::time::Instant;
 use vicinity::hash::{MinHash, MinHashLSH, SimHash};
 
 fn main() {
-    println!("Locality Sensitive Hashing");
-    println!("==========================\n");
+    println!("Locality Sensitive Hashing: When and Why");
+    println!("=========================================\n");
 
     demo_minhash();
     demo_simhash();
     demo_lsh_tradeoffs();
+    demo_lsh_vs_hnsw_tradeoffs();
 }
 
 /// MinHash: Jaccard similarity for sets (document deduplication)
@@ -149,6 +173,77 @@ fn demo_lsh_tradeoffs() {
     println!("\n   To shift the threshold:");
     println!("   - More bands -> catches lower similarity pairs (but more candidates)");
     println!("   - More rows -> only catches high similarity pairs (but may miss some)");
+}
+
+/// When LSH beats HNSW (and vice versa)
+fn demo_lsh_vs_hnsw_tradeoffs() {
+    println!("4. LSH vs HNSW: Choosing the Right Tool");
+    println!("   -------------------------------------\n");
+
+    println!("   Practical comparison on document similarity:\n");
+
+    // Simulate index building costs
+    let n_docs = 10_000;
+
+    // LSH: O(1) per insert
+    let mh = MinHash::new(128);
+    let sample_doc: HashSet<&str> = ["word1", "word2", "word3"].into_iter().collect();
+
+    let start = Instant::now();
+    for _ in 0..1000 {
+        let _ = mh.signature(&sample_doc);
+    }
+    let lsh_sig_time = start.elapsed().as_nanos() / 1000;
+
+    println!("   Index Building (amortized per document):");
+    println!(
+        "     LSH signature:  ~{} ns (constant, embarrassingly parallel)",
+        lsh_sig_time
+    );
+    println!("     HNSW insertion: ~O(log n) comparisons + graph updates");
+    println!();
+
+    // Memory comparison
+    let sig_bytes = 128 * 4; // 128 u32 hashes
+    let hnsw_bytes_per_node = 32 * 4 * 2; // M=32, bidirectional edges, 4 bytes per ID
+
+    println!("   Memory per Document (n={}):", n_docs);
+    println!("     LSH (128 hashes):  {} bytes", sig_bytes);
+    println!(
+        "     HNSW (M=32):       ~{} bytes (graph edges)",
+        hnsw_bytes_per_node
+    );
+    println!();
+
+    // Query comparison
+    println!("   Query Characteristics:");
+    println!("     LSH:  Returns candidates, needs rerank for exact ordering");
+    println!("     HNSW: Returns approximate top-k directly, better recall");
+    println!();
+
+    // Decision matrix
+    println!("   Decision Matrix:");
+    println!("   +------------------+----------------------+------------------+");
+    println!("   | Scenario         | Recommendation       | Reason           |");
+    println!("   +------------------+----------------------+------------------+");
+    println!("   | Deduplication    | LSH (MinHash)        | Set similarity   |");
+    println!("   | Semantic search  | HNSW                 | Dense vectors    |");
+    println!("   | Streaming data   | LSH                  | No reindexing    |");
+    println!("   | Batch queries    | HNSW                 | Better recall    |");
+    println!("   | Binary codes     | LSH (SimHash)        | Hamming native   |");
+    println!("   | Hybrid search    | Both!                | Filter + search  |");
+    println!("   +------------------+----------------------+------------------+");
+    println!();
+
+    println!("   Hybrid Pattern: LSH for coarse filtering, HNSW for fine ranking:");
+    println!("     1. MinHash -> candidates with J > 0.3 (fast, O(n^0.5))");
+    println!("     2. Dense embed candidates");
+    println!("     3. HNSW on small candidate set (high quality)");
+    println!();
+
+    println!("   See also:");
+    println!("     - `02_measure_recall.rs`: HNSW recall benchmarking");
+    println!("     - `stratify/karate_club.rs`: Community detection (another filtering approach)");
 }
 
 fn jaccard<T: Eq + std::hash::Hash>(a: &HashSet<T>, b: &HashSet<T>) -> f64 {

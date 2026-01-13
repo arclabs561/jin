@@ -106,6 +106,14 @@ harness = false
 name = "lsh_demo"
 required-features = ["lsh"]
 
+[[example]]
+name = "rabitq_demo"
+required-features = ["rabitq"]
+
+[[example]]
+name = "ivf_pq_demo"
+required-features = ["ivf_pq"]
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
