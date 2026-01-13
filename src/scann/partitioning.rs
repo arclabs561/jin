@@ -144,8 +144,7 @@ impl KMeans {
         let mut cluster_sums = vec![vec![0.0f32; self.dimension]; self.k];
         let mut cluster_counts = vec![0usize; self.k];
 
-        for i in 0..num_vectors {
-            let cluster = assignments[i];
+        for (i, &cluster) in assignments.iter().enumerate().take(num_vectors) {
             cluster_counts[cluster] += 1;
 
             let vec = self.get_vector(vectors, i);

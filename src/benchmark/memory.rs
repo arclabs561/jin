@@ -206,7 +206,7 @@ pub mod theoretical {
         let _raw_vectors_bytes = n_vectors * dimension * size_of::<f32>();
 
         // PQ codes: n_subquantizers bytes per vector (assuming 8-bit codes)
-        let code_bytes = (n_subquantizers * bits_per_code + 7) / 8;
+        let code_bytes = (n_subquantizers * bits_per_code).div_ceil(8);
         let stored_vectors_bytes = n_vectors * code_bytes;
 
         // Overhead: cluster centroids + codebooks

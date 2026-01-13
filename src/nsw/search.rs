@@ -16,8 +16,7 @@ impl Eq for Candidate {}
 
 impl PartialOrd for Candidate {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        // Min-heap: smaller distance = higher priority
-        other.distance.partial_cmp(&self.distance)
+        Some(self.cmp(other))
     }
 }
 

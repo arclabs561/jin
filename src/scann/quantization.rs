@@ -86,7 +86,7 @@ impl AnisotropicQuantizer {
             // Store centroids as codewords
             // centroids() returns &[Vec<f32>], one Vec per cluster
             let centers = kmeans.centroids();
-            let codewords: Vec<Vec<f32>> = centers.iter().map(|c| c.clone()).collect();
+            let codewords: Vec<Vec<f32>> = centers.to_vec();
             self.codebooks.push(codewords);
         }
 
