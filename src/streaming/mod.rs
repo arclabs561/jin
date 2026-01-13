@@ -66,7 +66,7 @@ mod coordinator;
 
 pub use buffer::{StreamBuffer, StreamBufferConfig};
 pub use ops::{UpdateOp, UpdateBatch, UpdateStats};
-pub use coordinator::{StreamingCoordinator, StreamingConfig};
+pub use coordinator::{StreamingCoordinator, StreamingConfig, IndexOps};
 
 use crate::error::Result;
 

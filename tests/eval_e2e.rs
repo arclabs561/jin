@@ -16,7 +16,7 @@
 use std::time::Instant;
 
 use vicinity::benchmark::{
-    generate_clustered_dataset, generate_normalized_clustered_dataset, generate_uniform_dataset,
+    generate_normalized_clustered_dataset, generate_uniform_dataset,
     DistanceMetric, EvalDataset, EvalResults,
 };
 use vicinity::hnsw::{HNSWIndex, HNSWParams};

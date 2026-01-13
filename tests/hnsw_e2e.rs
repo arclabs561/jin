@@ -471,7 +471,6 @@ fn test_returned_distances_correct() {
 fn test_high_ef_search() {
     let dim = 32;
     let k = 10;
-    let _n = 1000;
     
     let database = create_clustered_dataset(50, 20, dim, 42);
     let queries = create_clustered_dataset(2, 5, dim, 999);
@@ -505,4 +504,142 @@ fn test_high_ef_search() {
         let mean_recall = total_recall / queries.len() as f32;
         eprintln!("ef={}: recall@{}={:.1}%", ef, k, mean_recall * 100.0);
     }
+}
+
+// =============================================================================
+// Streaming / IndexOps E2E Tests
+// =============================================================================
+
+use vicinity::hnsw::{InPlaceConfig, InPlaceIndex, MappedInPlaceIndex};
+use vicinity::streaming::{IndexOps, StreamingCoordinator};
+
+/// End-to-end test: streaming updates via IndexOps trait
+#[test]
+fn test_streaming_inplace_insert_search_delete() {
+    let dim = 8;
+    let k = 5;
+    
+    // Create normalized test vectors
+    let vectors: Vec<Vec<f32>> = (0..20)
+        .map(|i| {
+            let v: Vec<f32> = (0..dim).map(|j| ((i * 7 + j) % 13) as f32).collect();
+            normalize(&v)
+        })
+        .collect();
+    
+    // Create MappedInPlaceIndex with external ID tracking
+    let mut index = MappedInPlaceIndex::new(dim, InPlaceConfig::default());
+    
+    // Insert vectors via IndexOps trait
+    for (i, v) in vectors.iter().enumerate() {
+        index.insert(i as u32, v.clone()).expect("Insert failed");
+    }
+    
+    // Search - should find inserted vectors
+    let query = &vectors[0];
+    let results = index.search(query, k).expect("Search failed");
+    
+    // Verify we get results back
+    assert!(!results.is_empty(), "Should find vectors after insert");
+    
+    // The closest result should be the query vector itself (id=0)
+    let ids: Vec<u32> = results.iter().map(|(id, _)| *id).collect();
+    assert!(ids.contains(&0), "Query vector should be in top-k results");
+    
+    // Delete the first vector
+    index.delete(0).expect("Delete failed");
+    
+    // Search again - should NOT find deleted vector
+    let results_after_delete = index.search(query, k).expect("Search failed");
+    let ids_after: Vec<u32> = results_after_delete.iter().map(|(id, _)| *id).collect();
+    assert!(!ids_after.contains(&0), "Deleted vector should not appear in results");
+}
+
+/// End-to-end test: StreamingCoordinator wrapping InPlaceIndex
+#[test]
+fn test_streaming_coordinator_with_inplace() {
+    let dim = 8;
+    
+    let vectors: Vec<Vec<f32>> = (0..50)
+        .map(|i| {
+            let v: Vec<f32> = (0..dim).map(|j| ((i * 11 + j) % 17) as f32).collect();
+            normalize(&v)
+        })
+        .collect();
+    
+    // StreamingCoordinator wraps any IndexOps implementation
+    let inner = InPlaceIndex::new(dim, InPlaceConfig::default());
+    let mut coordinator = StreamingCoordinator::new(inner);
+    
+    // Batch inserts through coordinator
+    for (i, v) in vectors.iter().enumerate() {
+        coordinator.insert(i as u32, v.clone()).expect("Insert failed");
+    }
+    
+    // Search through coordinator
+    let query = &vectors[25];
+    let results = coordinator.search(query, 10).expect("Search failed");
+    
+    assert!(!results.is_empty(), "Should find vectors through coordinator");
+    
+    // Note: With raw InPlaceIndex, external IDs are ignored (it generates its own)
+    // The test verifies the pipeline works, not ID preservation
+    // For ID preservation, use MappedInPlaceIndex
+}
+
+/// End-to-end test: recall quality after streaming updates
+#[test]
+fn test_streaming_recall_after_updates() {
+    let dim = 16;
+    let n_initial = 100;
+    let n_added = 50;
+    let k = 10;
+    
+    // Create two batches of vectors
+    let initial: Vec<Vec<f32>> = (0..n_initial)
+        .map(|i| normalize(&(0..dim).map(|j| ((i * 7 + j) % 19) as f32).collect::<Vec<_>>()))
+        .collect();
+    
+    let added: Vec<Vec<f32>> = (0..n_added)
+        .map(|i| normalize(&(0..dim).map(|j| ((i * 13 + j + 100) % 23) as f32).collect::<Vec<_>>()))
+        .collect();
+    
+    let mut index = MappedInPlaceIndex::new(dim, InPlaceConfig::default());
+    
+    // Insert initial batch
+    for (i, v) in initial.iter().enumerate() {
+        index.insert(i as u32, v.clone()).unwrap();
+    }
+    
+    // Add more vectors (simulating streaming updates)
+    for (i, v) in added.iter().enumerate() {
+        index.insert((n_initial + i) as u32, v.clone()).unwrap();
+    }
+    
+    // Combine all vectors for ground truth computation
+    let all_vectors: Vec<Vec<f32>> = initial.iter().chain(added.iter()).cloned().collect();
+    
+    // Test recall on a few queries
+    let mut total_recall = 0.0;
+    let n_queries = 10;
+    
+    for query_idx in 0..n_queries {
+        let query = &all_vectors[query_idx * 10];
+        
+        // Compute ground truth
+        let gt = compute_ground_truth(query, &all_vectors, k);
+        
+        // Search via index
+        let results = index.search(query, k).unwrap();
+        let retrieved: Vec<u32> = results.iter().map(|(id, _)| *id).collect();
+        
+        let recall = recall_at_k(&gt, &retrieved, k);
+        total_recall += recall;
+    }
+    
+    let mean_recall = total_recall / n_queries as f32;
+    eprintln!("Streaming HNSW recall@{}: {:.1}%", k, mean_recall * 100.0);
+    
+    // InPlaceIndex should achieve reasonable recall (>50%)
+    assert!(mean_recall > 0.5, "Streaming HNSW recall should be >50%, got {:.1}%", mean_recall * 100.0);
 }

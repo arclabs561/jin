@@ -177,7 +177,7 @@ pub use deg::{DEGConfig, DEGIndex, DensityInfo};
 #[cfg(feature = "hnsw")]
 pub mod inplace;
 #[cfg(feature = "hnsw")]
-pub use inplace::{InPlaceConfig, InPlaceIndex, InPlaceStats};
+pub use inplace::{InPlaceConfig, InPlaceIndex, InPlaceStats, MappedInPlaceIndex};
 
 // Incremental learning patterns (edge refinement, temporal locality)
 #[cfg(feature = "hnsw")]

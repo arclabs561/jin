@@ -482,6 +482,7 @@ impl InPlaceIndex {
 
     /// Find replacement neighbor after deletion.
     fn find_replacement_neighbor(&self, node_id: u32, current_neighbors: &[u32]) -> Option<u32> {
+        let node = self.nodes.get(node_id as usize)?.as_ref()?;
         let current_set: HashSet<u32> = current_neighbors.iter().cloned().collect();
 
         // Search in 2-hop neighborhood for replacement
@@ -500,10 +501,7 @@ impl InPlaceIndex {
                     {
                         if let Some(Some(th_node)) = self.nodes.get(two_hop as usize) {
                             if !th_node.is_deleted() {
-                                let dist = euclidean_distance(
-                                    &self.nodes[node_id as usize].as_ref().unwrap().vector,
-                                    &th_node.vector,
-                                );
+                                let dist = euclidean_distance(&node.vector, &th_node.vector);
                                 candidates.push((two_hop, dist));
                             }
                         }
@@ -719,5 +717,150 @@ mod tests {
         // Should still be searchable
         let results = index.search(&[25.0; 4], 5).unwrap();
         assert!(!results.is_empty());
+    }
+}
+
+// =============================================================================
+// IndexOps implementation for streaming updates
+// =============================================================================
+
+use crate::streaming::IndexOps;
+
+/// Wrapper around InPlaceIndex that maintains external ID mapping.
+///
+/// This allows using InPlaceIndex with the streaming coordinator,
+/// which requires explicit external IDs.
+pub struct MappedInPlaceIndex {
+    inner: InPlaceIndex,
+    /// External ID -> Internal ID
+    id_map: std::collections::HashMap<u32, u32>,
+    /// Internal ID -> External ID  
+    reverse_map: std::collections::HashMap<u32, u32>,
+}
+
+impl MappedInPlaceIndex {
+    /// Create a new mapped index.
+    pub fn new(dim: usize, config: InPlaceConfig) -> Self {
+        Self {
+            inner: InPlaceIndex::new(dim, config),
+            id_map: std::collections::HashMap::new(),
+            reverse_map: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Get the underlying index.
+    pub fn inner(&self) -> &InPlaceIndex {
+        &self.inner
+    }
+
+    /// Get statistics.
+    pub fn stats(&self) -> InPlaceStats {
+        self.inner.stats()
+    }
+}
+
+impl IndexOps for MappedInPlaceIndex {
+    fn insert(&mut self, id: u32, vector: Vec<f32>) -> crate::error::Result<()> {
+        // If ID already exists, update by delete + insert
+        if let Some(&internal_id) = self.id_map.get(&id) {
+            self.inner.delete(internal_id)?;
+            self.reverse_map.remove(&internal_id);
+        }
+
+        // Insert into inner index
+        let internal_id = self.inner.insert(vector)?;
+
+        // Update mappings
+        self.id_map.insert(id, internal_id);
+        self.reverse_map.insert(internal_id, id);
+
+        Ok(())
+    }
+
+    fn delete(&mut self, id: u32) -> crate::error::Result<()> {
+        if let Some(&internal_id) = self.id_map.get(&id) {
+            self.inner.delete(internal_id)?;
+            self.id_map.remove(&id);
+            self.reverse_map.remove(&internal_id);
+            Ok(())
+        } else {
+            // Silently succeed if ID doesn't exist
+            Ok(())
+        }
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> crate::error::Result<Vec<(u32, f32)>> {
+        let results = self.inner.search(query, k)?;
+
+        // Map internal IDs back to external IDs
+        Ok(results
+            .into_iter()
+            .filter_map(|(internal_id, dist)| {
+                self.reverse_map.get(&internal_id).map(|&external_id| (external_id, dist))
+            })
+            .collect())
+    }
+}
+
+impl IndexOps for InPlaceIndex {
+    /// Insert a vector.
+    ///
+    /// Note: The `id` parameter is ignored - InPlaceIndex generates its own IDs.
+    /// Use `MappedInPlaceIndex` if you need external ID mapping.
+    fn insert(&mut self, _id: u32, vector: Vec<f32>) -> crate::error::Result<()> {
+        self.insert(vector)?;
+        Ok(())
+    }
+
+    fn delete(&mut self, id: u32) -> crate::error::Result<()> {
+        InPlaceIndex::delete(self, id)
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> crate::error::Result<Vec<(u32, f32)>> {
+        InPlaceIndex::search(self, query, k)
+    }
+}
+
+#[cfg(test)]
+mod streaming_tests {
+    use super::*;
+    use crate::streaming::{StreamingCoordinator, IndexOps};
+
+    #[test]
+    fn test_inplace_with_streaming_coordinator() {
+        let index = InPlaceIndex::new(4, InPlaceConfig::default());
+        let mut streaming = StreamingCoordinator::new(index);
+
+        // Insert via streaming
+        streaming.insert(0, vec![1.0, 0.0, 0.0, 0.0]).unwrap();
+        streaming.insert(1, vec![0.0, 1.0, 0.0, 0.0]).unwrap();
+        streaming.insert(2, vec![0.0, 0.0, 1.0, 0.0]).unwrap();
+
+        // Search should find vectors
+        let results = streaming.search(&[1.0, 0.0, 0.0, 0.0], 3).unwrap();
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn test_mapped_inplace_preserves_ids() {
+        let mut index = MappedInPlaceIndex::new(4, InPlaceConfig::default());
+
+        // Insert with specific IDs
+        index.insert(100, vec![1.0, 0.0, 0.0, 0.0]).unwrap();
+        index.insert(200, vec![0.0, 1.0, 0.0, 0.0]).unwrap();
+
+        // Search should return the external IDs
+        let results = index.search(&[1.0, 0.0, 0.0, 0.0], 2).unwrap();
+        assert!(!results.is_empty());
+        
+        // Verify we get back our external IDs
+        let ids: Vec<u32> = results.iter().map(|(id, _)| *id).collect();
+        assert!(ids.contains(&100) || ids.contains(&200));
+
+        // Delete and verify
+        index.delete(100).unwrap();
+        let results_after = index.search(&[1.0, 0.0, 0.0, 0.0], 2).unwrap();
+        let ids_after: Vec<u32> = results_after.iter().map(|(id, _)| *id).collect();
+        assert!(!ids_after.contains(&100));
     }
 }

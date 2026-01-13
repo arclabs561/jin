@@ -4,14 +4,12 @@
 
 //! vicinity: Approximate Nearest Neighbor Search primitives.
 //!
-//! Provides standalone implementations of state-of-the-art ANN algorithms
-//! organized by algorithmic approach:
+//! Provides standalone implementations of state-of-the-art ANN algorithms:
 //!
-//! - `graph/`: Graph-based (HNSW, NSW, Vamana, SNG)
-//! - `tree/`: Tree-based (K-D tree, Ball tree, RP forest)
-//! - `hash/`: Hash-based (LSH, MinHash, SimHash)
-//! - `partition/`: Partition-based (IVF, ScaNN)
-//! - `quantize/`: Quantization (PQ, RaBitQ, SAQ)
+//! - **Graph-based**: [`hnsw`], [`nsw`], [`sng`], [`vamana`]
+//! - **Hash-based**: [`hash`] (LSH, MinHash, SimHash) — requires `lsh` feature
+//! - **Partition-based**: [`ivf_pq`], [`scann`]
+//! - **Quantization**: [`quantization`] (PQ, RaBitQ)
 //!
 //! # Critical Nuances
 //!
