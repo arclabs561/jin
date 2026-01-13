@@ -13,6 +13,7 @@ use vicinity::hnsw::HNSWIndex;
 fn main() -> vicinity::Result<()> {
     println!("HNSW vs Brute Force Benchmark");
     println!("==============================\n");
+    println!("Note: HNSW uses cosine distance internally, vectors are L2-normalized.\n");
 
     let dim = 128;
     let sizes = [1_000, 5_000, 10_000, 25_000];
@@ -28,38 +29,31 @@ fn benchmark_size(n: usize, dim: usize) -> vicinity::Result<()> {
     println!("Dataset: {} vectors, {} dimensions", n, dim);
     println!("{}", "-".repeat(50));
 
-    // Generate random vectors (deterministic for reproducibility)
+    // Generate random normalized vectors (for cosine similarity)
     let vectors: Vec<Vec<f32>> = (0..n)
-        .map(|i| {
-            (0..dim)
-                .map(|j| {
-                    let seed = (i * dim + j) as f32;
-                    (seed * 0.0001).sin()
-                })
-                .collect()
-        })
+        .map(|i| normalize(&generate_vector(i, dim)))
         .collect();
 
-    // Generate query vectors (slight perturbations of random database vectors)
+    // Generate query vectors (normalized perturbations of random database vectors)
     let n_queries = 100;
     let queries: Vec<Vec<f32>> = (0..n_queries)
         .map(|i| {
-            // Pick a random base vector and perturb it slightly
             let base_idx = (i * 7) % n;
-            vectors[base_idx]
+            let perturbed: Vec<f32> = vectors[base_idx]
                 .iter()
                 .enumerate()
                 .map(|(j, &v)| {
-                    let noise = ((i * dim + j) as f32 * 0.0001).sin() * 0.01;
+                    let noise = ((i * dim + j) as f32 * 0.0001).sin() * 0.1;
                     v + noise
                 })
-                .collect()
+                .collect();
+            normalize(&perturbed)
         })
         .collect();
 
     let k = 10;
 
-    // Build HNSW index
+    // Build HNSW index with reasonable parameters
     let build_start = Instant::now();
     let mut index = HNSWIndex::new(dim, 16, 32)?;
     for (i, vec) in vectors.iter().enumerate() {
@@ -70,7 +64,7 @@ fn benchmark_size(n: usize, dim: usize) -> vicinity::Result<()> {
     println!("HNSW build time: {:?}", build_time);
 
     // HNSW search
-    let ef = 50; // search beam width
+    let ef = 100; // higher ef for better recall
     let hnsw_start = Instant::now();
     let mut hnsw_results = Vec::with_capacity(n_queries);
     for query in &queries {
@@ -79,14 +73,14 @@ fn benchmark_size(n: usize, dim: usize) -> vicinity::Result<()> {
     }
     let hnsw_time = hnsw_start.elapsed();
 
-    // Brute force search
+    // Brute force search using COSINE DISTANCE (same as HNSW)
     let brute_start = Instant::now();
     let mut brute_results = Vec::with_capacity(n_queries);
     for query in &queries {
         let mut distances: Vec<(usize, f32)> = vectors
             .iter()
             .enumerate()
-            .map(|(i, v)| (i, euclidean_distance(query, v)))
+            .map(|(i, v)| (i, cosine_distance(query, v)))
             .collect();
         distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
         brute_results.push(distances.into_iter().take(k).collect::<Vec<_>>());
@@ -120,10 +114,30 @@ fn benchmark_size(n: usize, dim: usize) -> vicinity::Result<()> {
     Ok(())
 }
 
-fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum::<f32>()
-        .sqrt()
+/// Generate a deterministic pseudo-random vector
+fn generate_vector(seed: usize, dim: usize) -> Vec<f32> {
+    (0..dim)
+        .map(|j| {
+            let x = (seed * dim + j) as f32;
+            (x * 0.618033988).fract() * 2.0 - 1.0 // Golden ratio hash
+        })
+        .collect()
+}
+
+/// L2-normalize a vector
+fn normalize(v: &[f32]) -> Vec<f32> {
+    let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm > f32::EPSILON {
+        v.iter().map(|x| x / norm).collect()
+    } else {
+        v.to_vec()
+    }
+}
+
+/// Cosine distance: 1 - cosine_similarity
+fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
+    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    1.0 - dot / (norm_a * norm_b + f32::EPSILON)
 }

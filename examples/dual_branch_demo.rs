@@ -1,0 +1,419 @@
+//! Dual-Branch HNSW Demo
+//!
+//! Demonstrates LID-driven optimization for handling outliers and varying density.
+//!
+//! Based on "Dual-Branch HNSW with Skip Bridges" (arXiv 2501.13992, Jan 2025).
+//!
+//! ```bash
+//! cargo run --example dual_branch_demo --release
+//! ```
+
+use std::collections::HashSet;
+use std::time::Instant;
+use vicinity::hnsw::dual_branch::{DualBranchConfig, DualBranchHNSW};
+use vicinity::hnsw::HNSWIndex;
+use vicinity::lid::{estimate_lid, LidConfig};
+
+fn main() -> vicinity::Result<()> {
+    println!("Dual-Branch HNSW: LID-Driven Optimization Demo");
+    println!("===============================================\n");
+
+    // 1. The problem: outliers degrade HNSW recall
+    demo_outlier_problem()?;
+
+    // 2. LID-aware construction
+    demo_lid_analysis();
+
+    // 3. Dual-Branch vs Standard HNSW comparison
+    demo_comparison()?;
+
+    println!("Done!");
+    Ok(())
+}
+
+/// Demonstrate how outliers degrade standard HNSW recall.
+fn demo_outlier_problem() -> vicinity::Result<()> {
+    println!("1. The Outlier Problem");
+    println!("   --------------------\n");
+
+    let dim = 64;
+    let n_clusters = 5;
+    let points_per_cluster = 100;
+    let n_outliers = 20;
+
+    // Generate clustered data + outliers
+    let (data, labels) =
+        generate_clustered_with_outliers(dim, n_clusters, points_per_cluster, n_outliers);
+    let n_total = data.len() / dim;
+
+    println!(
+        "   Dataset: {} vectors ({} clustered + {} outliers) in {}-D\n",
+        n_total,
+        n_clusters * points_per_cluster,
+        n_outliers,
+        dim
+    );
+
+    // Build standard HNSW
+    let mut index = HNSWIndex::new(dim, 16, 32)?;
+    for i in 0..n_total {
+        let vec = data[i * dim..(i + 1) * dim].to_vec();
+        index.add(i as u32, vec)?;
+    }
+    index.build()?;
+
+    // Test recall on clustered points vs outliers
+    let k = 10;
+    let ef = 50;
+
+    let mut clustered_recalls = Vec::new();
+    let mut outlier_recalls = Vec::new();
+
+    // Sample queries from each type
+    for i in 0..n_total {
+        let query = &data[i * dim..(i + 1) * dim];
+        let results = index.search(query, k, ef)?;
+        let result_ids: HashSet<u32> = results.iter().map(|(id, _)| *id).collect();
+
+        // Ground truth: brute force
+        let gt = brute_force_knn(&data, dim, query, k);
+        let gt_ids: HashSet<u32> = gt.iter().map(|(id, _)| *id).collect();
+
+        let recall = result_ids.intersection(&gt_ids).count() as f32 / k as f32;
+
+        if labels[i] == 999 {
+            // Outlier
+            outlier_recalls.push(recall);
+        } else {
+            clustered_recalls.push(recall);
+        }
+    }
+
+    let avg_clustered = clustered_recalls.iter().sum::<f32>() / clustered_recalls.len() as f32;
+    let avg_outlier = outlier_recalls.iter().sum::<f32>() / outlier_recalls.len() as f32;
+
+    println!("   Standard HNSW Recall@{}:", k);
+    println!("     Clustered queries: {:.1}%", avg_clustered * 100.0);
+    println!("     Outlier queries:   {:.1}%", avg_outlier * 100.0);
+    println!(
+        "     Gap:               {:.1}%\n",
+        (avg_clustered - avg_outlier) * 100.0
+    );
+
+    println!("   Problem: HNSW struggles with outliers because:");
+    println!("   - Outliers have few neighbors in the graph");
+    println!("   - Search paths get \"trapped\" in sparse regions");
+    println!("   - Greedy traversal misses distant true neighbors\n");
+
+    Ok(())
+}
+
+/// Demonstrate LID analysis of the dataset.
+fn demo_lid_analysis() {
+    println!("2. Local Intrinsic Dimensionality Analysis");
+    println!("   ----------------------------------------\n");
+
+    let dim = 64;
+    let n_clusters = 5;
+    let points_per_cluster = 100;
+    let n_outliers = 20;
+
+    let (data, labels) =
+        generate_clustered_with_outliers(dim, n_clusters, points_per_cluster, n_outliers);
+    let n_total = data.len() / dim;
+
+    // Compute LID for each point
+    let config = LidConfig {
+        k: 20,
+        ..Default::default()
+    };
+    let mut lid_estimates = Vec::new();
+
+    for i in 0..n_total {
+        let query = &data[i * dim..(i + 1) * dim];
+        let dists = compute_distances_from(query, &data, dim, i);
+        let estimate = estimate_lid(&dists, &config);
+        lid_estimates.push((i, estimate.lid, labels[i]));
+    }
+
+    // Separate by type
+    let clustered_lids: Vec<f32> = lid_estimates
+        .iter()
+        .filter(|(_, _, label)| *label != 999)
+        .map(|(_, lid, _)| *lid)
+        .collect();
+
+    let outlier_lids: Vec<f32> = lid_estimates
+        .iter()
+        .filter(|(_, _, label)| *label == 999)
+        .map(|(_, lid, _)| *lid)
+        .collect();
+
+    let avg_clustered_lid = clustered_lids.iter().sum::<f32>() / clustered_lids.len() as f32;
+    let avg_outlier_lid = outlier_lids.iter().sum::<f32>() / outlier_lids.len() as f32;
+
+    println!("   LID Statistics by Point Type:\n");
+    println!("                   Mean LID    Min       Max");
+    println!("   ------------------------------------------------");
+    println!(
+        "   Clustered:      {:>6.2}      {:>6.2}    {:>6.2}",
+        avg_clustered_lid,
+        clustered_lids.iter().cloned().fold(f32::INFINITY, f32::min),
+        clustered_lids
+            .iter()
+            .cloned()
+            .fold(f32::NEG_INFINITY, f32::max)
+    );
+    println!(
+        "   Outliers:       {:>6.2}      {:>6.2}    {:>6.2}",
+        avg_outlier_lid,
+        outlier_lids.iter().cloned().fold(f32::INFINITY, f32::min),
+        outlier_lids
+            .iter()
+            .cloned()
+            .fold(f32::NEG_INFINITY, f32::max)
+    );
+    println!();
+
+    println!("   Key insight: Outliers have HIGHER LID because:");
+    println!("   - They're in sparse regions where distance growth is irregular");
+    println!("   - Fewer equidistant neighbors = higher MLE estimate");
+    println!("   - LID can identify these problematic points!\n");
+
+    // Show top high-LID points
+    let mut sorted = lid_estimates.clone();
+    sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    println!("   Top 10 highest-LID points:");
+    println!("   {:>6}  {:>8}  {:>10}", "Index", "LID", "Type");
+    println!("   {:->6}  {:->8}  {:->10}", "", "", "");
+    for (idx, lid, label) in sorted.iter().take(10) {
+        let ptype = if *label == 999 {
+            "OUTLIER"
+        } else {
+            "clustered"
+        };
+        println!("   {:>6}  {:>8.2}  {:>10}", idx, lid, ptype);
+    }
+    println!();
+}
+
+/// Compare Dual-Branch HNSW vs Standard HNSW.
+fn demo_comparison() -> vicinity::Result<()> {
+    println!("3. Dual-Branch HNSW vs Standard HNSW");
+    println!("   ----------------------------------\n");
+
+    let dim = 64;
+    let n_clusters = 5;
+    let points_per_cluster = 100;
+    let n_outliers = 20;
+
+    let (data, labels) =
+        generate_clustered_with_outliers(dim, n_clusters, points_per_cluster, n_outliers);
+    let n_total = data.len() / dim;
+
+    // Build Dual-Branch HNSW
+    let config = DualBranchConfig {
+        m: 16,
+        m_high_lid: 24, // 1.5x connections for high-LID points
+        ef_construction: 200,
+        ef_search: 50,
+        lid_k: 20,
+        lid_threshold_sigma: 1.5,
+        skip_bridge_probability: 0.1,
+        max_skip_length: 3,
+        seed: Some(42),
+    };
+
+    let build_start = Instant::now();
+    let mut dual_index = DualBranchHNSW::new(dim, config);
+    dual_index.add_vectors(&data)?;
+    dual_index.build()?;
+    let dual_build_time = build_start.elapsed();
+
+    // Build Standard HNSW
+    let build_start = Instant::now();
+    let mut std_index = HNSWIndex::new(dim, 16, 32)?;
+    for i in 0..n_total {
+        let vec = data[i * dim..(i + 1) * dim].to_vec();
+        std_index.add(i as u32, vec)?;
+    }
+    std_index.build()?;
+    let std_build_time = build_start.elapsed();
+
+    // Get Dual-Branch statistics
+    let stats = dual_index.stats();
+
+    println!("   Build Statistics:");
+    println!("   {:>20}  {:>12}  {:>12}", "", "Standard", "Dual-Branch");
+    println!("   {:->20}  {:->12}  {:->12}", "", "", "");
+    println!(
+        "   {:>20}  {:>12?}  {:>12?}",
+        "Build time:", std_build_time, dual_build_time
+    );
+    println!(
+        "   {:>20}  {:>12}  {:>12}",
+        "Skip bridges:", "-", stats.num_skip_bridges
+    );
+    println!(
+        "   {:>20}  {:>12}  {:>12}",
+        "High-LID nodes:", "-", stats.high_lid_nodes
+    );
+    println!();
+
+    // Compare recall on different point types
+    let k = 10;
+    let ef = 50;
+
+    let mut std_clustered = Vec::new();
+    let mut std_outlier = Vec::new();
+    let mut dual_clustered = Vec::new();
+    let mut dual_outlier = Vec::new();
+
+    for i in 0..n_total {
+        let query = &data[i * dim..(i + 1) * dim];
+        let gt = brute_force_knn(&data, dim, query, k);
+        let gt_ids: HashSet<u32> = gt.iter().map(|(id, _)| *id).collect();
+
+        // Standard HNSW
+        let std_results = std_index.search(query, k, ef)?;
+        let std_ids: HashSet<u32> = std_results.iter().map(|(id, _)| *id).collect();
+        let std_recall = std_ids.intersection(&gt_ids).count() as f32 / k as f32;
+
+        // Dual-Branch HNSW
+        let dual_results = dual_index.search(query, k)?;
+        let dual_ids: HashSet<u32> = dual_results.iter().map(|(id, _)| *id).collect();
+        let dual_recall = dual_ids.intersection(&gt_ids).count() as f32 / k as f32;
+
+        if labels[i] == 999 {
+            std_outlier.push(std_recall);
+            dual_outlier.push(dual_recall);
+        } else {
+            std_clustered.push(std_recall);
+            dual_clustered.push(dual_recall);
+        }
+    }
+
+    let avg = |v: &[f32]| v.iter().sum::<f32>() / v.len() as f32 * 100.0;
+
+    println!("   Recall@{} Comparison:", k);
+    println!(
+        "   {:>20}  {:>12}  {:>12}  {:>10}",
+        "Query Type", "Standard", "Dual-Branch", "Improvement"
+    );
+    println!("   {:->20}  {:->12}  {:->12}  {:->10}", "", "", "", "");
+    println!(
+        "   {:>20}  {:>11.1}%  {:>11.1}%  {:>+9.1}%",
+        "Clustered",
+        avg(&std_clustered),
+        avg(&dual_clustered),
+        avg(&dual_clustered) - avg(&std_clustered)
+    );
+    println!(
+        "   {:>20}  {:>11.1}%  {:>11.1}%  {:>+9.1}%",
+        "Outliers",
+        avg(&std_outlier),
+        avg(&dual_outlier),
+        avg(&dual_outlier) - avg(&std_outlier)
+    );
+    println!();
+
+    let std_overall = (std_clustered.iter().sum::<f32>() + std_outlier.iter().sum::<f32>())
+        / (std_clustered.len() + std_outlier.len()) as f32
+        * 100.0;
+    let dual_overall = (dual_clustered.iter().sum::<f32>() + dual_outlier.iter().sum::<f32>())
+        / (dual_clustered.len() + dual_outlier.len()) as f32
+        * 100.0;
+
+    println!(
+        "   Overall Recall: Standard={:.1}%, Dual-Branch={:.1}%\n",
+        std_overall, dual_overall
+    );
+
+    println!("   How Dual-Branch HNSW helps:");
+    println!("   - High-LID points get more connections (M=24 vs M=16)");
+    println!("   - Skip bridges create shortcuts past sparse regions");
+    println!("   - Dual search explores both local and skip paths");
+    println!();
+
+    Ok(())
+}
+
+// --- Data Generation ---
+
+fn generate_clustered_with_outliers(
+    dim: usize,
+    n_clusters: usize,
+    points_per_cluster: usize,
+    n_outliers: usize,
+) -> (Vec<f32>, Vec<usize>) {
+    let mut data = Vec::new();
+    let mut labels = Vec::new();
+
+    // Generate clusters
+    for c in 0..n_clusters {
+        // Cluster center
+        let center: Vec<f32> = (0..dim)
+            .map(|d| {
+                let seed = (c * dim + d) as f32;
+                (seed * 0.618033988).fract() * 10.0 - 5.0
+            })
+            .collect();
+
+        // Points around center
+        for p in 0..points_per_cluster {
+            for d in 0..dim {
+                let noise = ((c * points_per_cluster * dim + p * dim + d) as f32 * 0.1).sin() * 0.5;
+                data.push(center[d] + noise);
+            }
+            labels.push(c);
+        }
+    }
+
+    // Generate outliers (far from clusters)
+    for o in 0..n_outliers {
+        for d in 0..dim {
+            let seed = (1000000 + o * dim + d) as f32;
+            let val = (seed * 0.618033988).fract() * 40.0 - 20.0; // Wider range
+            data.push(val);
+        }
+        labels.push(999); // Special label for outliers
+    }
+
+    (data, labels)
+}
+
+fn brute_force_knn(data: &[f32], dim: usize, query: &[f32], k: usize) -> Vec<(u32, f32)> {
+    let n = data.len() / dim;
+    let mut distances: Vec<(u32, f32)> = (0..n)
+        .map(|i| {
+            let vec = &data[i * dim..(i + 1) * dim];
+            let dist = l2_distance(query, vec);
+            (i as u32, dist)
+        })
+        .collect();
+
+    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    distances.into_iter().take(k).collect()
+}
+
+fn compute_distances_from(query: &[f32], data: &[f32], dim: usize, skip_idx: usize) -> Vec<f32> {
+    let n = data.len() / dim;
+    let mut dists: Vec<f32> = (0..n)
+        .filter(|&i| i != skip_idx)
+        .map(|i| {
+            let vec = &data[i * dim..(i + 1) * dim];
+            l2_distance(query, vec)
+        })
+        .collect();
+    dists.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    dists
+}
+
+fn l2_distance(a: &[f32], b: &[f32]) -> f32 {
+    a.iter()
+        .zip(b.iter())
+        .map(|(x, y)| (x - y).powi(2))
+        .sum::<f32>()
+        .sqrt()
+}

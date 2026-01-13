@@ -260,7 +260,8 @@ pub mod x86_64 {
                 let idx_vec = std::ptr::read_unaligned(indices_ptr);
 
                 let lut_base = lut.codebook_ptr(m);
-                let gathered = _mm512_i32gather_ps(idx_vec, lut_base as *const u8, 4);
+                // Scale=4 means each index step is 4 bytes (size of f32)
+                let gathered = _mm512_i32gather_ps(idx_vec, lut_base, 4);
 
                 sum = _mm512_add_ps(sum, gathered);
             }

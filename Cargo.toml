@@ -2,7 +2,7 @@
 name = "vicinity"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.80"
 description = "Approximate Nearest Neighbor Search: HNSW, DiskANN, IVF-PQ, ScaNN, quantization"
 repository = "https://github.com/arclabs561/vicinity"
 license = "MIT OR Apache-2.0"
