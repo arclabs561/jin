@@ -202,7 +202,8 @@ pub mod theoretical {
         n_subquantizers: usize,
         bits_per_code: usize,
     ) -> IndexMemoryStats {
-        let raw_vectors_bytes = n_vectors * dimension * size_of::<f32>();
+        // Note: raw_vectors_bytes computed internally by IndexMemoryStats::new
+        let _raw_vectors_bytes = n_vectors * dimension * size_of::<f32>();
 
         // PQ codes: n_subquantizers bytes per vector (assuming 8-bit codes)
         let code_bytes = (n_subquantizers * bits_per_code + 7) / 8;
