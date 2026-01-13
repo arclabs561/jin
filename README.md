@@ -2,9 +2,9 @@
 
 ```mermaid
 flowchart LR
-    Q[query] --> HNSW[HNSW graph]
-    HNSW --> PQ[PQ rescore]
-    PQ --> K[top k]
+    V[vectors] --> I[index]
+    Q[query] --> I
+    I --> K[top k]
 ```
 
 Approximate Nearest Neighbor search in Rust.
@@ -30,7 +30,7 @@ let results = index.search(&query, 10, 50)?;  // k, ef
 | Graph | HNSW, NSW, Vamana (DiskANN), SNG |
 | Hash | LSH, MinHash, SimHash |
 | Partition | IVF-PQ, ScaNN |
-| Quantization | PQ, RaBitQ, SAQ |
+| Quantization | PQ, RaBitQ |
 
 ## When to Use What
 
@@ -41,7 +41,7 @@ let results = index.search(&query, 10, 50)?;  // k, ef
 
 ## Features
 
-- `hnsw` — HNSW and related graph algorithms
+- `hnsw` — HNSW graph index (default)
 - `lsh` — LSH, MinHash, SimHash
+- `ivf_pq` — IVF with product quantization
 - `persistence` — WAL-based durability
-- `full` — all features
