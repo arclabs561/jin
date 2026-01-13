@@ -1,30 +1,36 @@
 # vicinity
 
-Approximate Nearest Neighbor search in Rust. HNSW, DiskANN, IVF-PQ, ScaNN, and Quantization.
+Approximate Nearest Neighbor search in Rust.
 
 Dual-licensed under MIT or Apache-2.0.
 
 ```rust
 use vicinity::hnsw::Hnsw;
 
-// dim=128, M=16, ef_construction=200
-let mut index = Hnsw::new(128, 16, 200);
+let mut index = Hnsw::new(128, 16, 200); // dim, M, ef_construction
 index.insert(&vector, id);
 
-// k=10, ef_search=50
-let neighbors = index.search(&query, 10, 50);
+let neighbors = index.search(&query, 10, 50); // k, ef_search
 ```
+
+## Algorithms
+
+| Type | Algorithms |
+|------|------------|
+| Graph | HNSW, NSW, Vamana (DiskANN), SNG |
+| Hash | LSH, MinHash, SimHash |
+| Partition | IVF-PQ, ScaNN |
+| Quantization | PQ, RaBitQ, SAQ |
+
+## When to Use What
+
+- **< 10K vectors**: Brute force (no index overhead)
+- **Memory-constrained**: IVF-PQ, quantization
+- **Disk-based**: Vamana/DiskANN
+- **Default choice**: HNSW (best recall/latency tradeoff)
 
 ## Features
 
-- **HNSW**: Hierarchical Navigable Small World (state-of-the-art memory-based)
-- **DiskANN**: SSD-optimized Vamana graph for larger-than-memory indices
-- **IVF-PQ**: Inverted File with Product Quantization (FAISS-style)
-- **ScaNN**: Score-aware quantization with anisotropic loss
-- **Quantization**:
-  - **RaBitQ**: Randomized Binary Quantization
-  - **TurboQuant**: Fast SIMD product quantization
-  - **SAQ**: Simulated Annealing Quantization
-- **Persistence**: WAL-based durability and fast restarts
-
-See [`docs/README_DETAILED.md`](docs/README_DETAILED.md) for benchmarks and architecture.
+- `lsh` — LSH, MinHash, SimHash
+- `persistence` — WAL-based durability
+- `full` — all features

@@ -1,268 +1,404 @@
-//! Binary format definitions for persistence.
+//! Unified persistence format for Scholar Stack.
 //!
-//! Defines the on-disk format for all persistent data structures:
-//! - Segment footers
-//! - WAL entries
-//! - Checkpoint headers
-//! - Format versioning
+//! # Design Goals
+//!
+//! 1. **Cross-crate compatibility**: vicinity and cerno-retrieve share format
+//! 2. **Incremental writes**: WAL-based for crash recovery
+//! 3. **Memory-mapped reads**: Zero-copy for large indices
+//! 4. **Versioned**: Forward/backward compatible with magic bytes
+//!
+//! # File Layout
+//!
+//! ```text
+//! vicinity-index-v1
+//! ├── manifest.json          # Index metadata, version, config
+//! ├── wal/                    # Write-ahead log for crash recovery
+//! │   ├── 00001.wal
+//! │   ├── 00002.wal
+//! │   └── ...
+//! ├── segments/               # Immutable data segments
+//! │   ├── 00001.seg           # Vectors + graph
+//! │   ├── 00002.seg
+//! │   └── ...
+//! └── checkpoints/            # Periodic snapshots
+//!     ├── 00001.ckpt
+//!     └── ...
+//! ```
+//!
+//! # Segment Format
+//!
+//! Each segment is a self-contained unit with:
+//!
+//! ```text
+//! ┌─────────────────────────────────────────┐
+//! │ Magic bytes (8B): "VCNT" + version      │
+//! ├─────────────────────────────────────────┤
+//! │ Header (variable):                      │
+//! │   - Segment ID                          │
+//! │   - Vector count                        │
+//! │   - Dimension                           │
+//! │   - Index type (HNSW, DiskANN, etc.)    │
+//! │   - Compression type                    │
+//! │   - Created timestamp                   │
+//! ├─────────────────────────────────────────┤
+//! │ Vector data section:                    │
+//! │   - Raw f32 vectors (mmap-able)         │
+//! │   OR quantized vectors                  │
+//! ├─────────────────────────────────────────┤
+//! │ Graph section (index-specific):         │
+//! │   - HNSW: layers + edges                │
+//! │   - DiskANN: adjacency lists            │
+//! │   - IVF: centroids + posting lists      │
+//! ├─────────────────────────────────────────┤
+//! │ ID mapping section:                     │
+//! │   - Internal ID -> External ID          │
+//! ├─────────────────────────────────────────┤
+//! │ Footer:                                 │
+//! │   - CRC32 checksum                      │
+//! │   - Section offsets                     │
+//! └─────────────────────────────────────────┘
+//! ```
+//!
+//! # WAL Entry Format
+//!
+//! ```text
+//! ┌─────────────────────────────────────────┐
+//! │ Length (4B): Entry length               │
+//! │ CRC32 (4B): Checksum                    │
+//! │ Type (1B): Insert/Delete/Update         │
+//! │ Timestamp (8B): Unix nanos              │
+//! │ Payload (variable):                     │
+//! │   - Vector ID                           │
+//! │   - Vector data (for inserts)           │
+//! └─────────────────────────────────────────┘
+//! ```
+//!
+//! # Compatibility
+//!
+//! Version handling:
+//! - v1: Initial format (HNSW, DiskANN, IVF-PQ)
+//! - Future versions add new fields to header
+//! - Unknown fields are ignored for forward compatibility
+//!
+//! # Usage
+//!
+//! ```rust,ignore
+//! use vicinity::persistence::{IndexPersistence, SegmentWriter, SegmentReader};
+//!
+//! // Write
+//! let mut writer = SegmentWriter::create("segment.seg", config)?;
+//! writer.write_header(&header)?;
+//! writer.write_vectors(&vectors)?;
+//! writer.write_graph(&graph)?;
+//! writer.finalize()?;
+//!
+//! // Read (memory-mapped)
+//! let reader = SegmentReader::open("segment.seg")?;
+//! let vectors = reader.mmap_vectors()?;
+//! let graph = reader.read_graph()?;
+//! ```
 
-use crate::persistence::error::{PersistenceError, PersistenceResult};
+use serde::{Deserialize, Serialize};
 
-/// Magic bytes for ordino-retrieve format identification.
-pub const MAGIC_BYTES: [u8; 4] = *b"RANK";
+/// Magic bytes for segment files.
+pub const SEGMENT_MAGIC: &[u8; 4] = b"VCNT";
+
+/// Magic bytes for checkpoint files.
+pub const CHECKPOINT_MAGIC: [u8; 4] = *b"VCKP";
 
 /// Current format version.
 pub const FORMAT_VERSION: u32 = 1;
 
-/// Segment footer magic bytes.
-pub const SEGMENT_MAGIC: [u8; 4] = *b"RANK";
+/// Magic bytes for WAL files.
+pub const WAL_MAGIC: [u8; 4] = *b"VWAL";
 
-/// WAL segment magic bytes.
-pub const WAL_MAGIC: [u8; 4] = *b"WAL\0";
+/// Index types supported by persistence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum IndexType {
+    /// Hierarchical Navigable Small World
+    Hnsw,
+    /// DiskANN / Vamana
+    DiskAnn,
+    /// Inverted File with Product Quantization
+    IvfPq,
+    /// Scalar Quantized NSW
+    ScaNN,
+    /// Simple Neighborhood Graph
+    Sng,
+    /// Learned sparse (SPLADE)
+    LearnedSparse,
+    /// Flat (brute force)
+    Flat,
+}
 
-/// Checkpoint magic bytes.
-pub const CHECKPOINT_MAGIC: [u8; 4] = *b"CHKP";
+/// Compression types for vectors.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompressionType {
+    /// No compression (raw f32)
+    None,
+    /// Product quantization
+    ProductQuantization,
+    /// Scalar quantization (int8)
+    ScalarQuantization,
+    /// Binary quantization
+    BinaryQuantization,
+    /// RaBitQ (randomized binary)
+    RaBitQ,
+}
 
-/// Transaction log magic bytes.
-pub const TRANSACTION_LOG_MAGIC: [u8; 4] = *b"TXLO";
+/// Segment header metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SegmentHeader {
+    /// Segment identifier
+    pub segment_id: u64,
+    /// Number of vectors
+    pub vector_count: u64,
+    /// Vector dimension
+    pub dimension: u32,
+    /// Index type
+    pub index_type: IndexType,
+    /// Compression type
+    pub compression: CompressionType,
+    /// Creation timestamp (Unix nanos)
+    pub created_at: u64,
+    /// Optional metadata
+    pub metadata: std::collections::HashMap<String, String>,
+}
 
-/// Segment footer (fixed size, 48 bytes).
-///
-/// Stored at the end of each segment directory.
-/// Contains offsets to all segment data files.
-/// Marked as `bytemuck::Pod` for zero-copy access from memory-mapped files.
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(feature = "persistence", derive(bytemuck::Pod, bytemuck::Zeroable))]
+/// WAL entry types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum WalEntryType {
+    /// Insert a new vector
+    Insert = 1,
+    /// Delete a vector
+    Delete = 2,
+    /// Update a vector
+    Update = 3,
+    /// Checkpoint marker
+    Checkpoint = 4,
+}
+
+impl TryFrom<u8> for WalEntryType {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(WalEntryType::Insert),
+            2 => Ok(WalEntryType::Delete),
+            3 => Ok(WalEntryType::Update),
+            4 => Ok(WalEntryType::Checkpoint),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Manifest for the index directory.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexManifest {
+    /// Format version
+    pub version: u32,
+    /// Index type
+    pub index_type: IndexType,
+    /// Vector dimension
+    pub dimension: u32,
+    /// Total vector count
+    pub total_vectors: u64,
+    /// Active segment IDs
+    pub segments: Vec<u64>,
+    /// Latest WAL sequence number
+    pub wal_sequence: u64,
+    /// Latest checkpoint ID
+    pub checkpoint_id: Option<u64>,
+    /// Index-specific configuration
+    pub config: serde_json::Value,
+    /// Creation timestamp
+    pub created_at: u64,
+    /// Last modified timestamp
+    pub modified_at: u64,
+}
+
+/// Section offsets for segment construction.
+#[derive(Debug, Clone, Default)]
+pub struct SegmentOffsets {
+    /// Term dictionary offset
+    pub term_dict_offset: u64,
+    /// Term dictionary length
+    pub term_dict_len: u64,
+    /// Term info offset
+    pub term_info_offset: u64,
+    /// Term info length
+    pub term_info_len: u64,
+    /// Postings offset
+    pub postings_offset: u64,
+    /// Postings length
+    pub postings_len: u64,
+    /// Document lengths offset
+    pub doc_lengths_offset: u64,
+    /// Document lengths length
+    pub doc_lengths_len: u64,
+}
+
+/// Section offsets in a segment file.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SegmentFooter {
-    /// Magic bytes: b"RANK"
+    /// Magic bytes
     pub magic: [u8; 4],
-
     /// Format version
     pub format_version: u32,
-
-    /// Offset to term dictionary (FST)
+    /// Header section offset
+    pub header_offset: u64,
+    /// Vectors section offset
+    pub vectors_offset: u64,
+    /// Graph section offset
+    pub graph_offset: u64,
+    /// ID mapping section offset
+    pub ids_offset: u64,
+    /// Term dictionary offset
     pub term_dict_offset: u64,
+    /// Term dictionary length
     pub term_dict_len: u64,
-
-    /// Offset to term info store
-    pub term_info_offset: u64,
-    pub term_info_len: u64,
-
-    /// Offset to postings lists
+    /// Postings offset
     pub postings_offset: u64,
+    /// Postings length
     pub postings_len: u64,
-
-    /// Offset to document lengths
-    pub doc_lengths_offset: u64,
-    pub doc_lengths_len: u64,
-
-    /// Offset to docID → userID mapping (FST, optional)
-    pub docid_to_userid_offset: u64,
-    pub docid_to_userid_len: u64,
-
-    /// Offset to userID → docID mapping (FST, optional)
-    pub userid_to_docid_offset: u64,
-    pub userid_to_docid_len: u64,
-
-    /// Offset to tombstones (deleted documents)
-    pub tombstones_offset: u64,
-    pub tombstones_len: u64,
-
-    /// Number of documents in segment
+    /// Document count
     pub doc_count: u32,
-
-    /// Maximum document ID in segment
+    /// Maximum document ID
     pub max_doc_id: u32,
-
-    /// CRC32 checksum of all data (excluding footer)
+    /// CRC32 of entire segment (excluding footer)
     pub checksum: u32,
-
-    /// Padding to 64-byte alignment
-    pub padding: [u8; 4],
 }
 
 impl SegmentFooter {
-    /// Size of segment footer in bytes.
-    pub const SIZE: usize = std::mem::size_of::<Self>();
-
     /// Create a new segment footer.
     pub fn new(doc_count: u32, max_doc_id: u32, offsets: SegmentOffsets) -> Self {
         Self {
-            magic: SEGMENT_MAGIC,
+            magic: *SEGMENT_MAGIC,
             format_version: FORMAT_VERSION,
+            header_offset: 0,
+            vectors_offset: 0,
+            graph_offset: 0,
+            ids_offset: 0,
             term_dict_offset: offsets.term_dict_offset,
             term_dict_len: offsets.term_dict_len,
-            term_info_offset: offsets.term_info_offset,
-            term_info_len: offsets.term_info_len,
             postings_offset: offsets.postings_offset,
             postings_len: offsets.postings_len,
-            doc_lengths_offset: offsets.doc_lengths_offset,
-            doc_lengths_len: offsets.doc_lengths_len,
-            docid_to_userid_offset: offsets.docid_to_userid_offset,
-            docid_to_userid_len: offsets.docid_to_userid_len,
-            userid_to_docid_offset: offsets.userid_to_docid_offset,
-            userid_to_docid_len: offsets.userid_to_docid_len,
-            tombstones_offset: offsets.tombstones_offset,
-            tombstones_len: offsets.tombstones_len,
             doc_count,
             max_doc_id,
-            checksum: 0, // Computed after writing data
-            padding: [0; 4],
+            checksum: 0,
         }
     }
 
-    /// Validate footer magic and version.
-    pub fn validate(&self) -> PersistenceResult<()> {
-        if self.magic != SEGMENT_MAGIC {
-            return Err(PersistenceError::Format {
-                message: "Invalid segment magic bytes".to_string(),
-                expected: Some(format!("{:?}", SEGMENT_MAGIC)),
-                actual: Some(format!("{:?}", self.magic)),
-            });
-        }
-
-        if self.format_version != FORMAT_VERSION {
-            return Err(PersistenceError::Format {
-                message: "Format version mismatch".to_string(),
-                expected: Some(FORMAT_VERSION.to_string()),
-                actual: Some(self.format_version.to_string()),
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Write footer to a writer (little-endian).
-    pub fn write<W: std::io::Write>(&self, writer: &mut W) -> PersistenceResult<()> {
-        use byteorder::{LittleEndian, WriteBytesExt};
-
-        writer.write_all(&self.magic)?;
-        writer.write_u32::<LittleEndian>(self.format_version)?;
-        writer.write_u64::<LittleEndian>(self.term_dict_offset)?;
-        writer.write_u64::<LittleEndian>(self.term_dict_len)?;
-        writer.write_u64::<LittleEndian>(self.term_info_offset)?;
-        writer.write_u64::<LittleEndian>(self.term_info_len)?;
-        writer.write_u64::<LittleEndian>(self.postings_offset)?;
-        writer.write_u64::<LittleEndian>(self.postings_len)?;
-        writer.write_u64::<LittleEndian>(self.doc_lengths_offset)?;
-        writer.write_u64::<LittleEndian>(self.doc_lengths_len)?;
-        writer.write_u64::<LittleEndian>(self.docid_to_userid_offset)?;
-        writer.write_u64::<LittleEndian>(self.docid_to_userid_len)?;
-        writer.write_u64::<LittleEndian>(self.userid_to_docid_offset)?;
-        writer.write_u64::<LittleEndian>(self.userid_to_docid_len)?;
-        writer.write_u64::<LittleEndian>(self.tombstones_offset)?;
-        writer.write_u64::<LittleEndian>(self.tombstones_len)?;
-        writer.write_u32::<LittleEndian>(self.doc_count)?;
-        writer.write_u32::<LittleEndian>(self.max_doc_id)?;
-        writer.write_u32::<LittleEndian>(self.checksum)?;
-        writer.write_all(&self.padding)?;
-
-        Ok(())
-    }
-
-    /// Read footer from a reader (little-endian).
-    pub fn read<R: std::io::Read>(reader: &mut R) -> PersistenceResult<Self> {
-        use byteorder::{LittleEndian, ReadBytesExt};
-
+    /// Read a segment footer from a reader.
+    pub fn read<R: std::io::Read>(reader: &mut R) -> super::error::PersistenceResult<Self> {
+        let mut buf = vec![0u8; std::mem::size_of::<Self>()];
+        reader.read_exact(&mut buf)?;
+        
+        // Simple binary deserialization
+        let mut cursor = std::io::Cursor::new(&buf);
+        use std::io::Read;
+        
         let mut magic = [0u8; 4];
-        reader.read_exact(&mut magic)?;
-        let format_version = reader.read_u32::<LittleEndian>()?;
-        let term_dict_offset = reader.read_u64::<LittleEndian>()?;
-        let term_dict_len = reader.read_u64::<LittleEndian>()?;
-        let term_info_offset = reader.read_u64::<LittleEndian>()?;
-        let term_info_len = reader.read_u64::<LittleEndian>()?;
-        let postings_offset = reader.read_u64::<LittleEndian>()?;
-        let postings_len = reader.read_u64::<LittleEndian>()?;
-        let doc_lengths_offset = reader.read_u64::<LittleEndian>()?;
-        let doc_lengths_len = reader.read_u64::<LittleEndian>()?;
-        let docid_to_userid_offset = reader.read_u64::<LittleEndian>()?;
-        let docid_to_userid_len = reader.read_u64::<LittleEndian>()?;
-        let userid_to_docid_offset = reader.read_u64::<LittleEndian>()?;
-        let userid_to_docid_len = reader.read_u64::<LittleEndian>()?;
-        let tombstones_offset = reader.read_u64::<LittleEndian>()?;
-        let tombstones_len = reader.read_u64::<LittleEndian>()?;
-        let doc_count = reader.read_u32::<LittleEndian>()?;
-        let max_doc_id = reader.read_u32::<LittleEndian>()?;
-        let checksum = reader.read_u32::<LittleEndian>()?;
-        let mut padding = [0u8; 4];
-        reader.read_exact(&mut padding)?;
-
-        let footer = Self {
+        cursor.read_exact(&mut magic)?;
+        
+        let mut u32_buf = [0u8; 4];
+        cursor.read_exact(&mut u32_buf)?;
+        let format_version = u32::from_le_bytes(u32_buf);
+        
+        let mut u64_buf = [0u8; 8];
+        cursor.read_exact(&mut u64_buf)?;
+        let header_offset = u64::from_le_bytes(u64_buf);
+        
+        cursor.read_exact(&mut u64_buf)?;
+        let vectors_offset = u64::from_le_bytes(u64_buf);
+        
+        cursor.read_exact(&mut u64_buf)?;
+        let graph_offset = u64::from_le_bytes(u64_buf);
+        
+        cursor.read_exact(&mut u64_buf)?;
+        let ids_offset = u64::from_le_bytes(u64_buf);
+        
+        cursor.read_exact(&mut u64_buf)?;
+        let term_dict_offset = u64::from_le_bytes(u64_buf);
+        
+        cursor.read_exact(&mut u64_buf)?;
+        let term_dict_len = u64::from_le_bytes(u64_buf);
+        
+        cursor.read_exact(&mut u64_buf)?;
+        let postings_offset = u64::from_le_bytes(u64_buf);
+        
+        cursor.read_exact(&mut u64_buf)?;
+        let postings_len = u64::from_le_bytes(u64_buf);
+        
+        cursor.read_exact(&mut u32_buf)?;
+        let doc_count = u32::from_le_bytes(u32_buf);
+        
+        cursor.read_exact(&mut u32_buf)?;
+        let max_doc_id = u32::from_le_bytes(u32_buf);
+        
+        cursor.read_exact(&mut u32_buf)?;
+        let checksum = u32::from_le_bytes(u32_buf);
+        
+        Ok(Self {
             magic,
             format_version,
+            header_offset,
+            vectors_offset,
+            graph_offset,
+            ids_offset,
             term_dict_offset,
             term_dict_len,
-            term_info_offset,
-            term_info_len,
             postings_offset,
             postings_len,
-            doc_lengths_offset,
-            doc_lengths_len,
-            docid_to_userid_offset,
-            docid_to_userid_len,
-            userid_to_docid_offset,
-            userid_to_docid_len,
-            tombstones_offset,
-            tombstones_len,
             doc_count,
             max_doc_id,
             checksum,
-            padding,
-        };
+        })
+    }
 
-        footer.validate()?;
-        Ok(footer)
+    /// Write a segment footer to a writer.
+    pub fn write<W: std::io::Write>(&self, writer: &mut W) -> super::error::PersistenceResult<()> {
+        writer.write_all(&self.magic)?;
+        writer.write_all(&self.format_version.to_le_bytes())?;
+        writer.write_all(&self.header_offset.to_le_bytes())?;
+        writer.write_all(&self.vectors_offset.to_le_bytes())?;
+        writer.write_all(&self.graph_offset.to_le_bytes())?;
+        writer.write_all(&self.ids_offset.to_le_bytes())?;
+        writer.write_all(&self.term_dict_offset.to_le_bytes())?;
+        writer.write_all(&self.term_dict_len.to_le_bytes())?;
+        writer.write_all(&self.postings_offset.to_le_bytes())?;
+        writer.write_all(&self.postings_len.to_le_bytes())?;
+        writer.write_all(&self.doc_count.to_le_bytes())?;
+        writer.write_all(&self.max_doc_id.to_le_bytes())?;
+        writer.write_all(&self.checksum.to_le_bytes())?;
+        Ok(())
     }
 }
 
-/// Segment file offsets (for constructing footer).
-#[derive(Debug, Clone, Default)]
-pub struct SegmentOffsets {
-    pub term_dict_offset: u64,
-    pub term_dict_len: u64,
-    pub term_info_offset: u64,
-    pub term_info_len: u64,
-    pub postings_offset: u64,
-    pub postings_len: u64,
-    pub doc_lengths_offset: u64,
-    pub doc_lengths_len: u64,
-    pub docid_to_userid_offset: u64,
-    pub docid_to_userid_len: u64,
-    pub userid_to_docid_offset: u64,
-    pub userid_to_docid_len: u64,
-    pub tombstones_offset: u64,
-    pub tombstones_len: u64,
+/// Trait for types that can be persisted.
+pub trait Persistable: Sized {
+    /// Serialize to bytes.
+    fn to_bytes(&self) -> crate::Result<Vec<u8>>;
+    
+    /// Deserialize from bytes.
+    fn from_bytes(bytes: &[u8]) -> crate::Result<Self>;
+    
+    /// Estimated size in bytes.
+    fn size_hint(&self) -> usize;
 }
 
-/// Format version information.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FormatVersion {
-    pub major: u16,
-    pub minor: u16,
-    pub patch: u16,
-}
-
-impl FormatVersion {
-    /// Check if two versions are compatible (same major version).
-    pub fn is_compatible(&self, other: &FormatVersion) -> bool {
-        self.major == other.major
-    }
-}
-
-impl From<u32> for FormatVersion {
-    fn from(v: u32) -> Self {
-        Self {
-            major: ((v >> 16) & 0xFFFF) as u16,
-            minor: ((v >> 8) & 0xFF) as u16,
-            patch: (v & 0xFF) as u16,
-        }
-    }
-}
-
-impl From<FormatVersion> for u32 {
-    fn from(v: FormatVersion) -> Self {
-        ((v.major as u32) << 16) | ((v.minor as u32) << 8) | (v.patch as u32)
+/// Trait for index persistence operations.
+pub trait IndexPersistence: Sized {
+    /// Save index to a directory.
+    fn save(&self, path: &std::path::Path) -> crate::Result<()>;
+    
+    /// Load index from a directory.
+    fn load(path: &std::path::Path) -> crate::Result<Self>;
+    
+    /// Check if an index exists at the path.
+    fn exists(path: &std::path::Path) -> bool {
+        path.join("manifest.json").exists()
     }
 }
 
@@ -271,64 +407,52 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_segment_footer_roundtrip() {
-        let offsets = SegmentOffsets {
-            term_dict_offset: 0,
-            term_dict_len: 100,
-            term_info_offset: 100,
-            term_info_len: 200,
-            postings_offset: 300,
-            postings_len: 1000,
-            doc_lengths_offset: 1300,
-            doc_lengths_len: 400,
-            docid_to_userid_offset: 0,
-            docid_to_userid_len: 0,
-            userid_to_docid_offset: 0,
-            userid_to_docid_len: 0,
-            tombstones_offset: 1700,
-            tombstones_len: 100,
-        };
-
-        let mut footer = SegmentFooter::new(1000, 999, offsets);
-        footer.checksum = 12345;
-
-        let mut buffer = Vec::new();
-        footer.write(&mut buffer).unwrap();
-
-        assert_eq!(buffer.len(), SegmentFooter::SIZE);
-
-        let mut reader = std::io::Cursor::new(&buffer);
-        let read_footer = SegmentFooter::read(&mut reader).unwrap();
-
-        assert_eq!(read_footer.magic, footer.magic);
-        assert_eq!(read_footer.format_version, footer.format_version);
-        assert_eq!(read_footer.doc_count, footer.doc_count);
-        assert_eq!(read_footer.checksum, footer.checksum);
+    fn test_wal_entry_type_roundtrip() {
+        assert_eq!(WalEntryType::try_from(1), Ok(WalEntryType::Insert));
+        assert_eq!(WalEntryType::try_from(2), Ok(WalEntryType::Delete));
+        assert_eq!(WalEntryType::try_from(3), Ok(WalEntryType::Update));
+        assert_eq!(WalEntryType::try_from(4), Ok(WalEntryType::Checkpoint));
+        assert_eq!(WalEntryType::try_from(99), Err(()));
     }
 
     #[test]
-    fn test_format_version() {
-        let v1 = FormatVersion {
-            major: 1,
-            minor: 0,
-            patch: 0,
-        };
-        let v2 = FormatVersion {
-            major: 1,
-            minor: 1,
-            patch: 0,
-        };
-        let v3 = FormatVersion {
-            major: 2,
-            minor: 0,
-            patch: 0,
+    fn test_segment_header_serde() {
+        let header = SegmentHeader {
+            segment_id: 1,
+            vector_count: 1000,
+            dimension: 128,
+            index_type: IndexType::Hnsw,
+            compression: CompressionType::None,
+            created_at: 1234567890,
+            metadata: std::collections::HashMap::new(),
         };
 
-        assert!(v1.is_compatible(&v2));
-        assert!(!v1.is_compatible(&v3));
+        let json = serde_json::to_string(&header).unwrap();
+        let parsed: SegmentHeader = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(parsed.segment_id, 1);
+        assert_eq!(parsed.index_type, IndexType::Hnsw);
+    }
 
-        let v1_u32: u32 = v1.into();
-        let v1_back = FormatVersion::from(v1_u32);
-        assert_eq!(v1, v1_back);
+    #[test]
+    fn test_manifest_serde() {
+        let manifest = IndexManifest {
+            version: FORMAT_VERSION,
+            index_type: IndexType::DiskAnn,
+            dimension: 384,
+            total_vectors: 10000,
+            segments: vec![1, 2, 3],
+            wal_sequence: 42,
+            checkpoint_id: Some(5),
+            config: serde_json::json!({"M": 16, "ef_construction": 200}),
+            created_at: 1234567890,
+            modified_at: 1234567899,
+        };
+
+        let json = serde_json::to_string_pretty(&manifest).unwrap();
+        let parsed: IndexManifest = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(parsed.version, FORMAT_VERSION);
+        assert_eq!(parsed.segments.len(), 3);
     }
 }

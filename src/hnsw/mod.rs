@@ -179,6 +179,15 @@ pub mod inplace;
 #[cfg(feature = "hnsw")]
 pub use inplace::{InPlaceConfig, InPlaceIndex, InPlaceStats};
 
+// Incremental learning patterns (edge refinement, temporal locality)
+#[cfg(feature = "hnsw")]
+pub mod incremental;
+#[cfg(feature = "hnsw")]
+pub use incremental::{
+    DriftTracker, EdgeStats, IncrementalConfig, RecencyWeighting, RefinementAnalyzer,
+    RefinementSuggestions,
+};
+
 // Probabilistic edge routing (PEOs) for QPS improvement
 #[cfg(feature = "hnsw")]
 pub mod probabilistic_routing;

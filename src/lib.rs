@@ -56,6 +56,7 @@ pub mod scann;
 pub mod sng;
 pub mod vamana;
 
+pub mod adaptive;
 pub mod matryoshka;
 pub mod partitioning;
 
@@ -74,3 +75,4 @@ pub mod persistence;
 pub mod benchmark;
 pub mod compression;
 pub mod error;
+pub mod streaming;
