@@ -104,10 +104,20 @@ harness = false
 [profile.release]
 lto = "thin"
 codegen-units = 1
+debug = 1  # Enable symbols for profiling (flamegraph, perf)
 
 [profile.bench]
 lto = "thin"
 codegen-units = 1
+debug = 1
+
+# Maximum optimization for production (no debug symbols)
+[profile.release-optimized]
+inherits = "release"
+lto = "fat"
+panic = "abort"
+strip = true
+debug = false
 
 [lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
