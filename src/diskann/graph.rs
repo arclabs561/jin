@@ -5,6 +5,7 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use smallvec::SmallVec;
 use std::collections::HashSet;
+use std::path::Path;
 
 /// DiskANN index for disk-based approximate nearest neighbor search.
 ///
@@ -28,6 +29,252 @@ pub struct DiskANNIndex {
 
     // Entry point for search (medoid)
     start_node: u32,
+}
+
+impl DiskANNIndex {
+    /// Save the built index to disk.
+    ///
+    /// Saves:
+    /// - Graph structure (adjacency list) using DiskGraphWriter
+    /// - Vectors (flat binary format)
+    /// - Metadata (JSON)
+    pub fn save(&self, output_dir: &Path) -> Result<(), RetrieveError> {
+        if !self.built {
+            return Err(RetrieveError::Other(
+                "Cannot save unbuilt index".to_string(),
+            ));
+        }
+
+        if !output_dir.exists() {
+            std::fs::create_dir_all(output_dir).map_err(|e| RetrieveError::Io(e.to_string()))?;
+        }
+
+        // 1. Save Vectors (vectors.bin)
+        let vectors_path = output_dir.join("vectors.bin");
+        let mut vectors_file =
+            std::fs::File::create(&vectors_path).map_err(|e| RetrieveError::Io(e.to_string()))?;
+        let vectors_bytes = unsafe {
+            std::slice::from_raw_parts(
+                self.vectors.as_ptr() as *const u8,
+                self.vectors.len() * std::mem::size_of::<f32>(),
+            )
+        };
+        use std::io::Write;
+        vectors_file
+            .write_all(vectors_bytes)
+            .map_err(|e| RetrieveError::Io(e.to_string()))?;
+
+        // 2. Save Graph (graph.index)
+        let graph_path = output_dir.join("graph.index");
+        // Convert persistence error to RetrieveError if needed, or handle unwraps
+        // We'll define a simple wrapper
+        let mut graph_writer = super::disk_io::DiskGraphWriter::new(
+            &graph_path,
+            self.num_vectors,
+            self.params.m,
+            self.start_node,
+        )
+        .map_err(|e| RetrieveError::Other(format!("Failed to create graph writer: {}", e)))?;
+
+        for neighbors in &self.adj {
+            graph_writer
+                .write_adjacency(neighbors)
+                .map_err(|e| RetrieveError::Other(format!("Failed to write adjacency: {}", e)))?;
+        }
+        graph_writer
+            .flush()
+            .map_err(|e| RetrieveError::Other(format!("Failed to flush graph: {}", e)))?;
+
+        // 3. Save Metadata (metadata.json)
+        let metadata_path = output_dir.join("metadata.json");
+        let metadata = serde_json::json!({
+            "dimension": self.dimension,
+            "num_vectors": self.num_vectors,
+            "start_node": self.start_node,
+            "params": {
+                "m": self.params.m,
+                "ef_construction": self.params.ef_construction,
+                "alpha": self.params.alpha,
+                "ef_search": self.params.ef_search
+            }
+        });
+        let metadata_file =
+            std::fs::File::create(&metadata_path).map_err(|e| RetrieveError::Io(e.to_string()))?;
+        serde_json::to_writer_pretty(metadata_file, &metadata)
+            .map_err(|e| RetrieveError::Serialization(e.to_string()))?; // Need to add Serialization error to RetrieveError
+
+        Ok(())
+    }
+}
+
+use crate::RetrieveError;
+use rand::seq::SliceRandom;
+use rand::Rng;
+use smallvec::SmallVec;
+use std::collections::HashSet;
+use std::path::Path;
+
+/// Disk-based searcher for DiskANN.
+///
+/// Operates on persisted index without loading the full graph into RAM.
+pub struct DiskANNSearcher {
+    dimension: usize,
+    num_vectors: usize,
+    start_node: u32,
+    params: DiskANNParams,
+
+    // Components
+    graph_reader: super::disk_io::DiskGraphReader,
+    vectors_file: std::fs::File, // Or mmap
+                                 // Using simple file I/O for vectors for now, upgradable to mmap
+}
+
+impl DiskANNSearcher {
+    /// Load searcher from index directory.
+    pub fn load(index_dir: &Path) -> Result<Self, RetrieveError> {
+        // 1. Load Metadata
+        let metadata_path = index_dir.join("metadata.json");
+        let metadata_file =
+            std::fs::File::open(&metadata_path).map_err(|e| RetrieveError::Io(e.to_string()))?;
+        let metadata: serde_json::Value = serde_json::from_reader(metadata_file)
+            .map_err(|e| RetrieveError::Serialization(e.to_string()))?;
+
+        let dimension = metadata["dimension"]
+            .as_u64()
+            .ok_or(RetrieveError::FormatError("Missing dimension".to_string()))?
+            as usize;
+        let num_vectors = metadata["num_vectors"]
+            .as_u64()
+            .ok_or(RetrieveError::FormatError(
+                "Missing num_vectors".to_string(),
+            ))? as usize;
+        let start_node = metadata["start_node"]
+            .as_u64()
+            .ok_or(RetrieveError::FormatError("Missing start_node".to_string()))?
+            as u32;
+
+        let params_val = &metadata["params"];
+        let params = DiskANNParams {
+            m: params_val["m"].as_u64().unwrap_or(32) as usize,
+            ef_construction: params_val["ef_construction"].as_u64().unwrap_or(100) as usize,
+            alpha: params_val["alpha"].as_f64().unwrap_or(1.2) as f32,
+            ef_search: params_val["ef_search"].as_u64().unwrap_or(100) as usize,
+        };
+
+        // 2. Open Graph
+        let graph_path = index_dir.join("graph.index");
+        let graph_reader = super::disk_io::DiskGraphReader::open(&graph_path)
+            .map_err(|e| RetrieveError::Other(format!("Failed to open graph: {}", e)))?;
+
+        // 3. Open Vectors
+        let vectors_path = index_dir.join("vectors.bin");
+        let vectors_file =
+            std::fs::File::open(&vectors_path).map_err(|e| RetrieveError::Io(e.to_string()))?;
+
+        Ok(Self {
+            dimension,
+            num_vectors,
+            start_node,
+            params,
+            graph_reader,
+            vectors_file,
+        })
+    }
+
+    /// Search for k nearest neighbors using disk-based graph.
+    pub fn search(
+        &mut self,
+        query: &[f32],
+        k: usize,
+        ef_search: usize,
+    ) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        let ef = ef_search.max(k).max(self.params.ef_search);
+
+        // Use greedy search similar to in-memory, but fetching neighbors from disk
+        // Note: Performance will be limited by random I/O here without caching/prefetching
+        // This is a functional baseline.
+
+        let mut visited = HashSet::new();
+        let mut retset: Vec<Candidate> = Vec::with_capacity(ef + 1);
+
+        // Fetch start node vector
+        let start_vec = self.get_vector(self.start_node)?;
+        let start_dist = self.dist(query, &start_vec);
+
+        retset.push(Candidate {
+            id: self.start_node,
+            dist: start_dist,
+        });
+        visited.insert(self.start_node);
+
+        let mut current_idx = 0;
+
+        while current_idx < retset.len() {
+            retset.sort_by(|a, b| a.dist.total_cmp(&b.dist));
+
+            if current_idx >= retset.len() {
+                break;
+            }
+
+            let current = retset[current_idx];
+            current_idx += 1;
+
+            // Fetch neighbors from disk
+            // TODO: Cache hot nodes (top levels of Vamana) in RAM
+            let neighbors = self.graph_reader.get_neighbors(current.id)?;
+
+            for neighbor in neighbors {
+                if visited.contains(&neighbor) {
+                    continue;
+                }
+                visited.insert(neighbor);
+
+                // Fetch neighbor vector from disk
+                let neighbor_vec = self.get_vector(neighbor)?;
+                let dist = self.dist(query, &neighbor_vec);
+
+                retset.push(Candidate { id: neighbor, dist });
+            }
+
+            // Keep top L
+            retset.sort_by(|a, b| a.dist.total_cmp(&b.dist));
+            if retset.len() > ef {
+                retset.truncate(ef);
+            }
+        }
+
+        Ok(retset.into_iter().take(k).map(|c| (c.id, c.dist)).collect())
+    }
+
+    fn get_vector(&mut self, idx: u32) -> Result<Vec<f32>, RetrieveError> {
+        use std::io::{Read, Seek, SeekFrom};
+        let offset = idx as u64 * self.dimension as u64 * 4;
+        self.vectors_file
+            .seek(SeekFrom::Start(offset))
+            .map_err(|e| RetrieveError::Io(e.to_string()))?;
+
+        let mut buffer = vec![0u8; self.dimension * 4];
+        self.vectors_file
+            .read_exact(&mut buffer)
+            .map_err(|e| RetrieveError::Io(e.to_string()))?;
+
+        let mut vec = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            let start = i * 4;
+            let val = f32::from_le_bytes([
+                buffer[start],
+                buffer[start + 1],
+                buffer[start + 2],
+                buffer[start + 3],
+            ]);
+            vec.push(val);
+        }
+        Ok(vec)
+    }
+
+    fn dist(&self, a: &[f32], b: &[f32]) -> f32 {
+        a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
+    }
 }
 
 /// DiskANN parameters.

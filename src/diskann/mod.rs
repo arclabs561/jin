@@ -100,5 +100,7 @@ pub mod cache;
 pub mod disk_io;
 pub mod graph;
 
+use crate::diskann::graph::DiskANNSearcher;
+
 pub use graph::DiskANNIndex;
 pub use graph::DiskANNParams;

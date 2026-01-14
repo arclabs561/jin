@@ -37,6 +37,10 @@ pub enum RetrieveError {
     #[error("format error: {0}")]
     FormatError(String),
 
+    /// Serialization error
+    #[error("serialization error: {0}")]
+    Serialization(String),
+
     /// Other error (for extensibility).
     #[error("{0}")]
     Other(String),
