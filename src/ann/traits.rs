@@ -143,8 +143,7 @@ impl ANNIndex for crate::ivf_pq::search::IVFPQIndex {
                 .iter()
                 .map(|c| c.len() * std::mem::size_of::<f32>())
                 .sum::<usize>()
-            + self.quantized_codes.len()
-                * self.quantized_codes.first().map(|v| v.len()).unwrap_or(0)
+            + self.quantized_codes.len() * std::mem::size_of::<u8>()
     }
 
     fn stats(&self) -> ANNStats {

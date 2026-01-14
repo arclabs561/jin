@@ -1,30 +1,45 @@
 # Documentation Audit Results
 
-Generated from testing all `rust,ignore` examples.
+Generated from testing and improving all documentation.
 
-## Summary (After Fixes)
+## Summary (After Jan 2026 Polish)
 
-| Category | Before | After |
-|----------|--------|-------|
-| Doc tests passing | 1/17 | 2/20 |
-| Doc tests ignored | 16 | 18 |
-| Wrong field names | 1 | 0 (FIXED) |
-| Missing feature gates | 5 | 0 (FIXED) |
-| Stale import paths | 3 | 0 (FIXED) |
-| Decision guide | No | Yes (ADDED) |
-| Grade C modules documented | 3 | 0 (ALL FIXED) |
+| Metric | Before | After |
+|--------|--------|-------|
+| Doc tests passing | 1/17 | 2/21 |
+| Decision tables | 1 | 8 |
+| Memory formulas | 0 | 4 |
+| Parameter rec tables | 0 | 6 |
+| Grade C → A modules | 3 | 0 (ALL UPGRADED) |
+
+## Line Counts (Documentation Only)
+
+| Module | Before | After | Change |
+|--------|--------|-------|--------|
+| hnsw | 213 | 185 | -28 (tighter) |
+| ivf_pq | 105 | 126 | +21 (memory calc) |
+| nsw | 49 | 78 | +29 (decision guide) |
+| diskann | 23 | 104 | +81 |
+| sng | 26 | 103 | +77 |
+| scann | 29 | 114 | +85 |
+| quantization | 123 | 140 | +17 (decision table) |
+| **Total** | 568 | 850 | +282 |
+
+## Key Additions
+
+1. **Decision Tables**: "Which X Should I Use?" in every major module
+2. **Memory Formulas**: HNSW, IVF-PQ, NSW, DiskANN
+3. **Parameter Recommendations**: By dataset size (100K, 1M, 10M, 100M, 1B)
+4. **Performance Expectations**: Real numbers from papers/benchmarks
+5. **When NOT to Use**: Explicit counter-recommendations
 
 ## Test Results
 
 ```
-vicinity doctests: 2 passed, 18 ignored
-- hnsw example: NOW COMPILES (was rust,ignore)
-- simd example: passes
-
-stratify doctests: 3 passed, 4 ignored
-- lib.rs basic example: NOW COMPILES (added)
-- cluster example: passes
-- community example: passes
+vicinity: 2 passed, 19 ignored (feature-gated)
+stratify: 3 passed, 4 ignored (need external data)
+innr: compiles
+hyperball: compiles
 ```
 
 ## Detailed Findings

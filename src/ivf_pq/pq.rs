@@ -3,9 +3,12 @@
 use crate::simd;
 use crate::RetrieveError;
 
+use serde::{Deserialize, Serialize};
+
 /// Product Quantizer.
 ///
 /// Decomposes vectors into subvectors and quantizes each subvector independently.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProductQuantizer {
     dimension: usize,
     num_codebooks: usize,
@@ -59,10 +62,8 @@ impl ProductQuantizer {
             }
 
             // Train k-means on subvectors
-            let mut kmeans = crate::scann::partitioning::KMeans::new(
-                self.subvector_dim,
-                self.codebook_size,
-            )?;
+            let mut kmeans =
+                crate::scann::partitioning::KMeans::new(self.subvector_dim, self.codebook_size)?;
 
             // Flatten subvectors for k-means (SoA format)
             let mut flat = Vec::with_capacity(num_vectors * self.subvector_dim);
@@ -121,6 +122,54 @@ impl ProductQuantizer {
             total_dist += cosine_distance(query_subvector, codeword);
         }
 
+        total_dist
+    }
+
+    /// Compute ADC (Asymmetric Distance Computation) lookup table.
+    ///
+    /// Precomputes distances from query subvectors to all codebook centroids.
+    /// Returns a flat table of size `num_codebooks * codebook_size`.
+    ///
+    /// Table layout: [codebook_0_codeword_0, codebook_0_codeword_1, ..., codebook_1_codeword_0, ...]
+    pub fn compute_adc_table(&self, query: &[f32]) -> Result<Vec<f32>, RetrieveError> {
+        if query.len() != self.dimension {
+            return Err(RetrieveError::DimensionMismatch {
+                query_dim: self.dimension,
+                doc_dim: query.len(),
+            });
+        }
+
+        let mut table = Vec::with_capacity(self.num_codebooks * self.codebook_size);
+
+        for codebook_idx in 0..self.num_codebooks {
+            let start_dim = codebook_idx * self.subvector_dim;
+            let end_dim = (codebook_idx + 1) * self.subvector_dim;
+            let query_subvector = &query[start_dim..end_dim];
+
+            for codeword in &self.codebooks[codebook_idx] {
+                // Compute distance (typically squared Euclidean or dot product depending on metric)
+                // For now, assuming cosine/dot product as used elsewhere
+                let dist = cosine_distance(query_subvector, codeword);
+                table.push(dist);
+            }
+        }
+
+        Ok(table)
+    }
+
+    /// Compute distance using ADC table.
+    ///
+    /// Very fast: only table lookups and additions.
+    #[inline(always)]
+    pub fn distance_with_table(&self, table: &[f32], codes: &[u8]) -> f32 {
+        let mut total_dist = 0.0;
+        for (codebook_idx, &code) in codes.iter().enumerate() {
+            // Table index = codebook_offset + code
+            let idx = codebook_idx * self.codebook_size + code as usize;
+            // Unsafe access for speed? bounds check should be hoisted or optimized
+            // For now safe indexing
+            total_dist += table[idx];
+        }
         total_dist
     }
 

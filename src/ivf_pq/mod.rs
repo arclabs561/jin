@@ -118,6 +118,7 @@
 //! - Ge et al. (2014). "Optimized Product Quantization."
 
 // IVF-PQ core implementation (always available when ivf_pq feature is enabled)
+pub mod pq;
 pub mod search;
 pub use search::{IVFPQIndex, IVFPQParams};
 

@@ -1,6 +1,8 @@
 //! IVF-PQ search implementation.
 
+use super::pq::ProductQuantizer;
 use crate::RetrieveError;
+use serde::{Deserialize, Serialize};
 
 /// IVF-PQ index for memory-efficient approximate nearest neighbor search.
 #[derive(Debug)]
@@ -15,9 +17,11 @@ pub struct IVFPQIndex {
     clusters: Vec<Cluster>,
     pub(crate) centroids: Vec<Vec<f32>>,
 
-    // PQ components (placeholder)
-    pq_codebooks: Vec<Vec<Vec<f32>>>, // [codebook][codeword][dimension]
-    pub(crate) quantized_codes: Vec<Vec<u8>>, // [vector][codebook_code]
+    // PQ components
+    pq: Option<ProductQuantizer>,
+    // Flattened codes: [vector_0_codes, vector_1_codes, ...]
+    // Stride = num_codebooks
+    pub(crate) quantized_codes: Vec<u8>,
 
     // Filtering support
     /// Metadata store: doc_id -> category_id mapping
@@ -66,7 +70,7 @@ impl Default for IVFPQParams {
 }
 
 /// Storage for cluster IDs (compressed or uncompressed).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 enum ClusterStorage {
     /// Uncompressed IDs (current implementation).
     Uncompressed(Vec<u32>),
@@ -81,7 +85,7 @@ enum ClusterStorage {
 }
 
 /// Cluster (inverted list) containing vector indices.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Cluster {
     storage: ClusterStorage,
     /// Filter bitmask: set of category IDs present in this cluster
@@ -89,6 +93,7 @@ struct Cluster {
     filter_bitmask: u64,
     /// Cache for decompressed IDs (temporary, cleared after use)
     #[cfg(feature = "id-compression")]
+    #[serde(skip)]
     decompressed_cache: Option<Vec<u32>>,
 }
 
@@ -205,7 +210,7 @@ impl IVFPQIndex {
             built: false,
             clusters: Vec::new(),
             centroids: Vec::new(),
-            pq_codebooks: Vec::new(),
+            pq: None,
             quantized_codes: Vec::new(),
             metadata: None,
             filter_field: None,
@@ -232,7 +237,7 @@ impl IVFPQIndex {
             built: false,
             clusters: Vec::new(),
             centroids: Vec::new(),
-            pq_codebooks: Vec::new(),
+            pq: None,
             quantized_codes: Vec::new(),
             metadata: Some(crate::filtering::MetadataStore::new()),
             filter_field: Some(filter_field.into()),
@@ -368,8 +373,24 @@ impl IVFPQIndex {
             })
             .collect();
 
-        // Stage 2: Product Quantization (placeholder - will implement full PQ)
+        // Stage 2: Product Quantization
+        // Train PQ
+        let mut pq = ProductQuantizer::new(
+            self.dimension,
+            self.params.num_codebooks,
+            self.params.codebook_size,
+        )?;
+        pq.fit(&self.vectors, self.num_vectors)?;
 
+        // Quantize all vectors
+        self.quantized_codes = Vec::with_capacity(self.num_vectors * self.params.num_codebooks);
+        for i in 0..self.num_vectors {
+            let vec = self.get_vector(i);
+            let codes = pq.quantize(vec);
+            self.quantized_codes.extend_from_slice(&codes);
+        }
+
+        self.pq = Some(pq);
         self.built = true;
         Ok(())
     }
@@ -388,6 +409,14 @@ impl IVFPQIndex {
                 doc_dim: query.len(),
             });
         }
+
+        let pq = self
+            .pq
+            .as_ref()
+            .ok_or(RetrieveError::Other("PQ not initialized".to_string()))?;
+
+        // Precompute ADC table for fast distance lookup
+        let adc_table = pq.compute_adc_table(query)?;
 
         // Find closest clusters
         let mut cluster_distances: Vec<(usize, f32)> = self
@@ -415,8 +444,12 @@ impl IVFPQIndex {
             let ids = cluster.get_ids_immut();
 
             for &vector_idx in &ids {
-                let vec = self.get_vector(vector_idx as usize);
-                let dist = 1.0 - crate::simd::dot(query, vec);
+                // Use ADC distance instead of raw vector distance
+                let start = vector_idx as usize * self.params.num_codebooks;
+                let end = start + self.params.num_codebooks;
+                let codes = &self.quantized_codes[start..end];
+
+                let dist = pq.distance_with_table(&adc_table, codes);
                 candidates.push((vector_idx, dist));
             }
         }
@@ -500,6 +533,12 @@ impl IVFPQIndex {
         // Search in top nprobe clusters, skipping those without matching vectors
         let mut candidates = Vec::new();
 
+        let pq = self
+            .pq
+            .as_ref()
+            .ok_or(RetrieveError::Other("PQ not initialized".to_string()))?;
+        let adc_table = pq.compute_adc_table(query)?;
+
         for (cluster_idx, _) in cluster_distances.iter().take(self.params.nprobe) {
             let cluster = &self.clusters[*cluster_idx];
 
@@ -513,8 +552,11 @@ impl IVFPQIndex {
                 let ids = cluster.get_ids_immut();
                 for &vector_idx in &ids {
                     if metadata_store.matches(vector_idx, filter) {
-                        let vec = self.get_vector(vector_idx as usize);
-                        let dist = 1.0 - crate::simd::dot(query, vec);
+                        let start = vector_idx as usize * self.params.num_codebooks;
+                        let end = start + self.params.num_codebooks;
+                        let codes = &self.quantized_codes[start..end];
+
+                        let dist = pq.distance_with_table(&adc_table, codes);
                         candidates.push((vector_idx, dist));
                     }
                 }
