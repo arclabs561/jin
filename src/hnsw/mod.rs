@@ -81,24 +81,24 @@
 //!
 //! # Usage
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use vicinity::hnsw::HNSWIndex;
-//! use vicinity::Result;
 //!
-//! # fn main() -> Result<()> {
-//! let mut index = HNSWIndex::new(128, 16, 16)?;
+//! fn main() -> Result<(), vicinity::RetrieveError> {
+//!     let mut index = HNSWIndex::new(128, 16, 16)?;
 //!
-//! // Add vectors
-//! index.add(0, vec![0.1; 128])?;
-//! index.add(1, vec![0.2; 128])?;
+//!     // Add vectors
+//!     index.add(0, vec![0.1; 128])?;
+//!     index.add(1, vec![0.2; 128])?;
 //!
-//! // Build index (required before search)
-//! index.build()?;
+//!     // Build index (required before search)
+//!     index.build()?;
 //!
-//! // Search
-//! let results = index.search(&vec![0.15; 128], 10, 50)?;
-//! # Ok(())
-//! # }
+//!     // Search
+//!     let results = index.search(&vec![0.15; 128], 10, 50)?;
+//!     println!("Found {} results", results.len());
+//!     Ok(())
+//! }
 //! ```
 //!
 //! # References

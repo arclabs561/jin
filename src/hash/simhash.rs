@@ -9,8 +9,8 @@
 //! 1. Initialize a V-dimensional vector to 0
 //! 2. For each feature f with weight w:
 //!    - Hash f to get a V-bit hash h
-//!    - For each bit i: V[i] += w if h[i]=1, else V[i] -= w
-//! 3. Fingerprint[i] = 1 if V[i] > 0, else 0
+//!    - For each bit: `V[i] += w` if `h[i]=1`, else `V[i] -= w`
+//! 3. `Fingerprint[i] = 1` if `V[i] > 0`, else 0
 //!
 //! ## Properties
 //!

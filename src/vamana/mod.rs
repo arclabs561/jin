@@ -1,5 +1,12 @@
 //! Vamana approximate nearest neighbor search.
 //!
+//! # Feature Flag
+//!
+//! Requires the `vamana` feature:
+//! ```toml
+//! vicinity = { version = "0.1", features = ["vamana"] }
+//! ```
+//!
 //! Vamana is a graph-based ANN algorithm that uses two-pass construction with
 //! RRND (Relaxed Relative Neighborhood Diversification) and RND strategies.
 //!
@@ -22,11 +29,11 @@
 //!
 //! # Usage
 //!
-//! ```rust,ignore
-//! use vicinity::vamana::{VamanaIndex, VamanaParams};
-//! use vicinity::Result;
+//! Requires `features = ["vamana"]`:
 //!
-//! # fn main() -> Result<()> {
+//! ```ignore
+//! use vicinity::vamana::{VamanaIndex, VamanaParams};
+//!
 //! let params = VamanaParams {
 //!     max_degree: 64,
 //!     alpha: 1.3,
@@ -34,17 +41,10 @@
 //! };
 //! let mut index = VamanaIndex::new(128, params)?;
 //!
-//! // Add vectors
 //! index.add(0, vec![0.1; 128])?;
-//! index.add(1, vec![0.2; 128])?;
-//!
-//! // Build index (two-pass construction)
 //! index.build()?;
 //!
-//! // Search
 //! let results = index.search(&vec![0.15; 128], 10, 50)?;
-//! # Ok(())
-//! # }
 //! ```
 //!
 //! # References

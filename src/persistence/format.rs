@@ -290,9 +290,13 @@ impl SegmentFooter {
         }
     }
 
+    /// Serialized size in bytes (not mem::size_of due to padding).
+    /// 4 (magic) + 4 (version) + 8*8 (u64 fields) + 4*3 (u32 fields) = 84
+    const SERIALIZED_SIZE: usize = 84;
+
     /// Read a segment footer from a reader.
     pub fn read<R: std::io::Read>(reader: &mut R) -> super::error::PersistenceResult<Self> {
-        let mut buf = vec![0u8; std::mem::size_of::<Self>()];
+        let mut buf = vec![0u8; Self::SERIALIZED_SIZE];
         reader.read_exact(&mut buf)?;
 
         // Simple binary deserialization

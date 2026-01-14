@@ -6,10 +6,9 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use ordino_retrieve::dense::ann::factory::index_factory;
-//! use ordino_retrieve::dense::ann::ANNIndex;
+//! use vicinity::ann::{index_factory, ANNIndex};
 //!
-//! // Create HNSW index
+//! // Create HNSW index (requires "hnsw" feature)
 //! let mut index = index_factory(128, "HNSW32")?;
 //! index.add(0, vec![0.1; 128])?;
 //! index.build()?;

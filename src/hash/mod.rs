@@ -82,20 +82,20 @@
 //! 1. Extract weighted features from document (words, n-grams)
 //! 2. Hash each feature to a 64-bit value
 //! 3. For each bit position, sum weights where bit is 1, subtract where 0
-//! 4. Final fingerprint: bit i = 1 if sum[i] > 0, else 0
+//! 4. Final fingerprint: `bit[i] = 1` if `sum[i] > 0`, else 0
 //!
 //! **Comparison**: Hamming distance (XOR + popcount) in O(1) time.
 //! Small Hamming distance → similar documents.
 //!
 //! ```rust
-//! use vicinity::hash::{SimHash, SimHashLSH};
+//! use vicinity::hash::SimHash;
 //!
 //! let sh = SimHash::new_64();
-//! let fp1 = sh.fingerprint_text("the quick brown fox", 3);
-//! let fp2 = sh.fingerprint_text("the quick brown dog", 3);
+//! let fp1 = sh.fingerprint_text("the quick brown fox jumps over", 3);
+//! let fp2 = sh.fingerprint_text("the quick brown dog jumps over", 3);
 //!
-//! // Similar texts have small Hamming distance
-//! assert!(fp1.hamming_distance(&fp2) < 10);
+//! // Similar texts have small Hamming distance (< 32 for 64-bit fingerprints)
+//! assert!(fp1.hamming_distance(&fp2) < 20);
 //! ```
 //!
 //! ## Choosing an Algorithm

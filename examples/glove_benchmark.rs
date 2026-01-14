@@ -1,12 +1,23 @@
 //! GloVe-25 Real ANN Benchmark
 //!
-//! Benchmarks HNSW against the GloVe-25-angular dataset from ann-benchmarks.
-//! This is a standard benchmark with 1.18M word embeddings and ground truth.
+//! Benchmarks HNSW against the GloVe-25-angular dataset from ann-benchmarks.com.
+//! This is a standard benchmark used across all ANN implementations.
 //!
 //! Dataset: http://ann-benchmarks.com/glove-25-angular.hdf5
 //! Vectors: 1,183,514 train + 10,000 test queries
 //! Dimensions: 25
-//! Distance: Angular (cosine)
+//! Distance: Angular (cosine) - requires L2-normalized vectors
+//!
+//! # Expected Performance (ann-benchmarks.com reference)
+//!
+//! HNSW with M=16, ef_construction=500 should achieve:
+//! - Recall@10 ~98-99% at ef_search=200-400
+//! - QPS: 10,000-20,000 queries/second (depending on hardware)
+//!
+//! If you see significantly lower recall, check:
+//! 1. Vectors are L2-normalized (crucial for angular/cosine distance)
+//! 2. ef_search is high enough (higher = better recall, lower QPS)
+//! 3. ef_construction was sufficient during index build
 //!
 //! Run:
 //! ```bash
@@ -75,14 +86,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (neighbors, k_gt) = load_neighbors(&neighbors_path)?;
     println!("Ground truth: {} neighbors per query\n", k_gt);
 
-    // Build HNSW index
+    // Build HNSW index with standard ann-benchmarks parameters
+    // M=16 is standard, ef_construction=500 matches hnswlib benchmark config
     let m = 16;
-    let ef_build = if full_mode { 200 } else { 100 };
+    let ef_build = 500; // Standard for ann-benchmarks (higher = better graph quality)
 
     println!(
         "Building HNSW index (M={}, ef_construction={})...",
         m, ef_build
     );
+    println!("  (using ann-benchmarks.com standard parameters)");
     let build_start = Instant::now();
 
     let mut index = HNSWIndex::new(dim, m, ef_build)?;
@@ -175,10 +188,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
+    // Analysis and expected baseline comparison
+    println!("\n--- Analysis ---");
+    println!("Expected baseline (ann-benchmarks.com, hnswlib M=16, ef_construction=500):");
+    println!("  ef=200:  ~98% recall, ~15K QPS");
+    println!("  ef=400:  ~99% recall, ~10K QPS");
+    println!("  ef=800:  ~99.5% recall, ~6K QPS");
+
     if !full_mode {
         println!("\nNote: Quick mode uses 10K subset with local ground truth.");
+        println!("Results may differ from full benchmark due to smaller graph size.");
         println!("Run with --full for benchmark against all 1.18M vectors.");
     }
+
+    println!("\nKey factors affecting recall:");
+    println!("  1. Vectors MUST be L2-normalized (cosine distance = 1 - dot product)");
+    println!("  2. ef_search controls recall/speed tradeoff (higher = better recall)");
+    println!("  3. ef_construction affects graph quality (500 is standard)");
 
     Ok(())
 }

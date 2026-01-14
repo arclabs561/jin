@@ -93,9 +93,14 @@ impl SearchState {
     }
 }
 
-/// Greedy search in a single layer.
+/// Greedy search in a single layer using standard HNSW beam search.
 ///
-/// Finds the closest node to query in the current layer.
+/// Implements the correct HNSW search from Malkov & Yashunin (2016):
+/// - Uses min-heap for candidates (explore closest first)
+/// - Uses max-heap for results (track worst result for pruning)
+/// - Continues until best unexplored candidate is worse than worst result
+///
+/// This is critical for achieving high recall (~98% on standard benchmarks).
 #[cfg(feature = "hnsw")]
 pub fn greedy_search_layer(
     query: &[f32],
@@ -105,34 +110,105 @@ pub fn greedy_search_layer(
     dimension: usize,
     ef: usize,
 ) -> Vec<(u32, f32)> {
-    let mut state = SearchState::with_capacity(ef);
+    use std::collections::BinaryHeap;
+
+    // Candidate for min-heap (explore closest first)
+    #[derive(PartialEq)]
+    struct MinCandidate {
+        id: u32,
+        distance: f32,
+    }
+    impl Eq for MinCandidate {}
+    impl Ord for MinCandidate {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            // Min-heap: smaller distance = higher priority
+            other.distance.total_cmp(&self.distance)
+        }
+    }
+    impl PartialOrd for MinCandidate {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    // Result for max-heap (track worst result for pruning)
+    #[derive(PartialEq)]
+    struct MaxResult {
+        id: u32,
+        distance: f32,
+    }
+    impl Eq for MaxResult {}
+    impl Ord for MaxResult {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            // Max-heap: larger distance = higher priority
+            self.distance.total_cmp(&other.distance)
+        }
+    }
+    impl PartialOrd for MaxResult {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    let mut candidates: BinaryHeap<MinCandidate> = BinaryHeap::with_capacity(ef * 2);
+    let mut results: BinaryHeap<MaxResult> = BinaryHeap::with_capacity(ef + 1);
+    let mut visited = std::collections::HashSet::with_capacity(ef * 2);
 
     // Start from entry point
     let entry_vector = get_vector(vectors, dimension, entry_point as usize);
     let entry_distance = cosine_distance(query, entry_vector);
-    state.add_candidate(entry_point, entry_distance);
+    candidates.push(MinCandidate {
+        id: entry_point,
+        distance: entry_distance,
+    });
+    results.push(MaxResult {
+        id: entry_point,
+        distance: entry_distance,
+    });
+    visited.insert(entry_point);
 
-    // Greedy search: always explore closest unvisited node
-    // Pre-allocate results vector with capacity for ef results
-    let mut results = Vec::with_capacity(ef);
-
-    while let Some(candidate) = state.pop_candidate() {
-        results.push((candidate.id, candidate.distance));
-
-        if results.len() >= ef {
+    // Standard HNSW beam search:
+    // Continue while we have candidates that might improve results
+    while let Some(candidate) = candidates.pop() {
+        // Stopping condition: if best candidate is worse than worst result
+        // and we have enough results, we're done
+        let worst_dist = results.peek().map(|r| r.distance).unwrap_or(f32::INFINITY);
+        if candidate.distance > worst_dist && results.len() >= ef {
             break;
         }
 
         // Explore neighbors
         let neighbors = layer.get_neighbors(candidate.id);
         for &neighbor_id in neighbors.iter() {
-            let neighbor_vector = get_vector(vectors, dimension, neighbor_id as usize);
-            let neighbor_distance = cosine_distance(query, neighbor_vector);
-            state.add_candidate(neighbor_id, neighbor_distance);
+            if visited.insert(neighbor_id) {
+                let neighbor_vector = get_vector(vectors, dimension, neighbor_id as usize);
+                let neighbor_distance = cosine_distance(query, neighbor_vector);
+
+                // Only add if potentially useful
+                let worst_dist = results.peek().map(|r| r.distance).unwrap_or(f32::INFINITY);
+                if results.len() < ef || neighbor_distance < worst_dist {
+                    candidates.push(MinCandidate {
+                        id: neighbor_id,
+                        distance: neighbor_distance,
+                    });
+                    results.push(MaxResult {
+                        id: neighbor_id,
+                        distance: neighbor_distance,
+                    });
+
+                    // Prune results if over capacity
+                    if results.len() > ef {
+                        results.pop();
+                    }
+                }
+            }
         }
     }
 
-    results
+    // Convert to sorted output
+    let mut output: Vec<(u32, f32)> = results.into_iter().map(|r| (r.id, r.distance)).collect();
+    output.sort_by(|a, b| a.1.total_cmp(&b.1));
+    output
 }
 
 /// Get vector from SoA storage.

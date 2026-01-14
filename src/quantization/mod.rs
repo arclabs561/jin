@@ -1,5 +1,13 @@
 //! Vector quantization: compress vectors while preserving distance.
 //!
+//! # Feature Flags
+//!
+//! Individual quantization methods require their own features:
+//! ```toml
+//! vicinity = { version = "0.1", features = ["rabitq"] }  # RaBitQ
+//! vicinity = { version = "0.1", features = ["saq"] }     # Ternary quantization
+//! ```
+//!
 //! Quantization is the art of representing continuous vectors with discrete
 //! codes. The goal: **use fewer bits per dimension while keeping distance
 //! computations accurate**.
@@ -74,7 +82,9 @@
 //!
 //! ## Usage
 //!
-//! ```rust,ignore
+//! Requires `features = ["rabitq"]`:
+//!
+//! ```ignore
 //! use vicinity::quantization::rabitq::{RaBitQ, RaBitQConfig};
 //!
 //! let config = RaBitQConfig::bits4();  // 4-bit quantization

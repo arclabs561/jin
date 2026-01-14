@@ -1,9 +1,18 @@
 //! Regression tests for known bugs in ANN libraries.
 //!
-//! These tests are grounded in real issues from hnswlib, faiss, usearch:
+//! These tests are grounded in real issues from hnswlib, faiss, usearch, lance:
 //! - https://github.com/nmslib/hnswlib/issues
 //! - https://github.com/facebookresearch/faiss/issues
 //! - https://github.com/unum-cloud/USearch/issues
+//! - https://github.com/lancedb/lance/issues
+//!
+//! Key issues covered:
+//! - hnswlib #592: Query not normalized for cosine distance
+//! - hnswlib #608: Issues after deleting vectors
+//! - hnswlib #635, #606: M vs Mcurmax in neighbor selection
+//! - faiss #4295: Integer overflow on large datasets
+//! - lance #5208: Wrong layer iteration direction
+//! - usearch #439: Performance regression (recall too low)
 
 #![allow(clippy::float_cmp)]
 
@@ -124,6 +133,90 @@ fn layer0_uses_correct_connectivity() {
     // This is a sanity check - the actual invariant is tested in property tests
     let results = index.search(&vec![0.0; dim], 20, 100).unwrap();
     assert!(results.len() >= m, "Should return at least M results");
+}
+
+/// Test inspired by lance #5208: Layer iteration direction must be top-to-bottom.
+///
+/// HNSW search must start from top layer (coarsest) and descend to layer 0.
+/// Getting this wrong causes severe recall degradation.
+#[test]
+#[cfg(feature = "hnsw")]
+fn layer_traversal_is_top_to_bottom() {
+    use vicinity::hnsw::HNSWIndex;
+
+    let dim = 32;
+    let n = 1000;
+
+    // Build a non-trivial index that should have multiple layers
+    let vectors: Vec<Vec<f32>> = (0..n).map(|i| normalize(&random_vec(dim, i))).collect();
+
+    let mut index = HNSWIndex::new(dim, 16, 32).unwrap();
+    for (id, vec) in vectors.iter().enumerate() {
+        index.add(id as u32, vec.clone()).unwrap();
+    }
+    index.build().unwrap();
+
+    // Search with high ef to ensure we explore properly
+    // If layers are traversed wrong, recall will be very low
+    let query = &vectors[500];
+    let results = index.search(query, 10, 100).unwrap();
+
+    // Self should be in results (exact match exists)
+    let found_self = results.iter().any(|(id, _)| *id == 500);
+    assert!(
+        found_self,
+        "Should find the query vector itself - layer traversal may be wrong"
+    );
+}
+
+/// Test inspired by paper Algorithm 2: Stopping condition must be correct.
+///
+/// HNSW stops when: best unexplored candidate distance > worst result distance.
+/// Getting this wrong (e.g., stopping too early) causes recall loss.
+#[test]
+#[cfg(feature = "hnsw")]
+fn stopping_condition_allows_sufficient_exploration() {
+    use std::collections::HashSet;
+    use vicinity::hnsw::HNSWIndex;
+
+    let dim = 64;
+    let n = 500;
+    let k = 10;
+
+    // Build index
+    let vectors: Vec<Vec<f32>> = (0..n).map(|i| normalize(&random_vec(dim, i))).collect();
+    let mut index = HNSWIndex::new(dim, 16, 32).unwrap();
+    for (id, vec) in vectors.iter().enumerate() {
+        index.add(id as u32, vec.clone()).unwrap();
+    }
+    index.build().unwrap();
+
+    // Test recall at different ef values
+    // If stopping condition is wrong, higher ef won't improve recall
+    let query = &vectors[250];
+    let gt = brute_force_knn(query, &vectors, k);
+    let gt_ids: HashSet<u32> = gt.into_iter().collect();
+
+    let recall_ef50 = {
+        let results = index.search(query, k, 50).unwrap();
+        let ids: HashSet<u32> = results.iter().map(|(id, _)| *id).collect();
+        gt_ids.intersection(&ids).count() as f32 / k as f32
+    };
+
+    let recall_ef200 = {
+        let results = index.search(query, k, 200).unwrap();
+        let ids: HashSet<u32> = results.iter().map(|(id, _)| *id).collect();
+        gt_ids.intersection(&ids).count() as f32 / k as f32
+    };
+
+    // Higher ef should give equal or better recall
+    // If stopping condition is broken, ef200 might be worse than ef50
+    assert!(
+        recall_ef200 >= recall_ef50 * 0.95, // Allow 5% tolerance for randomness
+        "Higher ef should not decrease recall: ef50={:.2}%, ef200={:.2}%",
+        recall_ef50 * 100.0,
+        recall_ef200 * 100.0
+    );
 }
 
 /// Test inspired by usearch #439: Performance regression claims.

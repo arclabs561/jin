@@ -272,7 +272,7 @@ mod tests {
         // This test would require creating an HNSWIndex
         // For now, just test that the structure compiles
         let dir = Box::new(MemoryDirectory::new());
-        let writer = HNSWSegmentWriter::new(dir, 1);
+        let _writer = HNSWSegmentWriter::new(dir, 1);
         // TODO: Add full test with actual HNSWIndex
     }
 }

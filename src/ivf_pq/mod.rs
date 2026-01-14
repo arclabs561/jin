@@ -63,15 +63,22 @@
 //! OPQ learns a rotation matrix R that decorrelates dimensions before
 //! quantization, improving accuracy by 10-30%.
 //!
+//! ## Feature Flag
+//!
+//! Requires the `ivf_pq` feature:
+//! ```toml
+//! vicinity = { version = "0.1", features = ["ivf_pq"] }
+//! ```
+//!
 //! ## Usage
 //!
 //! ```rust,ignore
 //! use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
 //!
 //! let params = IVFPQParams {
-//!     num_centroids: 1024,  // sqrt(n) is a good default
-//!     num_codebooks: 8,     // 8 bytes per vector
-//!     codebook_bits: 8,     // 256 codewords per codebook
+//!     num_clusters: 1024,   // sqrt(n) is a good default
+//!     num_codebooks: 8,     // 8 subvectors
+//!     codebook_size: 256,   // 256 codewords per codebook (8 bits)
 //!     nprobe: 10,           // search 10 nearest cells
 //! };
 //!

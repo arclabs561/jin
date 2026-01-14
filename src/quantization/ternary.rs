@@ -23,7 +23,7 @@
 //! # References
 //!
 //! - Connor et al. (2025): "Ultra-Quantisation: Efficient Embedding Search
-//!   via 1.58-bit Encodings" - https://arxiv.org/abs/2506.00528
+//!   via 1.58-bit Encodings" - <https://arxiv.org/abs/2506.00528>
 
 use crate::RetrieveError;
 

@@ -1,2 +1,5 @@
 /target
 .cargo/
+
+# Benchmark data (generated from HDF5, ~120MB)
+/data/*.bin

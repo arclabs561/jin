@@ -11,7 +11,7 @@
 //! # References
 //!
 //! - Zandieh et al. (2026): "TurboQuant: Online Vector Quantization with
-//!   Near-optimal Distortion Rate" - https://arxiv.org/abs/2504.19874
+//!   Near-optimal Distortion Rate" - <https://arxiv.org/abs/2504.19874>
 
 use crate::simd;
 use crate::RetrieveError;

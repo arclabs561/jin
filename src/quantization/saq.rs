@@ -10,7 +10,7 @@
 //! # References
 //!
 //! - Li et al. (2026): "SAQ: Pushing the Limits of Vector Quantization through
-//!   Code Adjustment and Dimension Segmentation" - https://arxiv.org/abs/2509.12086
+//!   Code Adjustment and Dimension Segmentation" - <https://arxiv.org/abs/2509.12086>
 
 use crate::simd;
 use crate::RetrieveError;

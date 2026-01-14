@@ -229,7 +229,7 @@ impl SegmentWriter {
 
         // Write term dictionary using FST
         // FST requires keys to be inserted in lexicographic order for optimal compression
-        // Reference: https://docs.rs/fst/latest/fst/struct.MapBuilder.html
+        // Reference: <https://docs.rs/fst/latest/fst/struct.MapBuilder.html>
         let term_dict_path = format!("{}/term_dict.fst", segment_dir);
         #[cfg(feature = "persistence")]
         {
@@ -328,7 +328,7 @@ pub struct SegmentReader {
     footer: SegmentFooter,
     /// Term dictionary FST (term -> ordinal)
     /// Using FST directly for lookups is more memory-efficient than HashMap
-    /// Reference: https://docs.rs/fst/latest/fst/struct.Map.html
+    /// Reference: <https://docs.rs/fst/latest/fst/struct.Map.html>
     #[cfg(feature = "persistence")]
     term_dict_fst: Option<Map<Vec<u8>>>,
     /// Fallback HashMap for when FST is not available
@@ -358,7 +358,7 @@ impl SegmentReader {
 
         // Load term dictionary using FST
         // FST provides compact, memory-efficient term lookups
-        // Reference: https://docs.rs/fst/latest/fst/struct.Map.html
+        // Reference: <https://docs.rs/fst/latest/fst/struct.Map.html>
         let term_dict_path = format!("{}/term_dict.fst", segment_dir);
         #[cfg(feature = "persistence")]
         let term_dict_fst: Option<Map<Vec<u8>>> = {
@@ -578,7 +578,7 @@ impl SegmentReader {
     /// Returns all terms matching the prefix with their ordinals.
     ///
     /// Uses FST's efficient range search - O(prefix_length) to find start, then O(k) for k matches.
-    /// Reference: https://docs.rs/fst/latest/fst/struct.Map.html#method.range
+    /// Reference: <https://docs.rs/fst/latest/fst/struct.Map.html#method.range>
     #[cfg(feature = "persistence")]
     pub fn search_prefix(&self, prefix: &str) -> Vec<(String, u64)> {
         let Some(fst_map) = &self.term_dict_fst else {

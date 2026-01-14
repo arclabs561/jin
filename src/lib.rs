@@ -14,6 +14,40 @@
 //! - **Partition-based**: [`ivf_pq`], [`scann`]
 //! - **Quantization**: [`quantization`] (PQ, RaBitQ)
 //!
+//! # Which Index Should I Use?
+//!
+//! | Situation | Recommendation | Feature |
+//! |-----------|----------------|---------|
+//! | **General Purpose** (Best Recall/Speed) | [`hnsw::HNSWIndex`] | `hnsw` (default) |
+//! | **Billion-Scale** (Memory Constrained) | [`ivf_pq::IVFPQIndex`] | `ivf_pq` |
+//! | **Flat Graph** (Simpler, d > 32) | [`nsw::NSWIndex`] | `nsw` |
+//! | **Attribute Filtering** | [`hnsw::filtered`] | `hnsw` |
+//! | **Out-of-Core** (SSD-based) | [`diskann`] | `diskann` (experimental) |
+//!
+//! **Default features**: `hnsw`, `innr` (SIMD).
+//!
+//! ## Recommendation Logic
+//!
+//! 1. **Start with HNSW**. It's the industry standard for a reason. It offers the best
+//!    trade-off between search speed and recall for datasets that fit in RAM.
+//!
+//! 2. **Use IVF-PQ** if your dataset is too large for RAM (e.g., > 10M vectors on a laptop).
+//!    It compresses vectors (32x-64x) but has lower recall than HNSW.
+//!
+//! 3. **Use NSW (Flat)** if you specifically want to avoid the hierarchy overhead of HNSW,
+//!    or if your dimensionality is high enough (d > 32) that the "small world" navigation
+//!    benefit of hierarchy is diminished. *Note: HNSW is generally more robust.*
+//!
+//! 4. **Use DiskANN** (experimental) if you have an NVMe SSD and 1B+ vectors.
+//!
+//! ```toml
+//! # Minimal (HNSW + SIMD)
+//! vicinity = "0.1"
+//!
+//! # With quantization support
+//! vicinity = { version = "0.1", features = ["ivf_pq"] }
+//! ```
+//!
 //! # Critical Nuances
 //!
 //! ## The Hubness Problem

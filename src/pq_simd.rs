@@ -46,11 +46,11 @@
 /// # Arguments
 ///
 /// * `codes` - PQ codes for one vector, length = num_codebooks
-/// * `lut` - Lookup table: lut[m][code] = distance to codeword `code` in codebook `m`
+/// * `lut` - Lookup table: `lut[m][code]` = distance to codeword in codebook m
 ///
 /// # Returns
 ///
-/// Sum of LUT lookups: Σ_m lut[m][codes[m]]
+/// Sum of LUT lookups: `Σ lut[m][codes[m]]`
 #[inline]
 pub fn adc_distance(codes: &[u8], lut: &[Vec<f32>]) -> f32 {
     debug_assert_eq!(codes.len(), lut.len());
@@ -69,7 +69,7 @@ pub fn adc_distance(codes: &[u8], lut: &[Vec<f32>]) -> f32 {
 ///
 /// * `codes_batch` - Flattened codes: [n_candidates * num_codebooks]
 /// * `num_codebooks` - Number of subquantizers
-/// * `lut` - Lookup table: lut[m][code] = distance contribution
+/// * `lut` - Lookup table: `lut[m][code]` = distance contribution
 ///
 /// # Returns
 ///
@@ -89,7 +89,7 @@ pub fn adc_batch_distances(codes_batch: &[u8], num_codebooks: usize, lut: &[Vec<
 /// Packed LUT for SIMD operations.
 ///
 /// Reorganizes LUT data for cache-friendly and SIMD-friendly access patterns.
-/// Instead of lut[codebook][code], we pack data for streaming access.
+/// Instead of `lut[codebook][code]`, we pack data for streaming access.
 #[derive(Debug, Clone)]
 pub struct PackedLUT {
     /// Packed data: [codebook_0_values..., codebook_1_values..., ...]
@@ -202,8 +202,8 @@ pub mod x86_64 {
 
                 // Gather from LUT
                 let lut_base = lut.codebook_ptr(m);
-                let scale = 4i32; // sizeof(f32)
-                let gathered = _mm256_i32gather_ps(lut_base, idx_vec, scale);
+                // Scale 4 = sizeof(f32). Must be constant.
+                let gathered = _mm256_i32gather_ps(lut_base, idx_vec, 4);
 
                 sum = _mm256_add_ps(sum, gathered);
             }
