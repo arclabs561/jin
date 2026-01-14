@@ -7,6 +7,15 @@ pub trait ANNIndex {
     /// Add a vector to the index.
     fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError>;
 
+    /// Add a vector to the index from a borrowed slice.
+    ///
+    /// Default implementation allocates a `Vec<f32>` and calls [`ANNIndex::add`].
+    /// Implementations that store vectors in a flat buffer (SoA) should override
+    /// this to avoid an intermediate allocation.
+    fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector.to_vec())
+    }
+
     /// Build the index (required before search).
     fn build(&mut self) -> Result<(), RetrieveError>;
 
@@ -40,6 +49,10 @@ pub struct ANNStats {
 impl ANNIndex for crate::hnsw::HNSWIndex {
     fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
         self.add(doc_id, vector)
+    }
+
+    fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+        self.add_slice(doc_id, vector)
     }
 
     fn build(&mut self) -> Result<(), RetrieveError> {
@@ -86,6 +99,10 @@ impl ANNIndex for crate::scann::search::SCANNIndex {
         self.add(doc_id, vector)
     }
 
+    fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+        self.add_slice(doc_id, vector)
+    }
+
     fn build(&mut self) -> Result<(), RetrieveError> {
         self.build()
     }
@@ -126,6 +143,10 @@ impl ANNIndex for crate::scann::search::SCANNIndex {
 impl ANNIndex for crate::ivf_pq::search::IVFPQIndex {
     fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
         self.add(doc_id, vector)
+    }
+
+    fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+        self.add_slice(doc_id, vector)
     }
 
     fn build(&mut self) -> Result<(), RetrieveError> {
@@ -401,6 +422,47 @@ impl ANNIndex for crate::hash::search::LSHIndex {
     }
 }
 
+// Implement ANNIndex for DiskANN
+#[cfg(feature = "diskann")]
+impl ANNIndex for crate::diskann::graph::DiskANNIndex {
+    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add(doc_id, vector)
+    }
+
+    fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+        self.add_slice(doc_id, vector)
+    }
+
+    fn build(&mut self) -> Result<(), RetrieveError> {
+        self.build()
+    }
+
+    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
+        self.search(query, k)
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.size_bytes()
+    }
+
+    fn stats(&self) -> ANNStats {
+        ANNStats {
+            num_vectors: self.num_vectors(),
+            dimension: self.dimension(),
+            size_bytes: self.size_bytes(),
+            algorithm: "DiskANN".to_string(),
+        }
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension()
+    }
+
+    fn num_vectors(&self) -> usize {
+        self.num_vectors()
+    }
+}
+
 // NOTE: Annoy (Random Projection Tree Forest) impl removed - module not yet implemented.
 // The rp_forest module provides similar functionality via RPForestIndex.
 
@@ -409,6 +471,10 @@ impl ANNIndex for crate::hash::search::LSHIndex {
 impl ANNIndex for crate::nsw::NSWIndex {
     fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
         self.add(doc_id, vector)
+    }
+
+    fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+        self.add_slice(doc_id, vector)
     }
 
     fn build(&mut self) -> Result<(), RetrieveError> {

@@ -4,7 +4,7 @@
 //!
 //! ```bash
 //! cargo run --example 03_quick_benchmark --release           # bench: 10K x 384
-//! PLESIO_DATASET=quick cargo run --example 03_quick_benchmark --release  # CI: 2K x 128
+//! JIN_DATASET=quick cargo run --example 03_quick_benchmark --release  # CI: 2K x 128
 //! ```
 //!
 //! Datasets:
@@ -17,14 +17,14 @@ use std::io::{BufReader, Read};
 use std::path::Path;
 use std::time::Instant;
 
-use plesio::hnsw::HNSWIndex;
-use plesio::hnsw::HNSWParams;
+use jin::hnsw::HNSWIndex;
+use jin::hnsw::HNSWParams;
 use std::collections::HashMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Select dataset: PLESIO_DATASET=quick for CI, otherwise bench
-    let dataset = std::env::var("PLESIO_DATASET").unwrap_or_else(|_| "bench".to_string());
-    let variant = std::env::var("PLESIO_TEST_VARIANT").unwrap_or_default(); // "", "drift", "filter"
+    // Select dataset: JIN_DATASET=quick for CI, otherwise bench
+    let dataset = std::env::var("JIN_DATASET").unwrap_or_else(|_| "bench".to_string());
+    let variant = std::env::var("JIN_TEST_VARIANT").unwrap_or_default(); // "", "drift", "filter"
 
     println!("Quick Benchmark (Bundled Data)");
     println!("==============================\n");
@@ -58,7 +58,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ef_construction = 200;
     let m_max = m * 2;
 
-    println!("Test variant: {}\n", if variant.is_empty() { "base" } else { &variant });
+    println!(
+        "Test variant: {}\n",
+        if variant.is_empty() { "base" } else { &variant }
+    );
 
     let is_filter = dataset == "hard" && variant == "filter";
 
@@ -121,7 +124,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut total_recall = 0.0;
 
         let filter_topics = if is_filter {
-            Some(load_labels(&format!("{}/hard_test_filter_topics.bin", data_dir))?)
+            Some(load_labels(&format!(
+                "{}/hard_test_filter_topics.bin",
+                data_dir
+            ))?)
         } else {
             None
         };
@@ -129,7 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (i, query) in test.iter().enumerate() {
             let results = if is_filter {
                 let topic = filter_topics.as_ref().expect("filter topics loaded")[i];
-                let filter = plesio::filtering::FilterPredicate::equals("topic", topic);
+                let filter = jin::filtering::FilterPredicate::equals("topic", topic);
                 index.search_with_filter(query, k, ef, &filter)?
             } else {
                 index.search(query, k, ef)?
@@ -165,8 +171,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn find_data_dir(dataset: &str) -> Result<String, Box<dyn std::error::Error>> {
     let paths = [
         "data/sample",
-        "plesio/data/sample",
-        "../plesio/data/sample",
+        "jin/data/sample",
+        "../jin/data/sample",
         &format!("{}/data/sample", env!("CARGO_MANIFEST_DIR")),
     ];
 
@@ -277,7 +283,12 @@ fn load_labels(path: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
     let labels: Vec<u32> = (0..n)
         .map(|i| {
             let offset = i * 4;
-            u32::from_le_bytes([data[offset], data[offset + 1], data[offset + 2], data[offset + 3]])
+            u32::from_le_bytes([
+                data[offset],
+                data[offset + 1],
+                data[offset + 2],
+                data[offset + 3],
+            ])
         })
         .collect();
 

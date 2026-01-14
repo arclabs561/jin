@@ -5,7 +5,7 @@
 // (Rust 2024 edition strictness - this is a SIMD crate where unsafe is pervasive)
 #![allow(unsafe_op_in_unsafe_fn)]
 
-//! plesio: Approximate Nearest Neighbor Search primitives.
+//! jin: Approximate Nearest Neighbor Search primitives.
 //!
 //! Provides standalone implementations of state-of-the-art ANN algorithms:
 //!
@@ -42,16 +42,16 @@
 //!
 //! ```toml
 //! # Minimal (HNSW + SIMD)
-//! plesio = "0.1"
+//! jin = "0.1"
 //!
 //! # With quantization support
-//! plesio = { version = "0.1", features = ["ivf_pq"] }
+//! jin = { version = "0.1", features = ["ivf_pq"] }
 //! ```
 //!
 //! # Critical Nuances & The HNSW Critique (2025)
 //!
 //! ## 1. The HNSW Dominance & Its Cracks
-//! HNSW is the default because it's "good enough" for most. But research (2024-2025)
+//! HNSW is the default because it's "good enough" for most. But research (2025-2026)
 //! highlights structural weaknesses:
 //!
 //! - **Local Minima**: HNSW's greedy search is prone to getting stuck in local optima,
@@ -92,7 +92,7 @@
 //! - Very high recall requirements (> 99.9%): ANN overhead not worth it.
 //! - Low intrinsic dimensionality: KD-trees can be exact and fast.
 //!
-//! ## 5. Quantization Trade-offs (2024-2025 Research)
+//! ## 5. Quantization Trade-offs (2025-2026 Research)
 //!
 //! | Method | Compression | Recall | Query Speedup | Use Case |
 //! |--------|-------------|--------|---------------|----------|
@@ -153,6 +153,7 @@ pub mod adaptive;
 pub mod matryoshka;
 pub mod partitioning;
 
+pub mod distance;
 pub mod filtering;
 pub mod lid;
 pub mod pq_simd;
@@ -164,6 +165,7 @@ pub mod hash;
 
 // Re-exports
 pub use ann::traits::ANNIndex;
+pub use distance::DistanceMetric;
 pub use error::{Result, RetrieveError};
 
 pub mod benchmark;

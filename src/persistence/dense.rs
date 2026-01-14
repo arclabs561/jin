@@ -234,8 +234,16 @@ impl DenseSegmentReader {
                 let mut docid_to_index = HashMap::new();
                 for i in 0..num_vectors {
                     let offset = i * 12;
-                    let doc_id =
-                        u32::from_le_bytes(metadata_buffer[offset..offset + 4].try_into().unwrap());
+                    let doc_id = u32::from_le_bytes(
+                        metadata_buffer[offset..offset + 4]
+                            .try_into()
+                            .map_err(|_| {
+                                PersistenceError::Format(format!(
+                                    "Failed to extract doc_id bytes at offset {} (expected 4-byte array)",
+                                    offset
+                                ))
+                            })?,
+                    );
                     docid_to_index.insert(doc_id, i);
                 }
                 (None, docid_to_index, num_vectors)
@@ -251,8 +259,16 @@ impl DenseSegmentReader {
             let mut docid_to_index = HashMap::new();
             for i in 0..num_vectors {
                 let offset = i * 12;
-                let doc_id =
-                    u32::from_le_bytes(metadata_buffer[offset..offset + 4].try_into().unwrap());
+                let doc_id = u32::from_le_bytes(
+                    metadata_buffer[offset..offset + 4]
+                        .try_into()
+                        .map_err(|_| {
+                            PersistenceError::Format(format!(
+                                "Failed to extract doc_id bytes at offset {} (expected 4-byte array)",
+                                offset
+                            ))
+                        })?,
+                );
                 docid_to_index.insert(doc_id, i);
             }
             // Use a dummy type for metadata_mmap since it's not used in this branch,
@@ -462,7 +478,13 @@ impl DenseSegmentReader {
             let mut buffer = vec![0u8; num_vectors * dimension * 4];
             vectors_file.read_exact(&mut buffer)?;
             for (i, chunk) in buffer.chunks_exact(4).enumerate() {
-                all_vectors[i] = f32::from_le_bytes(chunk.try_into().unwrap());
+                let bytes: [u8; 4] = chunk.try_into().map_err(|_| {
+                    PersistenceError::Format(format!(
+                        "Failed to decode f32: chunk size mismatch at element {} (expected 4 bytes)",
+                        i
+                    ))
+                })?;
+                all_vectors[i] = f32::from_le_bytes(bytes);
             }
         }
 

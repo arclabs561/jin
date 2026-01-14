@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 
 /// Select neighbors using RND (Relative Neighborhood Diversification).
 ///
-/// Exact formula from 2025 research: dist(X_q, X_j) < dist(X_i, X_j) for all neighbors X_i.
+/// Exact formula from 2025-2026 research: dist(X_q, X_j) < dist(X_i, X_j) for all neighbors X_i.
 /// This is the best-performing ND strategy with highest pruning ratios (20-25%).
 fn select_neighbors_rnd(
     _query_vector: &[f32],

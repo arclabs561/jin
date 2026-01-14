@@ -6,10 +6,10 @@
 //! cargo run --example 02_measure_recall --release
 //! ```
 
-use plesio::hnsw::HNSWIndex;
+use jin::hnsw::HNSWIndex;
 use std::collections::HashSet;
 
-fn main() -> plesio::Result<()> {
+fn main() -> jin::Result<()> {
     let dim = 64;
     let n = 1000;
     let k = 10;

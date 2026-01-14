@@ -7,10 +7,10 @@
 //! cargo run --example hnsw_benchmark --release
 //! ```
 
-use plesio::hnsw::HNSWIndex;
+use jin::hnsw::HNSWIndex;
 use std::time::Instant;
 
-fn main() -> plesio::Result<()> {
+fn main() -> jin::Result<()> {
     println!("HNSW vs Brute Force Benchmark");
     println!("==============================\n");
     println!("Note: HNSW uses cosine distance internally, vectors are L2-normalized.\n");
@@ -25,7 +25,7 @@ fn main() -> plesio::Result<()> {
     Ok(())
 }
 
-fn benchmark_size(n: usize, dim: usize) -> plesio::Result<()> {
+fn benchmark_size(n: usize, dim: usize) -> jin::Result<()> {
     println!("Dataset: {} vectors, {} dimensions", n, dim);
     println!("{}", "-".repeat(50));
 

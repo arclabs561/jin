@@ -547,7 +547,7 @@ def main():
     data_dir = Path(__file__).parent.parent / "data" / "sample"
     data_dir.mkdir(parents=True, exist_ok=True)
     
-    print("Generating bundled datasets for plesio")
+    print("Generating bundled datasets for jin")
     print("=" * 70)
     
     # =========================================================================
@@ -591,22 +591,26 @@ def main():
     print("\n3. hard (10K x 768) - Stress test for ANN algorithms")
     print("   Hard: realistic embeddings (topic mixture + anisotropy + duplicates) + hard tail queries")
     
-    hard_dup_frac = float(os.getenv("PLESIO_HARD_DUP_FRAC", "0.10"))
+    hard_dup_frac = float(os.getenv("JIN_HARD_DUP_FRAC", "0.10"))
 
     # Key hardness knob for cosine search:
     # - realistic anisotropy + confusable topics (mixture)
     # - some near-duplicates (common in real corpora)
+    # Research-informed parameters (He et al. 2012, GIST-960 characteristics):
+    # - Lower topic_scale = topics closer together = more overlap = lower Cr
+    # - Higher topic_noise = more within-topic spread = harder disambiguation
+    # - rank=48 (lower than 64) = more concentration in fewer dimensions
     train, train_topics = generate_topic_mixture_unit_with_topics(
         10_000,
         768,
         n_topics=200,
-        rank=64,
-        topic_scale=0.9,
-        topic_noise=0.40,
-        global_noise=0.05,
+        rank=48,           # Lower rank = more anisotropy = harder (was 64)
+        topic_scale=0.7,   # Closer topics = more overlap (was 0.9)
+        topic_noise=0.50,  # More within-topic spread (was 0.40)
+        global_noise=0.08, # Slightly more ambient noise (was 0.05)
         seed=42,
     )
-    train = inject_near_duplicates(train, frac=hard_dup_frac, dup_noise=0.01, seed=43)
+    train = inject_near_duplicates(train, frac=hard_dup_frac, dup_noise=0.008, seed=43)
 
     # Topics used for filtering scenarios.
     # Ensure categories have enough items for k=100 ground truth.
@@ -617,49 +621,59 @@ def main():
 
     # Hardest-tail query selection by top1-top2 margin.
     # We sample many random candidates and keep the most ambiguous ones.
-    # Mix: mostly in-distribution queries + a smaller hard tail (realistic).
+    # Mix: mostly in-distribution queries + a LARGER hard tail (stress test).
     n_test = 500
-    n_hard_tail = 100
+    n_hard_tail = 200  # More hard-tail queries (was 100)
     n_normal = n_test - n_hard_tail
 
+    # Test queries should match train distribution for fair evaluation
     test_normal, test_normal_topics = generate_topic_mixture_unit_with_topics(
         n_normal,
         768,
         n_topics=200,
-        rank=64,
-        topic_scale=0.9,
-        topic_noise=0.40,
-        global_noise=0.05,
+        rank=48,           # Match train
+        topic_scale=0.7,   # Match train
+        topic_noise=0.50,  # Match train
+        global_noise=0.08, # Match train
         allowed_topics=eligible_topics,
         seed=300,
     )
 
     # Hard tail: many candidates from the same generator; keep ambiguous ones.
+    # Use larger candidate pool for better selection (was 50k)
     candidates, candidates_topics = generate_topic_mixture_unit_with_topics(
-        50_000,
+        100_000,  # Larger pool for better hard-tail selection
         768,
         n_topics=200,
-        rank=64,
-        topic_scale=0.9,
-        topic_noise=0.40,
-        global_noise=0.05,
+        rank=48,           # Match train
+        topic_scale=0.7,   # Match train
+        topic_noise=0.50,  # Match train
+        global_noise=0.08, # Match train
         allowed_topics=eligible_topics,
         seed=301,
     )
     # Keep the topics for filter scenario by selecting on the same indices.
+    # Research-based hard-tail selection: smallest (top1 - top2) margin queries.
     sims = candidates @ train.T
     top2 = np.partition(sims, -2, axis=1)[:, -2:]
     top1 = np.maximum(top2[:, 0], top2[:, 1])
     top2_min = np.minimum(top2[:, 0], top2[:, 1])
     margin = top1 - top2_min
-    ok = top1 >= 0.15
+    # Lower similarity threshold: we want queries that are HARD, not just close
+    ok = top1 >= 0.10  # Was 0.15 - allow queries with lower top-1 similarity
     idx = np.where(ok)[0]
-    if len(idx) == 0:
+    if len(idx) < n_hard_tail:
         idx = np.arange(len(candidates))
-    hard_order = idx[np.argsort(margin[idx])]
+    # Sort by margin primarily, but also penalize queries with very high top-1
+    # (those are easy even with small margins because they're so close to train)
+    composite_score = margin[idx] + 0.05 * top1[idx]
+    hard_order = idx[np.argsort(composite_score)]
     chosen = hard_order[:n_hard_tail]
     test_hard = candidates[chosen]
     test_hard_topics = candidates_topics[chosen]
+    
+    median_margin = float(np.median(margin[chosen]))
+    print(f"    Hard-tail median margin: {median_margin:.4f}")
 
     test = np.vstack([test_normal, test_hard]).astype(np.float32, copy=False)
     test_topics = np.concatenate([test_normal_topics, test_hard_topics]).astype(np.int32, copy=False)
@@ -675,20 +689,20 @@ def main():
     print(f"    hard dup frac: {hard_dup_frac:.2f}")
 
     # Scenario A: OOD-ish queries (model mismatch / cross-modal).
-    # Generate candidates from a different distribution (dense isotropic sphere),
-    # then keep the hardest tail by margin w.r.t. the fixed train set.
-    # Use streaming hard-tail selection to avoid allocating huge sim matrices.
-    test_drift = generate_low_margin_queries_streaming(
-        train,
-        n_test,
-        n_candidates=200_000,
-        dim=768,
-        min_top1_sim=0.02,
-        top1_weight=0.30,
-        batch_size=1000,
+    # Take the BASE test queries and apply embedding drift transformation.
+    # Key insight from OOD-DiskANN (Jaiswal et al.): graphs built on in-distribution
+    # data degrade sharply when queries come from a different embedding space.
+    # The transformation should be STRONG enough to create real distribution shift.
+    test_drift = apply_embedding_drift(
+        test,
+        n_reflections=12,   # Strong transformation (was 8)
+        mean_shift=0.15,    # More aggressive shift (was 0.05)
+        noise=0.10,         # More noise (was 0.05)
         seed=400,
     )
     gt_drift = compute_ground_truth(train, test_drift, k=100)
+    cr_drift = compute_relative_contrast(train, test_drift)
+    print(f"    Drift contrast: {cr_drift:.3f} (should be lower than base)")
     save_vectors(data_dir / "hard_test_drift.bin", test_drift)
     save_neighbors(data_dir / "hard_neighbors_drift.bin", gt_drift)
 
@@ -730,7 +744,7 @@ This dataset aims to resemble *real embedding corpora* rather than being purely 
 
 2. **Near-duplicates**
    - We inject near-duplicate vectors to mimic repeated/templated content.
-   - Controlled by `PLESIO_HARD_DUP_FRAC` (default: 0.10).
+   - Controlled by `JIN_HARD_DUP_FRAC` (default: 0.10).
 
 3. **Hard-tail queries**
    - Most queries are in-distribution.
@@ -746,24 +760,24 @@ numbers as stale unless they come from a fresh run.
 
 ```sh
 cargo run --example 03_quick_benchmark --release
-PLESIO_DATASET=hard cargo run --example 03_quick_benchmark --release
+JIN_DATASET=hard cargo run --example 03_quick_benchmark --release
 
 # Scenarios
-PLESIO_DATASET=hard PLESIO_TEST_VARIANT=drift cargo run --example 03_quick_benchmark --release
-PLESIO_DATASET=hard PLESIO_TEST_VARIANT=filter cargo run --example 03_quick_benchmark --release
+JIN_DATASET=hard JIN_TEST_VARIANT=drift cargo run --example 03_quick_benchmark --release
+JIN_DATASET=hard JIN_TEST_VARIANT=filter cargo run --example 03_quick_benchmark --release
 ```
 
 ## Usage
 
 ```sh
 # Easy (CI)
-PLESIO_DATASET=quick cargo run --example 03_quick_benchmark --release
+JIN_DATASET=quick cargo run --example 03_quick_benchmark --release
 
 # Medium (default)
 cargo run --example 03_quick_benchmark --release
 
 # Hard (stress test)
-PLESIO_DATASET=hard cargo run --example 03_quick_benchmark --release
+JIN_DATASET=hard cargo run --example 03_quick_benchmark --release
 ```
 
 ## File Format

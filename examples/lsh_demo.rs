@@ -29,7 +29,7 @@
 //! cargo run --example lsh_demo --features lsh
 //! ```
 
-use plesio::hash::{MinHash, MinHashLSH, SimHash};
+use jin::hash::{MinHash, MinHashLSH, SimHash};
 use std::collections::HashSet;
 use std::time::Instant;
 

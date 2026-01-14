@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn test_fs_directory() {
         // Use a unique temp directory with timestamp/pid to avoid conflicts
-        let temp_dir = std::env::temp_dir().join(format!("plesio_test_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir().join(format!("jin_test_{}", std::process::id()));
         // Clean up any leftover from previous runs
         let _ = std::fs::remove_dir_all(&temp_dir);
         let dir = FsDirectory::new(&temp_dir).unwrap();

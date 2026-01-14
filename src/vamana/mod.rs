@@ -4,13 +4,13 @@
 //!
 //! Requires the `vamana` feature:
 //! ```toml
-//! plesio = { version = "0.1", features = ["vamana"] }
+//! jin = { version = "0.1", features = ["vamana"] }
 //! ```
 //!
 //! Vamana is a graph-based ANN algorithm that uses two-pass construction with
 //! RRND (Relaxed Relative Neighborhood Diversification) and RND strategies.
 //!
-//! Based on 2025 research: Vamana is competitive with HNSW on large datasets
+//! Based on 2025-2026 research: Vamana is competitive with HNSW on large datasets
 //! and better for SSD-based serving (5-10× more points/node).
 //!
 //! # Algorithm
@@ -32,7 +32,7 @@
 //! Requires `features = ["vamana"]`:
 //!
 //! ```ignore
-//! use plesio::vamana::{VamanaIndex, VamanaParams};
+//! use jin::vamana::{VamanaIndex, VamanaParams};
 //!
 //! let params = VamanaParams {
 //!     max_degree: 64,

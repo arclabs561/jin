@@ -1,4 +1,4 @@
-//! Error types for plesio.
+//! Error types for jin.
 
 use thiserror::Error;
 
@@ -52,5 +52,5 @@ impl From<std::io::Error> for RetrieveError {
     }
 }
 
-/// Result type alias for plesio operations.
+/// Result type alias for jin operations.
 pub type Result<T> = std::result::Result<T, RetrieveError>;

@@ -427,11 +427,7 @@ impl RaBitQQuantizer {
         }
 
         let default_centroid = vec![0.0f32; self.dimension];
-        let centroid = self
-            .centroid
-            .as_ref()
-            .map(|c| c.as_slice())
-            .unwrap_or(&default_centroid);
+        let centroid = self.centroid.as_deref().unwrap_or(&default_centroid);
 
         // Center and rotate query
         let query_residual: Vec<f32> = query
@@ -480,9 +476,9 @@ impl RaBitQQuantizer {
 
     /// Get compressed size in bytes per vector.
     pub fn compressed_size(&self) -> usize {
-        let binary_bytes = (self.dimension + 7) / 8;
+        let binary_bytes = self.dimension.div_ceil(8);
         let ex_bits = self.config.total_bits.saturating_sub(1);
-        let extended_bytes = (self.dimension * ex_bits + 7) / 8;
+        let extended_bytes = (self.dimension * ex_bits).div_ceil(8);
         binary_bytes + extended_bytes + 24 // codes + correction factors
     }
 
@@ -693,7 +689,7 @@ fn compute_const_scaling_factor(dim: usize, ex_bits: usize, seed: u64) -> f32 {
 
 /// Pack binary codes (1 bit per element).
 fn pack_binary_codes(codes: &[u8]) -> Vec<u8> {
-    let bytes_needed = (codes.len() + 7) / 8;
+    let bytes_needed = codes.len().div_ceil(8);
     let mut packed = vec![0u8; bytes_needed];
     for (i, &code) in codes.iter().enumerate() {
         if code != 0 {
@@ -710,7 +706,7 @@ fn pack_extended_codes(codes: &[u16], ex_bits: usize) -> Vec<u8> {
     }
 
     let total_bits = codes.len() * ex_bits;
-    let bytes_needed = (total_bits + 7) / 8;
+    let bytes_needed = total_bits.div_ceil(8);
     let mut packed = vec![0u8; bytes_needed];
 
     let mut bit_pos = 0;

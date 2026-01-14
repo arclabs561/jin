@@ -8,13 +8,13 @@
 //! cargo run --example dual_branch_demo --release
 //! ```
 
-use plesio::hnsw::dual_branch::{DualBranchConfig, DualBranchHNSW};
-use plesio::hnsw::HNSWIndex;
-use plesio::lid::{estimate_lid, LidConfig};
+use jin::hnsw::dual_branch::{DualBranchConfig, DualBranchHNSW};
+use jin::hnsw::HNSWIndex;
+use jin::lid::{estimate_lid, LidConfig};
 use std::collections::HashSet;
 use std::time::Instant;
 
-fn main() -> plesio::Result<()> {
+fn main() -> jin::Result<()> {
     println!("Dual-Branch HNSW: LID-Driven Optimization Demo");
     println!("===============================================\n");
 
@@ -32,7 +32,7 @@ fn main() -> plesio::Result<()> {
 }
 
 /// Demonstrate how outliers degrade standard HNSW recall.
-fn demo_outlier_problem() -> plesio::Result<()> {
+fn demo_outlier_problem() -> jin::Result<()> {
     println!("1. The Outlier Problem");
     println!("   --------------------\n");
 
@@ -199,7 +199,7 @@ fn demo_lid_analysis() {
 }
 
 /// Compare Dual-Branch HNSW vs Standard HNSW.
-fn demo_comparison() -> plesio::Result<()> {
+fn demo_comparison() -> jin::Result<()> {
     println!("3. Dual-Branch HNSW vs Standard HNSW");
     println!("   ----------------------------------\n");
 

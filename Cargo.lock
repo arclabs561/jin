@@ -181,6 +181,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
 
 [[package]]
+name = "cnk"
+version = "0.1.0"
+
+[[package]]
 name = "cobs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -433,11 +437,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
-name = "idpaq"
-version = "0.1.0"
-source = "git+https://github.com/arclabs561/idpaq.git#6dadd93a220db211f619cd5b09dfc05519321374"
-
-[[package]]
 name = "innr"
 version = "0.1.0"
 source = "git+https://github.com/arclabs561/innr.git#16cadf02b405a6f8469241ff8a930a39ec8eca42"
@@ -467,6 +466,38 @@ name = "itoa"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
+
+[[package]]
+name = "jin"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "bitflags",
+ "bytemuck",
+ "byteorder",
+ "cnk",
+ "constriction",
+ "crc32fast",
+ "criterion",
+ "fst",
+ "hex",
+ "innr",
+ "libc",
+ "log",
+ "memmap2",
+ "ordered-float",
+ "parking_lot",
+ "postcard",
+ "proptest",
+ "rand",
+ "rayon",
+ "serde",
+ "serde_json",
+ "simsimd",
+ "smallvec",
+ "tempfile",
+ "thiserror",
+]
 
 [[package]]
 name = "js-sys"
@@ -578,38 +609,6 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
-]
-
-[[package]]
-name = "plesio"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "bitflags",
- "bytemuck",
- "byteorder",
- "constriction",
- "crc32fast",
- "criterion",
- "fst",
- "hex",
- "idpaq",
- "innr",
- "libc",
- "log",
- "memmap2",
- "ordered-float",
- "parking_lot",
- "postcard",
- "proptest",
- "rand",
- "rayon",
- "serde",
- "serde_json",
- "simsimd",
- "smallvec",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]

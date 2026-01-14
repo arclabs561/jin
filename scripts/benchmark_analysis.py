@@ -239,6 +239,93 @@ def compute_margin_stats(train: np.ndarray, test: np.ndarray) -> Tuple[np.ndarra
     return top1, top2_min, margin
 
 
+def compute_query_lid(query: np.ndarray, train: np.ndarray, k: int = 20) -> float:
+    """Compute Local Intrinsic Dimensionality for a single query.
+    
+    Based on MLE estimator (Levina & Bickel 2005).
+    High LID = query is in a geometrically complex region = harder for greedy routing.
+    
+    From MCGI paper: "search beam width should scale exponentially with LID"
+    """
+    distances = 1 - query @ train.T
+    knn_distances = np.sort(distances)[:k]
+    knn_distances = knn_distances[knn_distances > 1e-10]
+    
+    if len(knn_distances) < 2:
+        return float('nan')
+    
+    T_k = knn_distances[-1]
+    if T_k <= 0:
+        return float('nan')
+    
+    log_ratios = np.log(T_k / knn_distances[:-1])
+    total = log_ratios.sum()
+    if total <= 0:
+        return float('nan')
+    
+    return (len(log_ratios)) / total
+
+
+def compute_per_query_lid(train: np.ndarray, test: np.ndarray, k: int = 20) -> np.ndarray:
+    """Compute LID for each query vector.
+    
+    Returns array of LID values per query. High LID queries are "hard"
+    for graph-based ANN because greedy routing is more likely to fail.
+    """
+    lids = np.array([compute_query_lid(q, train, k) for q in test])
+    return lids
+
+
+def compute_escape_hardness_proxy(
+    train: np.ndarray, 
+    test: np.ndarray, 
+    k_neighbors: int = 10,
+    n_random_starts: int = 5,
+) -> np.ndarray:
+    """Estimate "escape hardness" per query.
+    
+    Inspired by Hua et al. (SIGMOD 2026): queries where greedy search
+    gets stuck in local minima have high escape hardness.
+    
+    Proxy: how many random restarts would be needed to find true neighbors?
+    We measure: distance from random train points to true NN vs query distance.
+    If random points are often closer to the NN than the query is, the query
+    might "escape" poorly from bad starting points.
+    
+    Returns per-query escape hardness scores (higher = harder to escape).
+    """
+    rng = np.random.default_rng(42)
+    n_train = len(train)
+    n_test = len(test)
+    
+    # Find true NN for each query
+    sims = test @ train.T
+    true_nn_idx = np.argmax(sims, axis=1)
+    true_nn_sim = sims[np.arange(n_test), true_nn_idx]
+    
+    escape_scores = np.zeros(n_test)
+    
+    for i, q in enumerate(test):
+        nn_idx = true_nn_idx[i]
+        nn_vec = train[nn_idx]
+        q_to_nn_sim = true_nn_sim[i]
+        
+        # Sample random train points as potential "stuck" locations
+        random_starts = rng.choice(n_train, n_random_starts, replace=False)
+        
+        # How often is a random start point closer to NN than query is?
+        escape_failures = 0
+        for start_idx in random_starts:
+            start_to_nn_sim = np.dot(train[start_idx], nn_vec)
+            # If random start is closer to NN than query, search might get stuck
+            if start_to_nn_sim > q_to_nn_sim:
+                escape_failures += 1
+        
+        escape_scores[i] = escape_failures / n_random_starts
+    
+    return escape_scores
+
+
 def plot_margin_distributions(
     datasets: List[Tuple[str, np.ndarray, np.ndarray]],
     output_path: Path,
@@ -353,27 +440,44 @@ def plot_difficulty_comparison(metrics: List[DifficultyMetrics], output_path: Pa
 
 
 def plot_recall_vs_ef_comparison(output_path: Path):
-    """Create recall vs ef curve comparison (placeholder for actual benchmark data)."""
+    """Create recall vs ef curve comparison (based on actual benchmark data).
+    
+    Note: Values are midpoints of observed ranges. Shaded regions show variance.
+    """
     import matplotlib.pyplot as plt
     
-    # Expected recall data from our measurements
+    # Measured recall data from our benchmarks (Jan 2026)
+    # Values are midpoints; variance captured in bands
     ef_values = [20, 50, 100, 200]
     
     datasets = {
-        'quick (128d)': {'recall': [90, 97, 99, 99.6], 'color': '#2ecc71'},
-        'bench (384d)': {'recall': [42, 63, 80, 93], 'color': '#f39c12'},
-        'hard (768d)': {'recall': [37, 56, 72, 84], 'color': '#e74c3c'},
+        'quick (128d)': {
+            'recall': [45, 65, 82, 92], 
+            'variance': [3, 3, 3, 3],  # Low variance
+            'color': '#2ecc71'
+        },
+        'bench (384d)': {
+            'recall': [18, 30, 45, 62], 
+            'variance': [3, 3, 4, 4],  # Moderate variance
+            'color': '#f39c12'
+        },
+        'hard (768d)': {
+            'recall': [23, 35, 47, 58], 
+            'variance': [5, 7, 8, 8],  # High variance due to graph construction
+            'color': '#e74c3c'
+        },
     }
     
     fig, ax = plt.subplots(figsize=(8, 6))
     
     for name, data in datasets.items():
-        ax.plot(ef_values, data['recall'], 'o-', color=data['color'], 
+        recall = np.array(data['recall'])
+        var = np.array(data['variance'])
+        ax.plot(ef_values, recall, 'o-', color=data['color'], 
                 label=name, linewidth=2, markersize=8)
         
-        # Add shaded confidence region (simulated +/- 3%)
-        recall = np.array(data['recall'])
-        ax.fill_between(ef_values, recall - 3, recall + 3, 
+        # Add shaded variance region
+        ax.fill_between(ef_values, recall - var, recall + var, 
                        color=data['color'], alpha=0.2)
     
     ax.set_xlabel('ef_search', fontsize=12)
@@ -381,13 +485,14 @@ def plot_recall_vs_ef_comparison(output_path: Path):
     ax.set_title('Recall vs Search Effort by Dataset Difficulty', fontsize=14, fontweight='bold')
     ax.legend(loc='lower right')
     ax.grid(True, alpha=0.3)
-    ax.set_ylim(0, 105)
+    ax.set_ylim(0, 100)
     ax.set_xlim(10, 210)
     
-    # Add annotation
-    ax.annotate('hard never reaches 90%', xy=(200, 84), xytext=(140, 70),
+    # Add annotation for hard dataset
+    ax.annotate('hard: high variance (52-65%)\ndue to graph construction', 
+                xy=(200, 58), xytext=(130, 75),
                 arrowprops=dict(arrowstyle='->', color='#e74c3c'),
-                color='#e74c3c', fontsize=10)
+                color='#e74c3c', fontsize=9)
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -395,27 +500,78 @@ def plot_recall_vs_ef_comparison(output_path: Path):
     print(f"  Saved: {output_path}")
 
 
-def plot_pareto_frontier(output_path: Path):
-    """Create recall vs QPS Pareto frontier plot."""
+def plot_query_lid_distribution(
+    datasets: List[Tuple[str, np.ndarray, np.ndarray]],
+    output_path: Path,
+) -> None:
+    """Plot per-query LID distributions.
+    
+    High LID = query in geometrically complex region = harder for greedy search.
+    Based on MCGI (SIGMOD 2026): ef should scale exponentially with LID.
+    """
     import matplotlib.pyplot as plt
     
-    # Simulated benchmark data
-    ef_values = [20, 50, 100, 200, 400]
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    colors = {
+        "quick": "#2ecc71",
+        "bench": "#f39c12",
+        "hard": "#e74c3c",
+    }
+    
+    # Left: LID histogram
+    ax = axes[0]
+    for name, train, test in datasets:
+        lids = compute_per_query_lid(train, test, k=20)
+        lids = lids[np.isfinite(lids)]
+        ax.hist(lids, bins=40, alpha=0.4, label=f"{name} (median={np.median(lids):.1f})",
+                color=colors.get(name, None), density=True)
+    ax.set_xlabel('Local Intrinsic Dimensionality (LID)')
+    ax.set_ylabel('Density')
+    ax.set_title('Query LID Distribution (higher = harder)')
+    ax.legend()
+    ax.grid(True, alpha=0.25)
+    
+    # Right: LID vs margin scatter
+    ax = axes[1]
+    for name, train, test in datasets:
+        lids = compute_per_query_lid(train, test, k=20)
+        _, _, margin = compute_margin_stats(train, test)
+        valid = np.isfinite(lids) & np.isfinite(margin)
+        ax.scatter(lids[valid], margin[valid], alpha=0.5, s=15, 
+                   label=name, color=colors.get(name, None))
+    ax.set_xlabel('Query LID')
+    ax.set_ylabel('Top1-Top2 Margin')
+    ax.set_title('LID vs Margin (bottom-right = hardest)')
+    ax.legend()
+    ax.grid(True, alpha=0.25)
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: {output_path}")
+
+
+def plot_pareto_frontier(output_path: Path):
+    """Create recall vs QPS Pareto frontier plot (measured data Jan 2026)."""
+    import matplotlib.pyplot as plt
+    
+    # Measured benchmark data (midpoint values)
+    ef_values = [20, 50, 100, 200]
     
     datasets = {
         'quick (128d)': {
-            'recall': [90, 97, 99, 99.6, 99.9],
-            'qps': [11500, 6800, 4300, 2900, 1500],
+            'recall': [45, 65, 82, 92],
+            'qps': [40000, 21000, 12000, 7600],
             'color': '#2ecc71'
         },
         'bench (384d)': {
-            'recall': [42, 63, 80, 93, 97],
-            'qps': [4300, 2400, 1300, 880, 450],
+            'recall': [18, 30, 45, 62],
+            'qps': [12300, 6700, 3800, 2200],
             'color': '#f39c12'
         },
         'hard (768d)': {
-            'recall': [37, 56, 72, 84, 90],
-            'qps': [2200, 1100, 600, 480, 240],
+            'recall': [23, 35, 47, 58],
+            'qps': [10200, 5900, 3500, 2000],
             'color': '#e74c3c'
         },
     }
@@ -436,12 +592,18 @@ def plot_pareto_frontier(output_path: Path):
     ax.set_title('Pareto Frontier: Recall vs Throughput', fontsize=14, fontweight='bold')
     ax.legend(loc='upper right')
     ax.grid(True, alpha=0.3)
-    ax.set_xlim(30, 105)
+    ax.set_xlim(0, 100)
     ax.set_yscale('log')
     
     # Add 90% recall line
     ax.axvline(x=90, color='gray', linestyle='--', alpha=0.5)
-    ax.annotate('90% recall target', xy=(90, 5000), fontsize=9, alpha=0.7)
+    ax.annotate('90% recall target', xy=(91, 20000), fontsize=9, alpha=0.7)
+    
+    # Annotate the variance
+    ax.annotate('hard: 52-65% at ef=200\n(high variance)', 
+                xy=(58, 2000), xytext=(70, 4000),
+                arrowprops=dict(arrowstyle='->', color='#e74c3c'),
+                color='#e74c3c', fontsize=9)
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -552,10 +714,46 @@ def main():
     
     if margin_sets:
         plot_margin_distributions(margin_sets, plot_dir / "margin_distributions.png")
+        
+        # LID distribution plot (only base datasets, not scenarios)
+        base_sets = [(name, train, test) for name, train, test in margin_sets 
+                     if name in ['quick', 'bench', 'hard']]
+        if base_sets:
+            plot_query_lid_distribution(base_sets, plot_dir / "query_lid_distribution.png")
 
     plot_recall_vs_ef_comparison(plot_dir / "recall_vs_ef_by_difficulty.png")
     plot_pareto_frontier(plot_dir / "pareto_frontier.png")
     plot_parameter_sensitivity(plot_dir / "parameter_sensitivity.png")
+    
+    # Compute per-query hardness breakdown for hard dataset
+    print("\n  Computing per-query hardness analysis for 'hard'...")
+    hard_train_path = data_dir / "hard_train.bin"
+    hard_test_path = data_dir / "hard_test.bin"
+    if hard_train_path.exists() and hard_test_path.exists():
+        hard_train, _ = load_vectors(str(hard_train_path))
+        hard_test, _ = load_vectors(str(hard_test_path))
+        
+        # LID per query
+        lids = compute_per_query_lid(hard_train, hard_test, k=20)
+        valid_lids = lids[np.isfinite(lids)]
+        
+        # Escape hardness per query
+        escape_scores = compute_escape_hardness_proxy(hard_train, hard_test)
+        
+        # Margin per query
+        _, _, margin = compute_margin_stats(hard_train, hard_test)
+        
+        print(f"    Query LID: median={np.median(valid_lids):.1f}, max={np.max(valid_lids):.1f}")
+        print(f"    Escape hardness: mean={escape_scores.mean():.3f} (higher = queries more likely to get stuck)")
+        print(f"    Margin: median={np.median(margin):.6f}, min={np.min(margin):.6f}")
+        
+        # Identify "impossible" queries: high LID AND low margin AND high escape hardness
+        high_lid = lids > np.percentile(valid_lids, 75)
+        low_margin = margin < np.percentile(margin, 25)
+        high_escape = escape_scores > 0.5
+        
+        impossible_count = (high_lid & low_margin).sum()
+        print(f"    'Impossible' queries (high LID + low margin): {impossible_count}/{len(hard_test)} ({100*impossible_count/len(hard_test):.1f}%)")
     
     # Save metrics as JSON
     print("\n3. Saving metrics...")

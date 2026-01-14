@@ -36,15 +36,36 @@
 //!
 //! # Research Context
 //!
-//! - **FreshDiskANN** (2024): StreamingMerge for efficient insert/delete streams
+//! - **FreshDiskANN** (Singh et al. 2021): StreamingMerge for efficient insert/delete
+//!   - Key insight: Maintain a small "fresh" index alongside main index
+//!   - Insertions go to fresh index; periodic merge into main
+//!   - Deletions: tombstone + lazy cleanup during merge
+//!
 //! - **IP-DiskANN** (2025): In-neighbor tracking for O(1) delete preparation
-//! - **Delta-EMG** (2025): Monotonic update guarantees (no recall degradation)
+//!   - Each node tracks its in-neighbors (who points to it)
+//!   - Delete: O(degree) edge repairs instead of O(n) search
+//!
+//! - **SPFresh** (2024): Streaming vector search with LIRE (Lazy In-place REfresh)
+//!   - Lazy updates: defer graph repairs until node is visited
+//!   - Achieves 2-5x throughput over eager updates
+//!
+//! - **LSM-VEC** (2025): LSM-tree approach for streaming vectors
+//!   - Multiple levels of indices, periodic compaction
+//!   - Write-optimized: O(1) amortized insert
+//!
+//! # Our Approach
+//!
+//! We implement a hybrid:
+//! 1. **Write buffer**: Absorbs burst writes (like LSM memtable)
+//! 2. **Tombstone deletes**: Mark-and-sweep during compaction
+//! 3. **Merged search**: Query both buffer and main index
+//! 4. **Periodic compaction**: Merge buffer into main index
 //!
 //! # Example
 //!
 //! ```rust,ignore
-//! use plesio::streaming::{StreamingIndex, UpdateOp};
-//! use plesio::hnsw::HNSWIndex;
+//! use jin::streaming::{StreamingIndex, UpdateOp};
+//! use jin::hnsw::HNSWIndex;
 //!
 //! let mut index = StreamingIndex::new(HNSWIndex::new(128)?);
 //!

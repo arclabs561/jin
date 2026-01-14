@@ -1,6 +1,5 @@
 //! Martingale-based pruning model for OPT-SNG.
 
-use crate::simd;
 use crate::RetrieveError;
 
 /// Candidate set evolution during graph construction.
@@ -92,8 +91,7 @@ pub fn prune_candidates_martingale(
     Ok(pruned)
 }
 
-/// Compute cosine distance (SIMD-accelerated).
+/// Compute cosine distance for **L2-normalized** vectors.
 fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
-    let similarity = simd::dot(a, b);
-    1.0 - similarity
+    crate::distance::cosine_distance_normalized(a, b)
 }

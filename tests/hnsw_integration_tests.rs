@@ -2,10 +2,11 @@
 //!
 //! Tests the full lifecycle: build, query, persistence, streaming updates.
 //!
-//! Note: HNSWIndex uses internal indices (0, 1, 2, ...) based on insertion order,
-//! not the doc_id passed to add(). The index also uses cosine distance internally.
+//! Note: HNSWIndex returns the external `doc_id` passed to `add()`. Internally, it
+//! still uses insertion-order indices for graph navigation, but those are not
+//! exposed in the public search results. The index uses cosine distance internally.
 
-use plesio::hnsw::{HNSWIndex, HNSWParams};
+use jin::hnsw::{HNSWIndex, HNSWParams};
 use std::collections::HashSet;
 
 /// Generate random vectors for testing.
@@ -177,15 +178,13 @@ fn test_hnsw_single_vector() {
     let mut hnsw = HNSWIndex::new(dim, 16, 16).expect("Failed to create");
 
     let vector = normalize(&vec![1.0f32; dim]);
-    // doc_id is ignored; internal index will be 0
     hnsw.add(42, vector.clone()).expect("Failed to add");
     hnsw.build().expect("Failed to build");
 
     let results = hnsw.search(&vector, 10, DEFAULT_EF).expect("Search failed");
 
     assert_eq!(results.len(), 1, "Should find exactly one result");
-    // Internal index is 0, not 42 (doc_id is ignored)
-    assert_eq!(results[0].0, 0, "Should find internal index 0");
+    assert_eq!(results[0].0, 42, "Should return the inserted doc_id");
 }
 
 #[test]
@@ -208,7 +207,7 @@ fn test_hnsw_high_dimensional() {
         .search(&vectors[50], 10, DEFAULT_EF)
         .expect("Search failed");
     assert!(!results.is_empty());
-    assert_eq!(results[0].0, 50, "Should find internal index 50");
+    assert_eq!(results[0].0, 50, "Should return doc_id 50");
 }
 
 #[test]
@@ -512,7 +511,7 @@ fn test_hnsw_recall_monotonic_with_ef() {
     }
 }
 
-/// Property: Search should return valid indices within the indexed range.
+/// Property: Search should return valid doc_ids from the indexed set.
 #[test]
 fn test_hnsw_search_returns_valid_indices() {
     let dim = 16;
@@ -539,12 +538,12 @@ fn test_hnsw_search_returns_valid_indices() {
     for query in &test_queries {
         let results = hnsw.search(query, 20, DEFAULT_EF).expect("Search failed");
 
-        for (idx, dist) in &results {
-            // Index must be valid
+        for (doc_id, dist) in &results {
+            // In this test, doc_ids are 0..n-1, so we can bounds-check directly.
             assert!(
-                (*idx as usize) < n,
-                "Search returned invalid index {} (n={})",
-                idx,
+                (*doc_id as usize) < n,
+                "Search returned invalid doc_id {} (n={})",
+                doc_id,
                 n
             );
 

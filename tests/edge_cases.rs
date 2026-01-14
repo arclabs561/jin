@@ -1,8 +1,8 @@
-//! Edge case tests for plesio.
+//! Edge case tests for jin.
 //!
 //! Tests unusual inputs and boundary conditions that could cause failures.
 
-use plesio::hnsw::HNSWIndex;
+use jin::hnsw::HNSWIndex;
 use std::collections::HashSet;
 
 fn normalize(v: &[f32]) -> Vec<f32> {

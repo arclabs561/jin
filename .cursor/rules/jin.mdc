@@ -1,29 +1,28 @@
 ---
-title: "Vicinity Rules"
-id: vicinity-rules
-description: "Rules for Vicinity ANN indexing primitives"
+title: "Jin Rules"
+id: jin-rules
+description: "Rules for Jin ANN indexing primitives"
 priority: 100
 alwaysApply: true
 ---
 
-# Vicinity Rules
+# Jin Rules
 
 ## General Principles
 
 - **Performance is critical**: This is the indexing primitive for the entire stack.
 - **Zero-copy**: Avoid unnecessary allocations.
-- **SIMD**: Use SIMD where possible (via `simsimd` or portable packed_simd).
+- **SIMD**: Use SIMD where possible (via `innr` or `simsimd`).
 
 ## Architecture
 
-Vicinity provides standalone ANN algorithms:
+Jin provides standalone ANN algorithms:
 - HNSW
 - IVF-PQ
 - DiskANN
 - ScaNN
-- Alpha-CNG
 
-**Rule**: Do not add heavy dependencies. Vicinity is a primitive used by `ordino`, `subsume`, and `grafene`.
+**Rule**: Do not add heavy dependencies. Jin is a primitive used by `stratify`, `hop`, and other consumers.
 
 ## Rust Standards
 
@@ -41,10 +40,14 @@ Vicinity provides standalone ANN algorithms:
 
 ## Integration
 
-Vicinity is used by:
-- `ordino-retrieve`: Dense retrieval backend
-- `grafene`: Graph embedding search
+Jin is used by:
+- `stratify`: kNN graph construction for clustering
 - `hop`: Document embedding search
+
+## Dependencies
+
+- `innr`: SIMD primitives (optional)
+- `cnk`: ID compression (optional)
 
 ## Anti-Sycophancy
 
@@ -52,4 +55,4 @@ Vicinity is used by:
 - Present alternative approaches with trade-offs.
 - Use direct technical language.
 
-See also: `scholar-stack-base.mdc` for shared Rust standards.
+See also: `tekne-stack-base.mdc` for shared Rust standards.

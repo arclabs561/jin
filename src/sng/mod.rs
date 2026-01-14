@@ -5,7 +5,7 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! plesio = { version = "0.1", features = ["sng"] }
+//! jin = { version = "0.1", features = ["sng"] }
 //! ```
 //!
 //! # Status: Experimental
@@ -15,7 +15,7 @@
 //! # Quick Start
 //!
 //! ```ignore
-//! use plesio::sng::{SNGIndex, SNGParams};
+//! use jin::sng::{SNGIndex, SNGParams};
 //!
 //! // No parameter tuning needed!
 //! let mut index = SNGIndex::new(128, SNGParams::default());

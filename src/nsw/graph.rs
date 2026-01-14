@@ -109,6 +109,15 @@ impl NSWIndex {
 
     /// Add a vector to the index.
     pub fn add(&mut self, _doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add_slice(_doc_id, &vector)
+    }
+
+    /// Add a vector to the index from a borrowed slice.
+    ///
+    /// Notes:
+    /// - The index stores vectors internally, so it must copy the slice into its own storage.
+    /// - NSW currently ignores `doc_id` and uses insertion order as the internal ID.
+    pub fn add_slice(&mut self, _doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
             return Err(RetrieveError::Other(
                 "Cannot add vectors after index is built".to_string(),
@@ -123,7 +132,7 @@ impl NSWIndex {
         }
 
         // Store vector in SoA format
-        self.vectors.extend_from_slice(&vector);
+        self.vectors.extend_from_slice(vector);
         self.num_vectors += 1;
 
         Ok(())

@@ -5,7 +5,7 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! plesio = { version = "0.1", features = ["scann"] }
+//! jin = { version = "0.1", features = ["scann"] }
 //! ```
 //!
 //! # Status: Experimental
@@ -15,7 +15,7 @@
 //! # Quick Start
 //!
 //! ```ignore
-//! use plesio::scann::{SCANNIndex, SCANNParams};
+//! use jin::scann::{SCANNIndex, SCANNParams};
 //!
 //! let params = SCANNParams {
 //!     num_partitions: 256,

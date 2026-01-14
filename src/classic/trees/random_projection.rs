@@ -284,9 +284,8 @@ impl RPTreeIndex {
         &self.vectors[start..end]
     }
 
-    /// Compute cosine distance.
+    /// Compute cosine distance for **L2-normalized** vectors.
     fn cosine_distance(&self, a: &[f32], b: &[f32]) -> f32 {
-        let similarity = simd::dot(a, b);
-        1.0 - similarity
+        crate::distance::cosine_distance_normalized(a, b)
     }
 }

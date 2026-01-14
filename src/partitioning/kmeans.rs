@@ -2,7 +2,6 @@
 //!
 //! Generic k-means implementation used by ScaNN (partitioning) and IVF-PQ (codebook training).
 
-use crate::simd;
 use crate::RetrieveError;
 
 /// k-means clustering for partitioning vectors.
@@ -172,10 +171,8 @@ impl KMeans {
 
     /// Compute distance between two vectors (SIMD-accelerated).
     fn distance(&self, a: &[f32], b: &[f32]) -> f32 {
-        // Use existing SIMD-accelerated dot product for cosine distance
-        // For L2 distance, would use: simd::dot(&diff, &diff).sqrt()
-        let similarity = simd::dot(a, b);
-        1.0 - similarity // Cosine distance
+        // This k-means uses cosine distance and expects L2-normalized vectors.
+        crate::distance::cosine_distance_normalized(a, b)
     }
 
     /// Get vector from SoA storage.

@@ -33,11 +33,11 @@
 //! cargo run --example ivf_pq_demo --release --features ivf_pq
 //! ```
 
-use plesio::ivf_pq::{IVFPQIndex, IVFPQParams};
+use jin::ivf_pq::{IVFPQIndex, IVFPQParams};
 use std::collections::HashSet;
 use std::time::Instant;
 
-fn main() -> plesio::Result<()> {
+fn main() -> jin::Result<()> {
     println!("IVF-PQ: Billion-Scale Vector Search");
     println!("====================================\n");
 
@@ -50,7 +50,7 @@ fn main() -> plesio::Result<()> {
     Ok(())
 }
 
-fn demo_basic_search() -> plesio::Result<()> {
+fn demo_basic_search() -> jin::Result<()> {
     println!("1. Basic IVF-PQ Search");
     println!("   --------------------\n");
 
@@ -113,7 +113,7 @@ fn demo_basic_search() -> plesio::Result<()> {
     Ok(())
 }
 
-fn demo_parameter_tuning() -> plesio::Result<()> {
+fn demo_parameter_tuning() -> jin::Result<()> {
     println!("2. Parameter Impact on Recall/Speed");
     println!("   ---------------------------------\n");
 
@@ -175,7 +175,7 @@ fn demo_parameter_tuning() -> plesio::Result<()> {
     Ok(())
 }
 
-fn demo_memory_analysis() -> plesio::Result<()> {
+fn demo_memory_analysis() -> jin::Result<()> {
     println!("3. Memory Analysis");
     println!("   ----------------\n");
 
@@ -233,7 +233,7 @@ fn demo_memory_analysis() -> plesio::Result<()> {
     Ok(())
 }
 
-fn demo_when_to_use() -> plesio::Result<()> {
+fn demo_when_to_use() -> jin::Result<()> {
     println!("4. IVF-PQ vs HNSW Decision Guide");
     println!("   ------------------------------\n");
 

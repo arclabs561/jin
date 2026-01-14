@@ -241,6 +241,10 @@ impl BallTreeIndex {
     }
 
     /// Search for k nearest neighbors.
+    ///
+    /// Uses ball tree pruning: a ball can be skipped if the minimum possible
+    /// distance to any point in the ball (dist_to_center - radius) is greater
+    /// than the current k-th best distance.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
             return Err(RetrieveError::Other("Index not built".to_string()));
@@ -259,50 +263,121 @@ impl BallTreeIndex {
             .as_ref()
             .ok_or_else(|| RetrieveError::Other("Tree not built".to_string()))?;
 
-        // Collect candidates from tree traversal
-        let mut candidates = Vec::new();
-        self.search_recursive(root, query, &mut candidates)?;
+        // Use a bounded priority queue for k-nearest neighbors
+        // Store (distance, index) pairs, sorted by distance descending (max-heap behavior)
+        let mut best_k: Vec<(f32, u32)> = Vec::with_capacity(k);
+        let mut best_dist = f32::INFINITY; // Current k-th best distance (pruning threshold)
 
-        // Compute distances and sort
-        let mut results: Vec<(u32, f32)> = candidates
-            .iter()
-            .map(|&idx| {
-                let vec = self.get_vector(idx as usize);
-                let dist = self.cosine_distance(query, vec);
-                (idx, dist)
-            })
-            .collect();
+        self.search_recursive_pruned(root, query, k, &mut best_k, &mut best_dist)?;
 
+        // Convert to output format: (index, distance)
+        let mut results: Vec<(u32, f32)> = best_k.iter().map(|&(d, idx)| (idx, d)).collect();
         results.sort_by(|a, b| a.1.total_cmp(&b.1));
-        results.truncate(k);
 
         Ok(results)
     }
 
-    /// Search recursively.
-    fn search_recursive(
+    /// Search with radius-based pruning.
+    ///
+    /// Pruning rule: if `dist(query, center) - radius > best_dist`, the ball
+    /// cannot contain any point closer than our current k-th best, so skip it.
+    fn search_recursive_pruned(
         &self,
         node: &BallNode,
         query: &[f32],
-        candidates: &mut Vec<u32>,
+        k: usize,
+        best_k: &mut Vec<(f32, u32)>,
+        best_dist: &mut f32,
     ) -> Result<(), RetrieveError> {
         match node {
-            BallNode::Leaf { indices, .. } => {
-                candidates.extend_from_slice(indices);
+            BallNode::Leaf {
+                indices,
+                center,
+                radius,
+            } => {
+                // Pruning check for leaf: can this leaf contain better results?
+                let dist_to_center = self.euclidean_distance(query, center);
+                let min_possible_dist = (dist_to_center - radius).max(0.0);
+
+                if min_possible_dist > *best_dist {
+                    // This leaf can't have better results, skip it
+                    return Ok(());
+                }
+
+                // Process all vectors in leaf
+                for &idx in indices {
+                    let vec = self.get_vector(idx as usize);
+                    let dist = self.cosine_distance(query, vec);
+
+                    if best_k.len() < k {
+                        // Not yet k results, add unconditionally
+                        best_k.push((dist, idx));
+                        if best_k.len() == k {
+                            // Now we have k results, find the worst
+                            *best_dist = best_k
+                                .iter()
+                                .map(|&(d, _)| d)
+                                .fold(f32::NEG_INFINITY, f32::max);
+                        }
+                    } else if dist < *best_dist {
+                        // Replace the worst result
+                        if let Some(worst_idx) = best_k
+                            .iter()
+                            .enumerate()
+                            .max_by(|a, b| a.1 .0.total_cmp(&b.1 .0))
+                            .map(|(i, _)| i)
+                        {
+                            best_k[worst_idx] = (dist, idx);
+                            // Update best_dist
+                            *best_dist = best_k
+                                .iter()
+                                .map(|&(d, _)| d)
+                                .fold(f32::NEG_INFINITY, f32::max);
+                        }
+                    }
+                }
             }
             BallNode::Internal {
                 center,
-                radius: _, // TODO: Use for pruning optimization
+                radius,
                 left,
                 right,
             } => {
                 // Compute distance from query to ball center
-                let _dist_to_center = self.euclidean_distance(query, center); // TODO: Use for pruning
+                let dist_to_center = self.euclidean_distance(query, center);
 
-                // Prune if ball is too far (distance > radius + best_dist)
-                // For now, traverse both (optimization: add pruning)
-                self.search_recursive(left, query, candidates)?;
-                self.search_recursive(right, query, candidates)?;
+                // Pruning: minimum possible distance to any point in this ball
+                let min_possible_dist = (dist_to_center - radius).max(0.0);
+
+                if min_possible_dist > *best_dist {
+                    // This entire subtree can be pruned
+                    return Ok(());
+                }
+
+                // Compute distances to children's centers for prioritization
+                let (left_center, left_radius) = match left.as_ref() {
+                    BallNode::Internal { center, radius, .. } => (center, *radius),
+                    BallNode::Leaf { center, radius, .. } => (center, *radius),
+                };
+                let (right_center, right_radius) = match right.as_ref() {
+                    BallNode::Internal { center, radius, .. } => (center, *radius),
+                    BallNode::Leaf { center, radius, .. } => (center, *radius),
+                };
+
+                let left_dist = self.euclidean_distance(query, left_center);
+                let right_dist = self.euclidean_distance(query, right_center);
+
+                // Visit closer child first (more likely to find good results early)
+                let left_min = (left_dist - left_radius).max(0.0);
+                let right_min = (right_dist - right_radius).max(0.0);
+
+                if left_min < right_min {
+                    self.search_recursive_pruned(left, query, k, best_k, best_dist)?;
+                    self.search_recursive_pruned(right, query, k, best_k, best_dist)?;
+                } else {
+                    self.search_recursive_pruned(right, query, k, best_k, best_dist)?;
+                    self.search_recursive_pruned(left, query, k, best_k, best_dist)?;
+                }
             }
         }
 
@@ -327,9 +402,8 @@ impl BallTreeIndex {
         (a_squared + b_squared - 2.0 * ab_dot).sqrt()
     }
 
-    /// Compute cosine distance.
+    /// Compute cosine distance for **L2-normalized** vectors.
     fn cosine_distance(&self, a: &[f32], b: &[f32]) -> f32 {
-        let similarity = simd::dot(a, b);
-        1.0 - similarity
+        crate::distance::cosine_distance_normalized(a, b)
     }
 }

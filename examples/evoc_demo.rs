@@ -5,11 +5,11 @@
 //!   - MST-based hierarchical clustering (HDBSCAN-style)
 //!   - Multi-granularity cluster extraction
 //!
-//! # Ecosystem Context: Clustering in the Scholar Stack
+//! # Ecosystem Context: Clustering in the Tekne Stack
 //!
 //! | Crate     | Algorithm        | Best For                      |
 //! |-----------|------------------|-------------------------------|
-//! | plesio  | EVōC             | Embedding exploration, outliers |
+//! | jin  | EVōC             | Embedding exploration, outliers |
 //! | stratify  | K-means, GMM     | Known k, production speed     |
 //! | stratify  | Leiden           | Graph community detection     |
 //! | stratify  | Hierarchical     | Dendrograms, any-k extraction |
@@ -26,9 +26,9 @@
 //! cargo run --example evoc_demo --release
 //! ```
 
-use plesio::evoc::{EVoC, EVoCParams};
+use jin::evoc::{EVoC, EVoCParams};
 
-fn main() -> plesio::Result<()> {
+fn main() -> jin::Result<()> {
     println!("EVōC: Hierarchical Embedding Clustering");
     println!("========================================\n");
 
@@ -43,7 +43,7 @@ fn main() -> plesio::Result<()> {
     Ok(())
 }
 
-fn demo_basic_clustering() -> plesio::Result<()> {
+fn demo_basic_clustering() -> jin::Result<()> {
     println!("1. Basic Clustering: Discover Natural Groups");
     println!("   ------------------------------------------\n");
 
@@ -121,7 +121,7 @@ fn demo_basic_clustering() -> plesio::Result<()> {
     Ok(())
 }
 
-fn demo_hierarchy_exploration() -> plesio::Result<()> {
+fn demo_hierarchy_exploration() -> jin::Result<()> {
     println!("2. Hierarchy Exploration: Multiple Granularities");
     println!("   ----------------------------------------------\n");
 
@@ -173,11 +173,11 @@ fn demo_hierarchy_exploration() -> plesio::Result<()> {
     Ok(())
 }
 
-fn demo_when_to_use() -> plesio::Result<()> {
+fn demo_when_to_use() -> jin::Result<()> {
     println!("3. Clustering Decision Guide");
     println!("   -------------------------\n");
 
-    println!("   | Criterion           | EVōC (plesio)  | K-means (stratify) | GMM (stratify)   |");
+    println!("   | Criterion           | EVōC (jin)  | K-means (stratify) | GMM (stratify)   |");
     println!(
         "   |---------------------|------------------|--------------------|--------------------|"
     );
@@ -202,7 +202,7 @@ fn demo_when_to_use() -> plesio::Result<()> {
     println!();
 
     println!("   Pipeline recommendation:");
-    println!("     1. EVōC (plesio) to EXPLORE and discover natural cluster count");
+    println!("     1. EVōC (jin) to EXPLORE and discover natural cluster count");
     println!("     2. stratify::Kmeans with discovered k for PRODUCTION (10-100x faster)");
     println!("     3. stratify::Gmm if you need probability per cluster");
     println!("     4. stratify::Leiden for graph community structure");

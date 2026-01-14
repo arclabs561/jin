@@ -299,6 +299,15 @@ impl IVFPQIndex {
 
     /// Add a vector to the index.
     pub fn add(&mut self, _doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add_slice(_doc_id, &vector)
+    }
+
+    /// Add a vector to the index from a borrowed slice.
+    ///
+    /// Notes:
+    /// - The index stores vectors internally, so it must copy the slice into its own storage.
+    /// - IVF-PQ currently ignores `doc_id` and uses insertion order as the internal ID.
+    pub fn add_slice(&mut self, _doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
             return Err(RetrieveError::Other(
                 "Cannot add vectors after index is built".to_string(),
@@ -312,7 +321,7 @@ impl IVFPQIndex {
             });
         }
 
-        self.vectors.extend_from_slice(&vector);
+        self.vectors.extend_from_slice(vector);
         self.num_vectors += 1;
         Ok(())
     }
@@ -472,7 +481,7 @@ impl IVFPQIndex {
             .iter()
             .enumerate()
             .map(|(idx, centroid)| {
-                let dist = 1.0 - crate::simd::dot(query, centroid);
+                let dist = crate::distance::cosine_distance_normalized(query, centroid);
                 (idx, dist)
             })
             .collect();
@@ -571,7 +580,7 @@ impl IVFPQIndex {
             .iter()
             .enumerate()
             .map(|(idx, centroid)| {
-                let dist = 1.0 - crate::simd::dot(query, centroid);
+                let dist = crate::distance::cosine_distance_normalized(query, centroid);
                 (idx, dist)
             })
             .collect();

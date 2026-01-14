@@ -1,7 +1,5 @@
 //! Re-ranking stage for SCANN.
 
-use crate::simd;
-
 /// Re-rank candidates using exact distance computation.
 ///
 /// Takes approximate results from quantization stage and re-computes
@@ -30,10 +28,9 @@ pub fn rerank(
     reranked.into_iter().take(k).collect()
 }
 
-/// Compute cosine distance (SIMD-accelerated).
+/// Compute cosine distance for **L2-normalized** vectors.
 fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
-    let similarity = simd::dot(a, b);
-    1.0 - similarity
+    crate::distance::cosine_distance_normalized(a, b)
 }
 
 /// Get vector from SoA storage.

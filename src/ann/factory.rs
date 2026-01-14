@@ -6,7 +6,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use plesio::ann::{index_factory, ANNIndex};
+//! use jin::ann::{index_factory, ANNIndex};
 //!
 //! // Create HNSW index (requires "hnsw" feature)
 //! let mut index = index_factory(128, "HNSW32")?;
@@ -83,6 +83,25 @@ impl ANNIndex for AnyANNIndex {
 
             #[cfg(feature = "kmeans_tree")]
             AnyANNIndex::KMeansTree(idx) => idx.add(doc_id, vector),
+        }
+    }
+
+    fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+        match self {
+            #[cfg(feature = "hnsw")]
+            AnyANNIndex::HNSW(idx) => idx.add_slice(doc_id, vector),
+
+            #[cfg(feature = "nsw")]
+            AnyANNIndex::NSW(idx) => idx.add_slice(doc_id, vector),
+
+            #[cfg(feature = "ivf_pq")]
+            AnyANNIndex::IVFPQ(idx) => idx.add_slice(doc_id, vector),
+
+            #[cfg(feature = "scann")]
+            AnyANNIndex::SCANN(idx) => idx.add_slice(doc_id, vector),
+
+            #[cfg(feature = "kmeans_tree")]
+            AnyANNIndex::KMeansTree(idx) => idx.add_slice(doc_id, vector),
         }
     }
 
@@ -221,12 +240,13 @@ impl ANNIndex for AnyANNIndex {
 /// # Examples
 ///
 /// ```rust,ignore
-/// use ordino_retrieve::dense::ann::factory::index_factory;
-/// use ordino_retrieve::dense::ann::ANNIndex;
+/// use jin::ann::factory::index_factory;
+/// use jin::ann::ANNIndex;
 ///
 /// // HNSW index
 /// let mut index = index_factory(128, "HNSW32")?;
-/// index.add(0, vec![0.1; 128])?;
+/// let v0 = vec![0.1; 128];
+/// index.add_slice(0, &v0)?;
 /// index.build()?;
 /// let results = index.search(&[0.15; 128], 10)?;
 /// ```

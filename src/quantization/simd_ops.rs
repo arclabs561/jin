@@ -78,14 +78,14 @@ pub fn unpack_binary_fast(packed: &[u8], codes: &mut [u8], dim: usize) {
         let byte = packed[byte_idx];
         let base = byte_idx * 8;
 
-        codes[base] = (byte & 1) as u8;
-        codes[base + 1] = ((byte >> 1) & 1) as u8;
-        codes[base + 2] = ((byte >> 2) & 1) as u8;
-        codes[base + 3] = ((byte >> 3) & 1) as u8;
-        codes[base + 4] = ((byte >> 4) & 1) as u8;
-        codes[base + 5] = ((byte >> 5) & 1) as u8;
-        codes[base + 6] = ((byte >> 6) & 1) as u8;
-        codes[base + 7] = ((byte >> 7) & 1) as u8;
+        codes[base] = byte & 1;
+        codes[base + 1] = (byte >> 1) & 1;
+        codes[base + 2] = (byte >> 2) & 1;
+        codes[base + 3] = (byte >> 3) & 1;
+        codes[base + 4] = (byte >> 4) & 1;
+        codes[base + 5] = (byte >> 5) & 1;
+        codes[base + 6] = (byte >> 6) & 1;
+        codes[base + 7] = (byte >> 7) & 1;
     }
 
     let remaining = dim % 8;
@@ -93,7 +93,7 @@ pub fn unpack_binary_fast(packed: &[u8], codes: &mut [u8], dim: usize) {
         let byte = packed[full_bytes];
         let base = full_bytes * 8;
         for i in 0..remaining {
-            codes[base + i] = ((byte >> i) & 1) as u8;
+            codes[base + i] = (byte >> i) & 1;
         }
     }
 }

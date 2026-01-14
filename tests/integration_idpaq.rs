@@ -1,11 +1,11 @@
-//! Integration tests verifying idpaq usage in plesio.
+//! Integration tests verifying idpaq usage in jin.
 //!
 //! These tests enforce that the id-compression feature correctly delegates
 //! to the idpaq crate for ID set compression in ANN indexes.
 
 #![cfg(feature = "id-compression")]
 
-use plesio::compression::{CompressionError, IdSetCompressor, RocCompressor};
+use jin::compression::{CompressionError, IdSetCompressor, RocCompressor};
 
 // =============================================================================
 // Basic Integration Tests

@@ -32,13 +32,13 @@
     "n_test": 500,
     "dim": 768,
     "relative_contrast": {
-      "mean": 1.1449618339538574,
-      "std": 0.0282374806702137
+      "mean": 1.1303811073303223,
+      "std": 0.02203645557165146
     },
-    "hubness_skewness": 5.026638978079541,
-    "hub_fraction": 0.0385,
-    "distance_concentration": 0.22629305720329285,
-    "intrinsic_dim": 14.49998664855957,
-    "difficulty_score": 3.77080970672547
+    "hubness_skewness": 4.342844447135722,
+    "hub_fraction": 0.0359,
+    "distance_concentration": 0.20085862278938293,
+    "intrinsic_dim": 15.75301456451416,
+    "difficulty_score": 3.5089427633284505
   }
 }

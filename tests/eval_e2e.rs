@@ -15,11 +15,11 @@
 
 use std::time::Instant;
 
-use plesio::benchmark::{
+use jin::benchmark::{
     generate_normalized_clustered_dataset, generate_uniform_dataset, DistanceMetric, EvalDataset,
     EvalResults,
 };
-use plesio::hnsw::{HNSWIndex, HNSWParams};
+use jin::hnsw::{HNSWIndex, HNSWParams};
 
 /// Run evaluation on a dataset with given HNSW parameters.
 fn evaluate_hnsw(dataset: &EvalDataset, params: &HNSWParams, config_name: &str) -> EvalResults {
@@ -167,7 +167,7 @@ fn test_eval_small_high_connectivity() {
 #[test]
 fn test_eval_normalized_uniform() {
     // Uniform random data, normalized for cosine
-    use plesio::benchmark::normalize;
+    use jin::benchmark::normalize;
 
     let mut dataset = generate_uniform_dataset(
         "uniform-normalized",
@@ -184,7 +184,7 @@ fn test_eval_normalized_uniform() {
     dataset.queries = dataset.queries.into_iter().map(|v| normalize(&v)).collect();
 
     // Recompute ground truth with cosine
-    dataset.ground_truth = plesio::benchmark::evaluation::compute_ground_truth(
+    dataset.ground_truth = jin::benchmark::evaluation::compute_ground_truth(
         &dataset.base,
         &dataset.queries,
         10,
@@ -328,7 +328,7 @@ fn test_m_parameter_tradeoff() {
 #[test]
 fn test_evaluation_metrics() {
     // Test that our evaluation metrics are computed correctly
-    use plesio::benchmark::{eval_recall_at_k, mrr};
+    use jin::benchmark::{eval_recall_at_k, mrr};
 
     // Perfect match
     let approx = vec![0, 1, 2, 3, 4];

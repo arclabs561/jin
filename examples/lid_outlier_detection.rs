@@ -8,7 +8,7 @@
 //! cargo run --example lid_outlier_detection --release
 //! ```
 
-use plesio::lid::{
+use jin::lid::{
     aggregate_lid, estimate_lid, estimate_twonn_with_ci, LidAggregation, LidCategory, LidConfig,
     LidStats,
 };

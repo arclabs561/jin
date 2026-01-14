@@ -5,6 +5,8 @@ use crate::RetrieveError;
 #[cfg(feature = "hnsw")]
 use smallvec::SmallVec;
 
+use std::collections::HashMap;
+
 /// HNSW index for approximate nearest neighbor search.
 ///
 /// Implements the Hierarchical Navigable Small World algorithm (Malkov & Yashunin, 2016)
@@ -25,6 +27,16 @@ pub struct HNSWIndex {
     /// Vectors stored in Structure of Arrays (SoA) format for cache efficiency
     /// Layout: [v0[0..d], v1[0..d], ..., vn[0..d]]
     pub(crate) vectors: Vec<f32>,
+
+    /// External document IDs aligned with internal vector indices.
+    ///
+    /// Invariants:
+    /// - `doc_ids.len() == num_vectors`
+    /// - internal index `i` corresponds to external `doc_id = doc_ids[i]`
+    pub(crate) doc_ids: Vec<u32>,
+
+    /// Reverse map: external `doc_id -> internal vector index`.
+    pub(crate) doc_id_to_internal: HashMap<u32, u32>,
 
     /// Vector dimension
     pub(crate) dimension: usize,
@@ -56,7 +68,7 @@ pub struct HNSWIndex {
 
 /// Seed selection strategy for HNSW search initialization.
 ///
-/// Based on 2025 research: SN (Stacked NSW) works best for billion-scale,
+/// Based on 2025-2026 research: SN (Stacked NSW) works best for billion-scale,
 /// KS (K-Sampled Random) works best for medium-scale (1M-25GB).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum SeedSelectionStrategy {
@@ -75,7 +87,7 @@ pub enum SeedSelectionStrategy {
 
 /// Neighborhood diversification strategy for graph construction.
 ///
-/// Based on 2025 research: RND (Relative Neighborhood Diversification) achieves
+/// Based on 2025-2026 research: RND (Relative Neighborhood Diversification) achieves
 /// best performance with highest pruning ratios (20-25%). MOND is second-best.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum NeighborhoodDiversification {
@@ -377,6 +389,8 @@ impl HNSWIndex {
 
         Ok(Self {
             vectors: Vec::new(),
+            doc_ids: Vec::new(),
+            doc_id_to_internal: HashMap::new(),
             dimension,
             num_vectors: 0,
             layers: Vec::new(),
@@ -406,6 +420,8 @@ impl HNSWIndex {
 
         Ok(Self {
             vectors: Vec::new(),
+            doc_ids: Vec::new(),
+            doc_id_to_internal: HashMap::new(),
             dimension,
             num_vectors: 0,
             layers: Vec::new(),
@@ -443,6 +459,8 @@ impl HNSWIndex {
 
         Ok(Self {
             vectors: Vec::new(),
+            doc_ids: Vec::new(),
+            doc_id_to_internal: HashMap::new(),
             dimension,
             num_vectors: 0,
             layers: Vec::new(),
@@ -476,9 +494,20 @@ impl HNSWIndex {
         layer_assignments: Vec<u8>,
         params: HNSWParams,
         built: bool,
+        doc_ids: Vec<u32>,
     ) -> Self {
+        // Best-effort reconstruction of the reverse map.
+        // If `doc_ids` contains duplicates, later entries will overwrite earlier ones.
+        // This should be treated as corrupted persistence input.
+        let mut doc_id_to_internal = HashMap::with_capacity(doc_ids.len());
+        for (i, doc_id) in doc_ids.iter().copied().enumerate() {
+            doc_id_to_internal.insert(doc_id, i as u32);
+        }
+
         Self {
             vectors,
+            doc_ids,
+            doc_id_to_internal,
             dimension,
             num_vectors,
             layers,
@@ -511,11 +540,31 @@ impl HNSWIndex {
     ///
     /// Vectors should be L2-normalized for cosine similarity.
     /// Index must be built before searching.
-    pub fn add(&mut self, _doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+    pub fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add_slice(doc_id, &vector)
+    }
+
+    /// Add a vector to the index from a borrowed slice.
+    ///
+    /// This is the most ergonomic entry-point for callers that already have `&[f32]`
+    /// (e.g., from `ndarray`, `nalgebra`, or other tensor libraries).
+    ///
+    /// Notes:
+    /// - The index stores vectors internally, so it must copy the slice into its own storage.
+    /// - Vectors should be L2-normalized for cosine similarity.
+    /// - The index must be built before searching.
+    pub fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
             return Err(RetrieveError::Other(
                 "Cannot add vectors after index is built".to_string(),
             ));
+        }
+
+        if self.doc_id_to_internal.contains_key(&doc_id) {
+            return Err(RetrieveError::Other(format!(
+                "Duplicate doc_id {} (doc_id must be unique within an index)",
+                doc_id
+            )));
         }
 
         if vector.len() != self.dimension {
@@ -525,8 +574,14 @@ impl HNSWIndex {
             });
         }
 
+        // Assign internal ID (stable: insertion order)
+        let internal_id = self.num_vectors as u32;
+
+        self.doc_ids.push(doc_id);
+        self.doc_id_to_internal.insert(doc_id, internal_id);
+
         // Store vector in SoA format
-        self.vectors.extend_from_slice(&vector);
+        self.vectors.extend_from_slice(vector);
         self.num_vectors += 1;
 
         // Assign layer (exponential distribution)
@@ -536,7 +591,7 @@ impl HNSWIndex {
         // Store category assignment if filtering is enabled
         if let (Some(ref metadata_store), Some(ref field)) = (&self.metadata, &self.filter_field) {
             let category = metadata_store
-                .get(_doc_id)
+                .get(doc_id)
                 .and_then(|m| m.get(field).copied());
             self.category_assignments.push(category);
         } else {
@@ -873,10 +928,11 @@ impl HNSWIndex {
                     )
                 };
 
-            // Return top k (pre-allocate with capacity k)
-            let mut results: Vec<(u32, f32)> = Vec::with_capacity(k);
-            results.extend(base_results.into_iter().take(k));
-            results.sort_by(|a, b| a.1.total_cmp(&b.1));
+            // `base_results` is not guaranteed to be sorted (it may be in exploration order).
+            // Sort by distance first, then take top-k.
+            let mut base_results = base_results;
+            base_results.sort_by(|a, b| a.1.total_cmp(&b.1));
+            let results: Vec<(u32, f32)> = base_results.into_iter().take(k).collect();
 
             // Clear decompression caches after search
             #[cfg(feature = "id-compression")]
@@ -886,6 +942,14 @@ impl HNSWIndex {
                 }
             }
 
+            // Convert internal IDs -> external doc_ids.
+            let results = results
+                .into_iter()
+                .filter_map(|(internal_id, dist)| {
+                    let doc_id = self.doc_ids.get(internal_id as usize).copied()?;
+                    Some((doc_id, dist))
+                })
+                .collect();
             Ok(results)
         } else {
             Ok(Vec::new())
@@ -1047,7 +1111,8 @@ impl HNSWIndex {
                 if self.category_assignments.get(id as usize).and_then(|&c| c) == desired_category {
                     let vec = self.get_vector(id as usize);
                     let dist = crate::hnsw::distance::cosine_distance(query, vec);
-                    Some((id, dist))
+                    let doc_id = self.doc_ids.get(id as usize).copied()?;
+                    Some((doc_id, dist))
                 } else {
                     None
                 }

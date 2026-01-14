@@ -6,13 +6,13 @@
 //!
 //! Requires the `nsw` feature:
 //! ```toml
-//! plesio = { version = "0.1", features = ["nsw"] }
+//! jin = { version = "0.1", features = ["nsw"] }
 //! ```
 //!
 //! # Quick Start
 //!
 //! ```ignore
-//! use plesio::nsw::{NSWIndex, NSWParams};
+//! use jin::nsw::{NSWIndex, NSWParams};
 //!
 //! let params = NSWParams { m: 16, ef_construction: 200 };
 //! let mut index = NSWIndex::new(768, params);
@@ -26,7 +26,7 @@
 //! # Why Flat?
 //!
 //! HNSW's hierarchy (multiple layers) was designed to provide "express lanes"
-//! for long-range navigation. But research (2024-2025) shows:
+//! for long-range navigation. But research (2025-2026) shows:
 //!
 //! - **In high dimensions (d > 32)**, natural "hubs" emerge in the data
 //! - These hubs serve the same routing function as explicit hierarchy

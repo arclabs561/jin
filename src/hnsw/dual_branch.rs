@@ -204,7 +204,10 @@ impl DualBranchHNSW {
             return Ok(());
         }
 
-        let entry = self.entry_point.unwrap();
+        // Safe: we checked is_none() above
+        let entry = self
+            .entry_point
+            .expect("entry_point should be set after is_none check");
 
         // Find nearest neighbors using greedy search
         let candidates = self.search_layer(&query, entry, self.config.ef_construction);

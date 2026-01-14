@@ -5,7 +5,7 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! plesio = { version = "0.1", features = ["diskann"] }
+//! jin = { version = "0.1", features = ["diskann"] }
 //! ```
 //!
 //! # Status: Experimental
@@ -16,7 +16,7 @@
 //! # Quick Start
 //!
 //! ```ignore
-//! use plesio::diskann::{DiskANNIndex, DiskANNParams};
+//! use jin::diskann::{DiskANNIndex, DiskANNParams};
 //!
 //! let params = DiskANNParams {
 //!     m: 32,

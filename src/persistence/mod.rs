@@ -1,4 +1,4 @@
-//! Disk persistence for ordino-retrieve indexes.
+//! Disk persistence for `jin` indexes.
 //!
 //! This module provides crash-safe, concurrent persistence for all retrieval methods:
 //! - Sparse retrieval (BM25, TF-IDF): Inverted indexes with compressed postings

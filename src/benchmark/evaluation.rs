@@ -24,30 +24,10 @@
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-/// Distance metric for evaluation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DistanceMetric {
-    /// Euclidean (L2) distance
-    L2,
-    /// Cosine distance (1 - cosine_similarity)
-    Cosine,
-    /// Angular distance (arccos(cosine_similarity) / pi)
-    Angular,
-    /// Inner product (negative for max similarity)
-    InnerProduct,
-}
-
-impl DistanceMetric {
-    /// Compute distance between two vectors.
-    pub fn distance(&self, a: &[f32], b: &[f32]) -> f32 {
-        match self {
-            DistanceMetric::L2 => l2_distance(a, b),
-            DistanceMetric::Cosine => cosine_distance(a, b),
-            DistanceMetric::Angular => angular_distance(a, b),
-            DistanceMetric::InnerProduct => inner_product_distance(a, b),
-        }
-    }
-}
+pub use crate::distance::{
+    angular_distance, cosine_distance, inner_product_distance, l2_distance, normalize,
+    DistanceMetric,
+};
 
 /// A dataset with ground truth for evaluation.
 #[derive(Debug, Clone)]
@@ -278,66 +258,6 @@ where
         index_memory_bytes: index_memory,
         k: dataset.k,
     }
-}
-
-// ============ Distance Functions ============
-
-/// L2 (Euclidean) distance.
-#[inline]
-pub fn l2_distance(a: &[f32], b: &[f32]) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum::<f32>()
-        .sqrt()
-}
-
-/// L2 squared distance (faster, preserves ordering).
-#[inline]
-pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
-    a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum()
-}
-
-/// Cosine distance (1 - cosine_similarity).
-#[inline]
-pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
-    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-
-    if norm_a < 1e-10 || norm_b < 1e-10 {
-        return 1.0; // Maximum distance for zero vectors
-    }
-    1.0 - (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
-}
-
-/// Angular distance (arccos normalized, in [0, 1]).
-#[inline]
-pub fn angular_distance(a: &[f32], b: &[f32]) -> f32 {
-    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-
-    if norm_a < 1e-10 || norm_b < 1e-10 {
-        return 1.0;
-    }
-    let cos_sim = (dot / (norm_a * norm_b)).clamp(-1.0, 1.0);
-    cos_sim.acos() / std::f32::consts::PI
-}
-
-/// Inner product distance (negative for max similarity search).
-#[inline]
-pub fn inner_product_distance(a: &[f32], b: &[f32]) -> f32 {
-    -a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>()
-}
-
-/// Normalize a vector to unit length.
-pub fn normalize(v: &[f32]) -> Vec<f32> {
-    let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if norm < 1e-10 {
-        return vec![0.0; v.len()];
-    }
-    v.iter().map(|x| x / norm).collect()
 }
 
 /// Compute ground truth for a dataset.

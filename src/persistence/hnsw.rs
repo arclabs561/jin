@@ -40,6 +40,7 @@ impl HNSWSegmentWriter {
     ///
     /// Format:
     /// - `vectors.bin`: Vector data (SoA layout, same as dense segment)
+    /// - `doc_ids.bin`: External doc_ids aligned with internal indices
     /// - `layers.bin`: Graph layers (serialized neighbor lists)
     /// - `layer_assignments.bin`: Layer assignment for each vector
     /// - `params.bin`: HNSW parameters
@@ -48,13 +49,31 @@ impl HNSWSegmentWriter {
         let segment_dir = format!("segments/segment_hnsw_{}", self.segment_id);
         self.directory.create_dir_all(&segment_dir)?;
 
-        // Write vectors (reuse dense segment format)
+        // Write vectors in SoA layout (same as dense segment).
+        //
+        // NOTE: `HNSWIndex` stores vectors in-memory in AoS order (each vector contiguous),
+        // but on disk we store SoA for cache/SIMD-friendly access and consistency with
+        // `DenseSegmentWriter`.
         let vectors_path = format!("{}/vectors.bin", segment_dir);
         let mut vectors_file = self.directory.create_file(&vectors_path)?;
-        for &value in &index.vectors {
-            vectors_file.write_all(&value.to_le_bytes())?;
+        for d in 0..index.dimension {
+            for v_idx in 0..index.num_vectors {
+                let aos_idx = v_idx * index.dimension + d;
+                vectors_file.write_all(&index.vectors[aos_idx].to_le_bytes())?;
+            }
         }
         vectors_file.flush()?;
+
+        // Write doc_ids (external IDs aligned with internal insertion order).
+        //
+        // This is the critical "KeyedVectors separation" bit: it ensures searches
+        // on a loaded index return the same external IDs that were originally added.
+        let doc_ids_path = format!("{}/doc_ids.bin", segment_dir);
+        let mut doc_ids_file = self.directory.create_file(&doc_ids_path)?;
+        for &doc_id in &index.doc_ids {
+            doc_ids_file.write_all(&doc_id.to_le_bytes())?;
+        }
+        doc_ids_file.flush()?;
 
         // Write layer assignments
         let assignments_path = format!("{}/layer_assignments.bin", segment_dir);
@@ -202,12 +221,33 @@ impl HNSWSegmentReader {
         // Load vectors
         let vectors_path = format!("{}/vectors.bin", segment_dir);
         let mut vectors_file = self.directory.open_file(&vectors_path)?;
-        let mut vectors = Vec::new();
+        // On disk: SoA layout. In memory for HNSWIndex: AoS layout.
+        let mut vectors = vec![0f32; self.num_vectors * self.dimension];
         let mut value_bytes = [0u8; 4];
-        for _ in 0..(self.num_vectors * self.dimension) {
-            vectors_file.read_exact(&mut value_bytes)?;
-            vectors.push(f32::from_le_bytes(value_bytes));
+        for d in 0..self.dimension {
+            for v_idx in 0..self.num_vectors {
+                vectors_file.read_exact(&mut value_bytes)?;
+                let value = f32::from_le_bytes(value_bytes);
+                let aos_idx = v_idx * self.dimension + d;
+                vectors[aos_idx] = value;
+            }
         }
+
+        // Load doc_ids (if present). Backward-compatible fallback to identity mapping.
+        let doc_ids_path = format!("{}/doc_ids.bin", segment_dir);
+        let doc_ids: Vec<u32> = if self.directory.exists(&doc_ids_path) {
+            let mut doc_ids_file = self.directory.open_file(&doc_ids_path)?;
+            let mut doc_ids = Vec::with_capacity(self.num_vectors);
+            let mut id_bytes = [0u8; 4];
+            for _ in 0..self.num_vectors {
+                doc_ids_file.read_exact(&mut id_bytes)?;
+                doc_ids.push(u32::from_le_bytes(id_bytes));
+            }
+            doc_ids
+        } else {
+            // Legacy segments (created before doc_id persistence existed)
+            (0..self.num_vectors as u32).collect()
+        };
 
         // Load layer assignments
         let assignments_path = format!("{}/layer_assignments.bin", segment_dir);
@@ -257,6 +297,7 @@ impl HNSWSegmentReader {
             layer_assignments,
             self.params.clone(),
             self.built,
+            doc_ids,
         ))
     }
 }
@@ -269,10 +310,29 @@ mod tests {
 
     #[test]
     fn test_hnsw_segment_write_read() {
-        // This test would require creating an HNSWIndex
-        // For now, just test that the structure compiles
-        let dir = Box::new(MemoryDirectory::new());
-        let _writer = HNSWSegmentWriter::new(dir, 1);
-        // TODO: Add full test with actual HNSWIndex
+        let dim = 4;
+        let mut index = HNSWIndex::new(dim, 8, 8).unwrap();
+
+        // Two simple normalized vectors.
+        let v0 = vec![1.0, 0.0, 0.0, 0.0];
+        let v1 = vec![0.0, 1.0, 0.0, 0.0];
+
+        index.add(42, v0.clone()).unwrap();
+        index.add(7, v1.clone()).unwrap();
+        index.build().unwrap();
+
+        let mem = MemoryDirectory::new();
+
+        let mut writer = HNSWSegmentWriter::new(Box::new(mem.clone()), 1);
+        writer.write_hnsw_index(&index).unwrap();
+
+        let reader = HNSWSegmentReader::load(Box::new(mem.clone()), 1).unwrap();
+        let loaded = reader.load_index().unwrap();
+
+        let r0 = loaded.search(&v0, 1, 50).unwrap();
+        assert_eq!(r0[0].0, 42);
+
+        let r1 = loaded.search(&v1, 1, 50).unwrap();
+        assert_eq!(r1[0].0, 7);
     }
 }

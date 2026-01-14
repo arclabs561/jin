@@ -8,7 +8,7 @@ Pre-generated datasets for benchmarking without external downloads.
 |------|-------|------|------|------|------------|-------------------|
 | quick | 2,000 | 200 | 128 | ~1MB | Easy | 1.416 |
 | bench | 10,000 | 500 | 384 | ~16MB | Medium | 2.833 |
-| hard | 10,000 | 500 | 768 | ~31MB | Hard | 1.145 |
+| hard | 10,000 | 500 | 768 | ~31MB | Hard | 1.130 |
 
 ## What Makes "hard" Hard (and realistic)?
 
@@ -20,7 +20,7 @@ This dataset aims to resemble *real embedding corpora* rather than being purely 
 
 2. **Near-duplicates**
    - We inject near-duplicate vectors to mimic repeated/templated content.
-   - Controlled by `PLESIO_HARD_DUP_FRAC` (default: 0.10).
+   - Controlled by `JIN_HARD_DUP_FRAC` (default: 0.10).
 
 3. **Hard-tail queries**
    - Most queries are in-distribution.
@@ -36,24 +36,24 @@ numbers as stale unless they come from a fresh run.
 
 ```sh
 cargo run --example 03_quick_benchmark --release
-PLESIO_DATASET=hard cargo run --example 03_quick_benchmark --release
+JIN_DATASET=hard cargo run --example 03_quick_benchmark --release
 
 # Scenarios
-PLESIO_DATASET=hard PLESIO_TEST_VARIANT=drift cargo run --example 03_quick_benchmark --release
-PLESIO_DATASET=hard PLESIO_TEST_VARIANT=filter cargo run --example 03_quick_benchmark --release
+JIN_DATASET=hard JIN_TEST_VARIANT=drift cargo run --example 03_quick_benchmark --release
+JIN_DATASET=hard JIN_TEST_VARIANT=filter cargo run --example 03_quick_benchmark --release
 ```
 
 ## Usage
 
 ```sh
 # Easy (CI)
-PLESIO_DATASET=quick cargo run --example 03_quick_benchmark --release
+JIN_DATASET=quick cargo run --example 03_quick_benchmark --release
 
 # Medium (default)
 cargo run --example 03_quick_benchmark --release
 
 # Hard (stress test)
-PLESIO_DATASET=hard cargo run --example 03_quick_benchmark --release
+JIN_DATASET=hard cargo run --example 03_quick_benchmark --release
 ```
 
 ## File Format

@@ -5,18 +5,21 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use plesio::hnsw::HNSWIndex;
+//! use jin::hnsw::HNSWIndex;
 //!
-//! fn main() -> Result<(), plesio::RetrieveError> {
+//! fn main() -> Result<(), jin::RetrieveError> {
 //!     // dimension=128, M=16, ef_construction=200
 //!     let mut index = HNSWIndex::new(128, 16, 200)?;
 //!
-//!     index.add(0, vec![0.1; 128])?;
-//!     index.add(1, vec![0.2; 128])?;
+//!     let v0 = vec![0.1; 128];
+//!     let v1 = vec![0.2; 128];
+//!     index.add_slice(0, &v0)?;
+//!     index.add_slice(1, &v1)?;
 //!     index.build()?;
 //!
 //!     // k=10, ef_search=50
-//!     let results = index.search(&vec![0.15; 128], 10, 50)?;
+//!     let q = vec![0.15; 128];
+//!     let results = index.search(&q, 10, 50)?;
 //!     Ok(())
 //! }
 //! ```
@@ -63,7 +66,7 @@
 //!
 //! # Hierarchy in High Dimensions
 //!
-//! Research (2024-2025) shows hierarchy provides **minimal benefit for d > 32**.
+//! Research (2025-2026) shows hierarchy provides **minimal benefit for d > 32**.
 //! In high dimensions, "hubs" emerge naturally and serve the same routing function.
 //!
 //! **Practical advice**: HNSW is still the safe default. The hierarchy overhead
@@ -73,15 +76,38 @@
 //! # Advanced Features
 //!
 //! - [`filtered`]: ACORN-style attribute filtering
-//! - [`dual_branch`]: LID-based insertion with skip bridges (2025)
+//! - [`dual_branch`]: LID-based insertion with skip bridges (2025-2026)
 //! - [`fused`]: Attribute-vector fusion for filtered search
 //! - [`merge`]: Index merging algorithms (NGM, IGTM, CGTM)
+//! - [`tombstones`]: Soft deletion for streaming workloads (FreshDiskANN-style)
+//!
+//! # Historical Lineage
+//!
+//! HNSW builds on a rich history of small-world network theory:
+//!
+//! | Year | Work | Contribution |
+//! |------|------|--------------|
+//! | 1967 | Milgram | "Six degrees of separation" experiment |
+//! | 2000 | Kleinberg | Proved O(log²n) greedy routing possible on augmented grids |
+//! | 2011 | Malkov et al. | NSW: flat navigable small-world graph for ANN |
+//! | 2014 | Malkov et al. | Improved NSW with better neighbor selection |
+//! | 2016 | Malkov & Yashunin | HNSW: hierarchical NSW with skip-list-like layers |
+//!
+//! **Kleinberg's insight** (2000): Random long-range edges enable efficient routing
+//! if their probability decays as `P(distance) ∝ d^(-r)` with `r = dim` (dimension).
+//! This explains why HNSW works: the hierarchical structure implicitly creates
+//! this distance-dependent edge distribution.
 //!
 //! # References
 //!
+//! - Milgram (1967). "The Small World Problem." Psychology Today.
+//! - Kleinberg (2000). "The Small-World Phenomenon: An Algorithmic Perspective."
+//! - Malkov et al. (2014). "Approximate nearest neighbor algorithm based on
+//!   navigable small world graphs." Information Systems.
 //! - Malkov & Yashunin (2016). "Efficient and robust approximate nearest neighbor
-//!   search using Hierarchical Navigable Small World graphs."
+//!   search using Hierarchical Navigable Small World graphs." IEEE TPAMI.
 //! - [NSW hierarchy analysis](https://arxiv.org/abs/2412.01940) (2024)
+//! - [Hub Highway Hypothesis](https://arxiv.org/abs/2502.00450) (2025)
 
 #![allow(dead_code)] // Compression fields are placeholders
 
@@ -183,3 +209,34 @@ pub use merge::{
 pub mod dual_branch;
 #[cfg(feature = "hnsw")]
 pub use dual_branch::{DualBranchConfig, DualBranchHNSW, DualBranchStats, SkipBridge};
+
+// Tombstone-based deletions for streaming updates (FreshDiskANN/IP-DiskANN inspired)
+#[cfg(feature = "hnsw")]
+pub mod tombstones;
+#[cfg(feature = "hnsw")]
+pub use tombstones::{TombstoneSet, TombstoneStats};
+
+// =============================================================================
+// Note on Streaming Updates
+// =============================================================================
+//
+// For streaming workloads, combine HNSWIndex with TombstoneSet:
+//
+// ```rust,ignore
+// let mut index = HNSWIndex::new(dim, m, ef)?;
+// let mut tombstones = TombstoneSet::new(0.1); // 10% compaction threshold
+//
+// // Soft delete
+// tombstones.delete(internal_id);
+//
+// // Filter search results
+// let results = index.search(&query, k, ef)?;
+// let filtered: Vec<_> = tombstones
+//     .filter_results(results.into_iter().map(|(id, d)| (id as usize, d)))
+//     .collect();
+//
+// // Periodic compaction when threshold reached
+// if tombstones.should_compact(index.len()) {
+//     // Rebuild index without tombstoned nodes
+// }
+// ```

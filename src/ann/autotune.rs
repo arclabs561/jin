@@ -7,7 +7,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use plesio::ann::autotune::{ParameterTuner, Criterion};
+//! use jin::ann::autotune::{ParameterTuner, Criterion};
 //!
 //! // Create tuner with recall target
 //! let tuner = ParameterTuner::new()

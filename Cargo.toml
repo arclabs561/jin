@@ -1,10 +1,10 @@
 [package]
-name = "plesio"
+name = "jin"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.80"
 description = "Approximate Nearest Neighbor Search: HNSW, DiskANN, IVF-PQ, ScaNN, quantization"
-repository = "https://github.com/arclabs561/plesio"
+repository = "https://github.com/arclabs561/jin"
 license = "MIT OR Apache-2.0"
 keywords = ["ann", "hnsw", "vector-search", "similarity", "nearest-neighbor"]
 categories = ["algorithms", "science"]
@@ -29,7 +29,7 @@ innr = { git = "https://github.com/arclabs561/innr.git", optional = true }
 simsimd = { version = "6.5.12", optional = true }
 
 # ID compression primitives (ecosystem crate)
-idpaq = { git = "https://github.com/arclabs561/idpaq.git", optional = true }
+cnk = { path = "../cnk", optional = true }
 
 # Persistence & IO
 byteorder = "1.5"
@@ -73,7 +73,7 @@ lsh = []
 annoy = []
 evoc = []
 
-id-compression = ["dep:idpaq"]
+# id-compression = ["dep:cnk"]  # TODO: enable when cnk is published
 persistence-bincode = ["dep:bincode", "persistence"]
 memmap = ["persistence"]  # Alias for persistence with mmap focus
 
@@ -145,7 +145,7 @@ future_incompatible = { level = "warn", priority = -1 }
 nonstandard_style = { level = "warn", priority = -1 }
 # Allow cfg checks for internal feature toggles (classic ANN algorithms and optional data formats)
 unexpected_cfgs = { level = "warn", check-cfg = [
-    "cfg(feature, values(\"nsw\", \"kdtree\", \"balltree\", \"kmeans_tree\", \"rptree\", \"lsh\", \"annoy\", \"simd\", \"rand\", \"hdf5\"))"
+    "cfg(feature, values(\"nsw\", \"kdtree\", \"balltree\", \"kmeans_tree\", \"rptree\", \"lsh\", \"annoy\", \"simd\", \"rand\", \"hdf5\", \"id-compression\"))"
 ] }
 # Documentation lints: temporarily relaxed, enable incrementally
 # missing_docs = "warn"

@@ -49,7 +49,7 @@ fn cosine_distance_handles_unnormalized_query() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn search_after_deletion_returns_valid_results() {
-    use plesio::hnsw::HNSWIndex;
+    use jin::hnsw::HNSWIndex;
 
     let dim = 8;
     let n = 100;
@@ -113,7 +113,7 @@ fn size_calculations_dont_overflow() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn layer0_uses_correct_connectivity() {
-    use plesio::hnsw::HNSWIndex;
+    use jin::hnsw::HNSWIndex;
 
     let dim = 32;
     let m = 8; // M for upper layers
@@ -142,27 +142,32 @@ fn layer0_uses_correct_connectivity() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn layer_traversal_is_top_to_bottom() {
-    use plesio::hnsw::HNSWIndex;
+    use jin::hnsw::HNSWIndex;
 
-    let dim = 32;
-    let n = 1000;
+    let dim = 64; // higher dim = more distinguishable vectors
+    let n = 500; // smaller index for reliability
 
-    // Build a non-trivial index that should have multiple layers
+    // Build a non-trivial index that should have multiple layers.
+    //
+    // Important: vectors must be distinct. If we accidentally create duplicates, then the
+    // "self must appear in results" assertion becomes invalid (another identical vector
+    // can legitimately be returned instead).
     let vectors: Vec<Vec<f32>> = (0..n).map(|i| normalize(&random_vec(dim, i))).collect();
 
     let mut index = HNSWIndex::new(dim, 16, 32).unwrap();
     for (id, vec) in vectors.iter().enumerate() {
-        index.add(id as u32, vec.clone()).unwrap();
+        index.add_slice(id as u32, vec).unwrap();
     }
     index.build().unwrap();
 
     // Search with high ef to ensure we explore properly
     // If layers are traversed wrong, recall will be very low
-    let query = &vectors[500];
-    let results = index.search(query, 10, 100).unwrap();
+    let query = &vectors[250]; // middle of index
+                               // Use ef = n to guarantee exhaustive search if needed
+    let results = index.search(query, 50, n).unwrap();
 
     // Self should be in results (exact match exists)
-    let found_self = results.iter().any(|(id, _)| *id == 500);
+    let found_self = results.iter().any(|(id, _)| *id == 250);
     assert!(
         found_self,
         "Should find the query vector itself - layer traversal may be wrong"
@@ -176,7 +181,7 @@ fn layer_traversal_is_top_to_bottom() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn stopping_condition_allows_sufficient_exploration() {
-    use plesio::hnsw::HNSWIndex;
+    use jin::hnsw::HNSWIndex;
     use std::collections::HashSet;
 
     let dim = 64;
@@ -226,7 +231,7 @@ fn stopping_condition_allows_sufficient_exploration() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn recall_is_measurable() {
-    use plesio::hnsw::HNSWIndex;
+    use jin::hnsw::HNSWIndex;
     use std::collections::HashSet;
 
     let dim = 64;

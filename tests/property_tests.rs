@@ -1,4 +1,4 @@
-//! Property-based tests for plesio ANN components.
+//! Property-based tests for jin ANN components.
 //!
 //! These tests verify invariants that should hold regardless of input:
 //! - Distance metrics satisfy metric space properties
@@ -419,7 +419,7 @@ mod ground_truth_props {
 
 mod lid_props {
     use super::*;
-    use plesio::lid::{estimate_lid_mle, LidConfig, LidEstimate, LidStats};
+    use jin::lid::{estimate_lid_mle, LidConfig, LidEstimate, LidStats};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
@@ -531,7 +531,7 @@ mod lid_props {
         fn lid_categorization_consistent(
             lids in prop::collection::vec(1.0f32..100.0, 20..50),
         ) {
-            use plesio::lid::LidCategory;
+            use jin::lid::LidCategory;
 
             let estimates: Vec<LidEstimate> = lids.iter()
                 .map(|&lid| LidEstimate { lid, k: 20, max_dist: 1.0 })
@@ -583,7 +583,7 @@ mod lid_props {
 
 mod twonn_props {
     use super::*;
-    use plesio::lid::{estimate_twonn, estimate_twonn_with_ci};
+    use jin::lid::{estimate_twonn, estimate_twonn_with_ci};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(200))]
@@ -780,7 +780,7 @@ mod twonn_props {
 
 mod lid_aggregation_props {
     use super::*;
-    use plesio::lid::{aggregate_lid, LidAggregation, LidEstimate};
+    use jin::lid::{aggregate_lid, LidAggregation, LidEstimate};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
@@ -1015,7 +1015,7 @@ mod metric_space_props {
 
 mod hnsw_props {
     use super::*;
-    use plesio::hnsw::HNSWIndex;
+    use jin::hnsw::HNSWIndex;
 
     fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
         use std::hash::{Hash, Hasher};
@@ -1147,6 +1147,297 @@ mod hnsw_props {
 
             prop_assert_eq!(&ids1, &ids2, "Results not deterministic (run 1 vs 2)");
             prop_assert_eq!(&ids2, &ids3, "Results not deterministic (run 2 vs 3)");
+        }
+    }
+}
+
+// =============================================================================
+// HNSW Persistence Properties
+// =============================================================================
+//
+// These tests verify the "KeyedVectors separation" principle from Gensim:
+// external document IDs must survive the persistence roundtrip unchanged.
+//
+// ## Invariants
+//
+// 1. **doc_id preservation**: `load(write(index)).search()` returns the same
+//    external IDs as `index.search()`
+//
+// 2. **Vector data integrity**: vectors survive SoA→AoS→SoA roundtrip without
+//    numerical corruption beyond floating-point epsilon
+//
+// 3. **Search domain closure**: search results contain only IDs that were
+//    originally added (no internal indices leaking through)
+//
+
+#[cfg(all(feature = "persistence", feature = "hnsw"))]
+mod persistence_props {
+    use super::*;
+    use jin::hnsw::HNSWIndex;
+    use jin::persistence::directory::MemoryDirectory;
+    use jin::persistence::hnsw::{HNSWSegmentReader, HNSWSegmentWriter};
+    use std::collections::HashSet;
+
+    fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
+        use std::hash::{Hash, Hasher};
+
+        (0..n)
+            .map(|i| {
+                (0..dim)
+                    .map(|j| {
+                        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                        seed.hash(&mut hasher);
+                        i.hash(&mut hasher);
+                        j.hash(&mut hasher);
+                        let h = hasher.finish();
+                        (h as f64 / u64::MAX as f64 * 2.0 - 1.0) as f32
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// Generate unique doc_ids that are NOT sequential from 0.
+    /// This tests that we're truly using external IDs, not internal indices.
+    fn nonsequential_doc_ids(n: usize, seed: u64) -> Vec<u32> {
+        use std::hash::{Hash, Hasher};
+
+        let mut ids: HashSet<u32> = HashSet::new();
+        let mut i = 0u64;
+        while ids.len() < n {
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            seed.hash(&mut hasher);
+            i.hash(&mut hasher);
+            let h = hasher.finish();
+            // Generate IDs in range [1000, 100_000] to ensure they're not 0-based
+            let id = 1000 + (h % 99_000) as u32;
+            ids.insert(id);
+            i += 1;
+        }
+        ids.into_iter().collect()
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(20))]
+
+        /// **doc_id preservation**: External IDs survive write/load roundtrip.
+        ///
+        /// This is the core Gensim "KeyedVectors" property: the index should
+        /// return the user-provided IDs, not internal indices.
+        #[test]
+        fn prop_persistence_preserves_doc_ids(
+            n in 10usize..50,
+            seed in any::<u64>(),
+        ) {
+            let dim = 8;
+            let vectors = random_vectors(n, dim, seed);
+            let doc_ids = nonsequential_doc_ids(n, seed);
+
+            // Build original index with non-sequential doc_ids
+            let mut original = HNSWIndex::new(dim, 8, 8).expect("create");
+            for (i, v) in vectors.iter().enumerate() {
+                original.add(doc_ids[i], v.clone()).expect("add");
+            }
+            original.build().expect("build");
+
+            // Write to memory
+            let mem = MemoryDirectory::new();
+            let mut writer = HNSWSegmentWriter::new(Box::new(mem.clone()), 1);
+            writer.write_hnsw_index(&original).expect("write");
+
+            // Load back
+            let reader = HNSWSegmentReader::load(Box::new(mem.clone()), 1).expect("load");
+            let loaded = reader.load_index().expect("load_index");
+
+            // Search should return same external doc_ids
+            let query = &vectors[0];
+            let k = 5.min(n);
+            let ef = 50;
+
+            let original_results = original.search(query, k, ef).expect("search original");
+            let loaded_results = loaded.search(query, k, ef).expect("search loaded");
+
+            let original_ids: HashSet<u32> = original_results.iter().map(|(id, _)| *id).collect();
+            let loaded_ids: HashSet<u32> = loaded_results.iter().map(|(id, _)| *id).collect();
+
+            // Verify the IDs are actually from our doc_ids set, not internal indices
+            let doc_id_set: HashSet<u32> = doc_ids.iter().copied().collect();
+            for id in &loaded_ids {
+                prop_assert!(
+                    doc_id_set.contains(id),
+                    "Search returned ID {} which was never added (internal index leak?)",
+                    id
+                );
+            }
+
+            // Verify original and loaded return same IDs
+            prop_assert_eq!(
+                original_ids, loaded_ids,
+                "Loaded index returns different doc_ids than original"
+            );
+        }
+
+        /// **Vector data integrity**: Vectors survive SoA→AoS→SoA roundtrip.
+        ///
+        /// The persistence layer stores vectors in Structure-of-Arrays (SoA) format
+        /// on disk but HNSWIndex uses Array-of-Structures (AoS) in memory.
+        /// This tests that the transpose operations are correct.
+        ///
+        /// Note: HNSW is an approximate algorithm. With small graphs, it may not
+        /// always find exact matches even when searching with the same vector.
+        /// We verify:
+        /// 1. Original and loaded return the SAME results for the same query
+        /// 2. The returned IDs are valid
+        #[test]
+        fn prop_persistence_vector_roundtrip(
+            n in 10usize..40,
+            dim in 8usize..32,
+            seed in any::<u64>(),
+        ) {
+            let vectors = random_vectors(n, dim, seed);
+
+            let mut original = HNSWIndex::new(dim, 16, 16).expect("create");
+            for (i, v) in vectors.iter().enumerate() {
+                original.add(i as u32, v.clone()).expect("add");
+            }
+            original.build().expect("build");
+
+            // Write and load
+            let mem = MemoryDirectory::new();
+            let mut writer = HNSWSegmentWriter::new(Box::new(mem.clone()), 1);
+            writer.write_hnsw_index(&original).expect("write");
+
+            let reader = HNSWSegmentReader::load(Box::new(mem.clone()), 1).expect("load");
+            let loaded = reader.load_index().expect("load_index");
+
+            // Verify that original and loaded return IDENTICAL results
+            // for the same queries. This validates vector data integrity.
+            let k = 5.min(n);
+            let ef = n * 2; // High ef for accurate search
+
+            for (i, v) in vectors.iter().enumerate().take(5) {
+                let original_results = original.search(v, k, ef).expect("search original");
+                let loaded_results = loaded.search(v, k, ef).expect("search loaded");
+
+                // Same IDs in same order
+                let original_ids: Vec<u32> = original_results.iter().map(|(id, _)| *id).collect();
+                let loaded_ids: Vec<u32> = loaded_results.iter().map(|(id, _)| *id).collect();
+
+                prop_assert_eq!(
+                    original_ids, loaded_ids,
+                    "Query {} returns different results after persistence",
+                    i
+                );
+
+                // Same distances (within floating point epsilon)
+                for ((_, orig_dist), (_, loaded_dist)) in original_results.iter().zip(loaded_results.iter()) {
+                    let diff = (orig_dist - loaded_dist).abs();
+                    prop_assert!(
+                        diff < 1e-5,
+                        "Distance mismatch after persistence: {} vs {}",
+                        orig_dist, loaded_dist
+                    );
+                }
+            }
+        }
+
+        /// **Search domain closure**: Search only returns IDs that were added.
+        ///
+        /// This tests that no internal indices leak through the API and that
+        /// the doc_id mapping is bijective.
+        #[test]
+        fn prop_search_returns_only_known_doc_ids(
+            n in 20usize..60,
+            seed in any::<u64>(),
+        ) {
+            let dim = 16;
+            let vectors = random_vectors(n, dim, seed);
+            let doc_ids = nonsequential_doc_ids(n, seed);
+            let doc_id_set: HashSet<u32> = doc_ids.iter().copied().collect();
+
+            let mut index = HNSWIndex::new(dim, 16, 16).expect("create");
+            for (i, v) in vectors.iter().enumerate() {
+                index.add(doc_ids[i], v.clone()).expect("add");
+            }
+            index.build().expect("build");
+
+            // Multiple queries, verify all returned IDs are valid
+            for query_idx in [0, n/4, n/2, 3*n/4, n-1].iter().filter(|&&i| i < n) {
+                let query = &vectors[*query_idx];
+                let results = index.search(query, 10.min(n), 100).expect("search");
+
+                for (id, _dist) in &results {
+                    prop_assert!(
+                        doc_id_set.contains(id),
+                        "Search returned unknown ID {}: internal index leaked through API",
+                        id
+                    );
+                }
+            }
+        }
+
+        /// **Duplicate doc_id rejection**: Adding the same doc_id twice should fail.
+        ///
+        /// This ensures the bijective mapping between doc_ids and internal indices.
+        #[test]
+        fn prop_duplicate_doc_id_rejected(
+            n in 5usize..20,
+            seed in any::<u64>(),
+        ) {
+            let dim = 8;
+            let vectors = random_vectors(n + 1, dim, seed);
+            let doc_ids = nonsequential_doc_ids(n, seed);
+
+            let mut index = HNSWIndex::new(dim, 8, 8).expect("create");
+
+            // Add all vectors
+            for (i, v) in vectors.iter().take(n).enumerate() {
+                index.add(doc_ids[i], v.clone()).expect("add");
+            }
+
+            // Try to add a duplicate doc_id with a different vector
+            let duplicate_id = doc_ids[0];
+            let different_vector = vectors[n].clone();
+            let result = index.add(duplicate_id, different_vector);
+
+            prop_assert!(
+                result.is_err(),
+                "Adding duplicate doc_id {} should fail but succeeded",
+                duplicate_id
+            );
+        }
+
+        /// **Persistence metadata integrity**: dimension, num_vectors survive roundtrip.
+        #[test]
+        fn prop_persistence_metadata_roundtrip(
+            n in 10usize..40,
+            dim in 4usize..64,
+            seed in any::<u64>(),
+        ) {
+            let vectors = random_vectors(n, dim, seed);
+
+            let mut original = HNSWIndex::new(dim, 8, 8).expect("create");
+            for (i, v) in vectors.iter().enumerate() {
+                original.add(i as u32, v.clone()).expect("add");
+            }
+            original.build().expect("build");
+
+            let mem = MemoryDirectory::new();
+            let mut writer = HNSWSegmentWriter::new(Box::new(mem.clone()), 1);
+            writer.write_hnsw_index(&original).expect("write");
+
+            let reader = HNSWSegmentReader::load(Box::new(mem.clone()), 1).expect("load");
+            let loaded = reader.load_index().expect("load_index");
+
+            // Verify search still works with correct dimensions
+            let query = vec![0.0f32; dim];
+            let results = loaded.search(&query, 5.min(n), 50);
+            prop_assert!(results.is_ok(), "Search failed on loaded index");
+            prop_assert_eq!(
+                results.unwrap().len(),
+                5.min(n),
+                "Loaded index returns wrong number of results"
+            );
         }
     }
 }

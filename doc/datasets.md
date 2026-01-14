@@ -106,7 +106,7 @@ Standard format with train/test/neighbors groups. Requires hdf5 feature.
 
 ```rust
 // Enable HDF5 support
-// Cargo.toml: plesio = { features = ["hdf5"] }
+// Cargo.toml: jin = { features = ["hdf5"] }
 ```
 
 ## Recommendations by Task

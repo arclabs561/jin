@@ -62,7 +62,7 @@ fn main() {
 }
 
 fn run_synthetic_demo() {
-    use plesio::hnsw::HNSWIndex;
+    use jin::hnsw::HNSWIndex;
 
     let n = 50_000;
     let dim = 128;
@@ -152,7 +152,7 @@ fn run_synthetic_demo() {
 #[cfg(feature = "hdf5")]
 fn run_real_benchmark(path: &str) {
     use hdf5::File;
-    use plesio::hnsw::HNSWIndex;
+    use jin::hnsw::HNSWIndex;
 
     println!("Loading SIFT-128 dataset from {}...", path);
 
