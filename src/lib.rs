@@ -48,36 +48,45 @@
 //! vicinity = { version = "0.1", features = ["ivf_pq"] }
 //! ```
 //!
-//! # Critical Nuances
+//! # Critical Nuances & The HNSW Critique (2025)
 //!
-//! ## The Hubness Problem
+//! ## 1. The HNSW Dominance & Its Cracks
+//! HNSW is the default because it's "good enough" for most. But research (2024-2025)
+//! highlights structural weaknesses:
+//!
+//! - **Local Minima**: HNSW's greedy search is prone to getting stuck in local optima,
+//!   especially in clustered datasets. Newer graphs like **NSG** (Navigable Small World)
+//!   and **Vamana** (DiskANN) use better edge selection (e.g., RNG) to ensure
+//!   angular diversity, allowing "glances" around obstacles.
+//! - **Memory Bloat**: The hierarchical layers add 30-40% overhead. For d > 32,
+//!   the hierarchy often provides negligible speedup over a well-constructed flat graph.
+//! - **Construction Sensitivity**: HNSW quality depends heavily on insertion order.
+//!   Vamana's two-pass build (random graph -> refined) is more robust.
+//!
+//! **Verdict**: Use HNSW for RAM-based, low-latency search. Look at Vamana/DiskANN
+//! for higher recall or SSD-resident data.
+//!
+//! ## 2. The Hubness Problem
 //!
 //! In high-dimensional spaces, some vectors become **hubs**—appearing as
 //! nearest neighbors to many other points, while **antihubs** rarely appear
 //! in any neighbor lists. This creates asymmetric NN relationships.
 //!
-//! **Why it happens**: Points near the global centroid dominate in high-d
-//! due to distance concentration. All pairwise distances converge toward
-//! similar values, making "nearest" less meaningful.
+//! **Mitigation**: Local scaling, cosine over Euclidean, or dimensionality reduction.
 //!
-//! **Practical impact**: Hubs can dominate retrieval results regardless of
-//! actual relevance. Mitigation: local scaling, cosine over Euclidean,
-//! or dimensionality reduction below intrinsic dimensionality.
-//!
-//! ## Curse of Dimensionality
+//! ## 3. Curse of Dimensionality
 //!
 //! For k-NN with neighborhood radius ℓ=0.1, you need n ≈ k × 10^d samples.
 //! For d > 100, this exceeds atoms in the observable universe.
 //!
 //! **Why ANN works anyway**: Real data lies on low-dimensional manifolds.
-//! Intrinsic dimensionality << embedding dimensionality. HNSW/IVF exploit
-//! this structure.
+//! Intrinsic dimensionality << embedding dimensionality.
 //!
-//! ## When Exact Search Beats Approximate
+//! ## 4. When Exact Search Beats Approximate
 //!
-//! - Small datasets (< 10K vectors): Brute force is faster
-//! - Very high recall requirements (> 99.9%): ANN overhead not worth it
-//! - Low intrinsic dimensionality: KD-trees can be exact and fast
+//! - Small datasets (< 10K vectors): Brute force is faster (SIMD is powerful).
+//! - Very high recall requirements (> 99.9%): ANN overhead not worth it.
+//! - Low intrinsic dimensionality: KD-trees can be exact and fast.
 
 pub mod ann;
 pub mod classic;

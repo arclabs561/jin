@@ -1,107 +1,121 @@
 //! IVF-PQ: Inverted File with Product Quantization.
 //!
-//! The workhorse of billion-scale similarity search. Combines two ideas:
+//! The workhorse of billion-scale similarity search. **32x compression** with ~90% recall.
 //!
-//! 1. **IVF (Inverted File)**: Partition space into Voronoi cells, only search
-//!    cells near the query
-//! 2. **PQ (Product Quantization)**: Compress vectors to 8-32 bytes while
-//!    preserving distance estimation
+//! # Feature Flag
 //!
-//! ## Why IVF?
+//! ```toml
+//! vicinity = { version = "0.1", features = ["ivf_pq"] }
+//! ```
 //!
-//! Brute-force search is O(n). With IVF:
-//! - Partition n vectors into k clusters (k ≈ √n)
-//! - At query time, only search `nprobe` nearest clusters
-//! - Effective search cost: O(nprobe × n/k)
+//! # Quick Start
+//!
+//! ```ignore
+//! use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
+//!
+//! let params = IVFPQParams {
+//!     num_clusters: 1024,   // sqrt(n) rule of thumb
+//!     num_codebooks: 8,     // M subvectors
+//!     codebook_size: 256,   // 8-bit codes
+//!     nprobe: 10,           // cells to search
+//! };
+//!
+//! let mut index = IVFPQIndex::new(128, params)?;
+//! index.train(&training_vectors)?;  // Need ~10k-100k samples
+//! index.add_batch(&database)?;
+//!
+//! let results = index.search(&query, 10)?;
+//! ```
+//!
+//! # Memory Calculation
 //!
 //! ```text
+//! Compressed: n × M bytes  (M = num_codebooks)
+//! Codebooks:  M × 256 × (d/M) × 4 bytes
+//! Centroids:  k × d × 4 bytes
+//!
+//! Example: 1B vectors, d=128, M=8, k=4096
+//!   Vectors:   1B × 8 = 8 GB     (vs 512 GB uncompressed!)
+//!   Codebooks: 8 × 256 × 16 × 4 = 128 KB
+//!   Centroids: 4096 × 128 × 4 = 2 MB
+//!   Total:     ~8 GB
+//! ```
+//!
+//! # Two Key Ideas
+//!
+//! ## 1. IVF: Partition and Prune
+//!
+//! Cluster vectors into k cells. At search time, only scan `nprobe` nearest cells:
+//!
+//! ```text
+//! Brute force: O(n)      →   IVF: O(nprobe × n/k)
+//!
 //!           Query
 //!             |
 //!     +-------+-------+
 //!     |               |
 //!   Cell A          Cell B      (probe 2 cells)
-//!   |__|__|         |__|__|
-//!   v  v  v         v  v  v
-//!  [vectors]       [vectors]    (compare within cells)
+//!   [vectors]       [vectors]   (skip other 1022 cells)
 //! ```
 //!
-//! ## Why Product Quantization?
+//! ## 2. PQ: Compress Vectors
 //!
-//! A 128-dim float32 vector is 512 bytes. At 1 billion vectors, that's 500GB.
-//! PQ compresses to ~16 bytes (32x compression) while keeping 90%+ recall.
-//!
-//! **The Key Insight** ([Jégou et al. 2011](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf)):
-//!
-//! Split the vector into M subvectors. Quantize each independently using a
-//! small codebook (256 entries). Store only the codebook indices.
+//! Split vector into M subvectors. Quantize each to 256 codewords (8 bits):
 //!
 //! ```text
-//! Original:  [v₁ v₂ v₃ v₄ ... v₁₂₈]  (128 floats = 512 bytes)
-//!            └──┴──┘ └──┴──┘ ... └──┘
-//!              ↓       ↓         ↓
-//!            [c₁]    [c₂]  ... [cₘ]   (M=8 codebook indices = 8 bytes)
+//! Original:  [v₁ v₂ ... v₁₂₈]  (512 bytes)
+//!             └─┬─┘ └─┬─┘
+//!               ↓     ↓
+//!            [c₁]   [c₂] ...   (8 bytes for M=8)
 //! ```
 //!
-//! **Distance estimation**: Precompute distances from query subvectors to all
-//! codebook entries. Then distance to any compressed vector is just M table lookups.
+//! Distance computed via table lookup (precompute query-to-codebook distances).
 //!
-//! ## Asymmetric Distance Computation (ADC)
+//! # Parameter Recommendations
 //!
-//! Don't compress the query—only compress database vectors.
+//! | Dataset Size | num_clusters | num_codebooks | nprobe |
+//! |--------------|--------------|---------------|--------|
+//! | 100K | 256 | 8 | 4 |
+//! | 1M | 1024 | 8-16 | 8 |
+//! | 10M | 4096 | 16 | 16 |
+//! | 100M | 16384 | 16-32 | 32 |
+//! | 1B | 65536 | 32-64 | 64 |
 //!
-//! ```text
-//! query (exact) → codebook distances → lookup for each DB vector
+//! **Rules of thumb**:
+//! - `num_clusters` ≈ 4√n (slightly more aggressive than √n)
+//! - `nprobe` ≈ 1-5% of clusters for 90%+ recall
+//! - `num_codebooks` = d/16 is often good (d/M ≈ 8-16 dims per subvector)
 //!
-//! d(query, db) ≈ Σᵢ lookup[i][db_code[i]]
-//! ```
+//! # Trade-offs
 //!
-//! This gives better accuracy than symmetric (both compressed) at same memory.
+//! | ↑ Parameter | Better | Worse |
+//! |-------------|--------|-------|
+//! | nprobe | Recall | Search latency |
+//! | num_clusters | Search speed | Training time, accuracy at edges |
+//! | num_codebooks | Accuracy | Memory, training time |
 //!
-//! ## OPQ: Optimized Product Quantization
+//! # When to Use
+//!
+//! - Dataset **doesn't fit in RAM** (> 10M vectors on typical hardware)
+//! - Can tolerate **85-95% recall** (vs 99%+ with HNSW)
+//! - Need **sub-second search at billion scale**
+//!
+//! # When NOT to Use
+//!
+//! - Dataset fits in RAM → use HNSW (better recall)
+//! - Need > 95% recall → use HNSW or exact search
+//! - Can't provide training data → PQ codebooks need ~10k samples
+//!
+//! # OPQ: Optimized Product Quantization
 //!
 //! PQ assumes subspaces are independent. Real data has correlations.
-//! OPQ learns a rotation matrix R that decorrelates dimensions before
-//! quantization, improving accuracy by 10-30%.
+//! OPQ learns a rotation matrix that decorrelates dimensions first,
+//! improving recall by 10-30% at same memory.
 //!
-//! ## Feature Flag
-//!
-//! Requires the `ivf_pq` feature:
-//! ```toml
-//! vicinity = { version = "0.1", features = ["ivf_pq"] }
-//! ```
-//!
-//! ## Usage
-//!
-//! ```rust,ignore
-//! use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
-//!
-//! let params = IVFPQParams {
-//!     num_clusters: 1024,   // sqrt(n) is a good default
-//!     num_codebooks: 8,     // 8 subvectors
-//!     codebook_size: 256,   // 256 codewords per codebook (8 bits)
-//!     nprobe: 10,           // search 10 nearest cells
-//! };
-//!
-//! let mut index = IVFPQIndex::new(128, params)?;
-//! index.train(&training_vectors)?;
-//! index.add_batch(&vectors)?;
-//!
-//! let results = index.search(&query, 10)?;
-//! ```
-//!
-//! ## Trade-offs
-//!
-//! | Parameter | ↑ Effect |
-//! |-----------|----------|
-//! | nprobe | Better recall, slower search |
-//! | num_centroids | Better partitioning, slower training |
-//! | num_codebooks | More memory, better accuracy |
-//!
-//! ## References
+//! # References
 //!
 //! - Jégou, Douze, Schmid (2011). "Product Quantization for Nearest Neighbor Search."
 //! - Ge et al. (2014). "Optimized Product Quantization."
-//! - See `opq.rs` for the rotation learning algorithm.
 
 // IVF-PQ core implementation (always available when ivf_pq feature is enabled)
 pub mod search;

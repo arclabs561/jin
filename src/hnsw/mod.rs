@@ -1,115 +1,87 @@
 //! Hierarchical Navigable Small World (HNSW) approximate nearest neighbor search.
 //!
-//! Pure Rust implementation optimized for performance with SIMD acceleration and
-//! cache-friendly memory layouts.
+//! The industry-standard graph-based ANN algorithm. Pure Rust with SIMD acceleration.
 //!
-//! # The Small-World Insight
-//!
-//! HNSW exploits the **small-world network property**: in well-constructed graphs,
-//! any two nodes can be reached in O(log n) hops via greedy routing. This is the
-//! same phenomenon that gives "six degrees of separation" in social networks.
-//!
-//! **Greedy routing**: From any node, examine neighbors and move to the one closest
-//! to your target. Repeat until no closer neighbor exists (local minimum). In
-//! small-world graphs, this converges to near-optimal paths.
-//!
-//! # Why Hierarchy?
-//!
-//! Flat navigable small-world (NSW) graphs work, but require many distance
-//! computations in the "zoom-out" phase (finding long-range connections). HNSW
-//! adds hierarchy to reduce this:
-//!
-//! ```text
-//! Layer 3: [sparse]     ●───────────────●  (long jumps, few nodes)
-//! Layer 2:          ●───●───●───●───●───●  (medium connections)
-//! Layer 1:       ●─●─●─●─●─●─●─●─●─●─●─●─●  (local connections)
-//! Layer 0:     ●●●●●●●●●●●●●●●●●●●●●●●●●●●  (all nodes, dense)
-//! ```
-//!
-//! Search starts at sparse top layer, then descends. Each descent provides a
-//! better starting point for greedy search at the next level.
-//!
-//! # Exponential Layer Assignment
-//!
-//! Nodes are assigned to layers probabilistically:
-//!
-//! ```text
-//! max_layer = floor(-ln(rand(0,1)) × mL)
-//! ```
-//!
-//! where mL ≈ 1/ln(M). This creates exponentially decreasing node density:
-//! - Layer 0: All n nodes
-//! - Layer 1: ~n/M nodes
-//! - Layer 2: ~n/M² nodes
-//!
-//! Upper layers are sparse → few distance computations for coarse routing.
-//!
-//! # Key Parameters
-//!
-//! - **M**: Max connections per node. Higher = better recall, more memory.
-//! - **ef_construction**: Search width during build. Higher = better graph quality.
-//! - **ef**: Search width during query. Higher = better recall, slower search.
-//!
-//! # Critical Note: Hierarchy in High Dimensions
-//!
-//! Recent research (2024-2025) suggests that **the hierarchical structure provides
-//! minimal or no practical benefit in high-dimensional settings** (d > 32). Flat
-//! NSW graphs achieve performance parity with HNSW in both median and tail latency.
-//!
-//! The explanation: **hubness**. In high dimensions, some nodes naturally become
-//! "hubs" with high connectivity, serving the same routing function as explicit
-//! hierarchy. When metric hubs already provide efficient routing, explicit layers
-//! become redundant.
-//!
-//! **Implications**:
-//! - For d > 32: Consider flat NSW variants for memory savings
-//! - For d < 32 or angular metrics: Hierarchy may still help
-//! - See `docs/CRITICAL_PERSPECTIVES_AND_LIMITATIONS.md` for analysis
-//!
-//! # References
-//!
-//! - Malkov & Yashunin (2016). "Efficient and robust approximate nearest neighbor
-//!   search using Hierarchical Navigable Small World graphs."
-//! - [Recent NSW analysis](https://arxiv.org/abs/2412.01940) on hierarchy benefits
-//!
-//! # Performance
-//!
-//! - **SIMD-accelerated**: Uses existing `simd` module for distance computation (8-16x speedup)
-//! - **Cache-optimized**: Structure of Arrays (SoA) layout for better cache locality
-//! - **Early termination**: Multiple strategies to reduce unnecessary distance computations
-//! - **O(log n) complexity**: Logarithmic search time vs O(n) brute-force
-//!
-//! # Usage
+//! # Quick Start
 //!
 //! ```rust,no_run
 //! use vicinity::hnsw::HNSWIndex;
 //!
 //! fn main() -> Result<(), vicinity::RetrieveError> {
-//!     let mut index = HNSWIndex::new(128, 16, 16)?;
+//!     // dimension=128, M=16, ef_construction=200
+//!     let mut index = HNSWIndex::new(128, 16, 200)?;
 //!
-//!     // Add vectors
 //!     index.add(0, vec![0.1; 128])?;
 //!     index.add(1, vec![0.2; 128])?;
-//!
-//!     // Build index (required before search)
 //!     index.build()?;
 //!
-//!     // Search
+//!     // k=10, ef_search=50
 //!     let results = index.search(&vec![0.15; 128], 10, 50)?;
-//!     println!("Found {} results", results.len());
 //!     Ok(())
 //! }
 //! ```
 //!
+//! # Parameter Recommendations
+//!
+//! | Dataset Size | M | ef_construction | ef_search | Memory/vector |
+//! |--------------|---|-----------------|-----------|---------------|
+//! | < 100K | 16 | 100 | 50 | ~1.2 KB |
+//! | 100K - 1M | 16 | 200 | 100 | ~1.2 KB |
+//! | 1M - 10M | 32 | 200 | 100-200 | ~2.4 KB |
+//! | > 10M | 48 | 400 | 200+ | ~3.6 KB |
+//!
+//! **Memory formula**: `n × (d × 4 + M × 8 + overhead)` bytes
+//! - For 1M vectors at d=768, M=16: ~3.5 GB
+//!
+//! # The Small-World Insight
+//!
+//! HNSW exploits the **small-world network property**: in well-constructed graphs,
+//! any two nodes can be reached in O(log n) hops via greedy routing.
+//!
+//! ```text
+//! Layer 3: [sparse]     o───────────────o  (long jumps, few nodes)
+//! Layer 2:          o───o───o───o───o───o  (medium connections)
+//! Layer 1:       o─o─o─o─o─o─o─o─o─o─o─o─o  (local connections)
+//! Layer 0:     ooooooooooooooooooooooooooo  (all nodes, dense)
+//! ```
+//!
+//! Search starts at sparse top layer, descends using each layer as a better starting point.
+//!
+//! # Parameter Effects
+//!
+//! | Parameter | Effect when increased |
+//! |-----------|----------------------|
+//! | **M** | Better recall, more memory, slower build |
+//! | **ef_construction** | Better graph quality, slower build |
+//! | **ef_search** | Better recall, slower search |
+//!
+//! # When NOT to Use HNSW
+//!
+//! - **< 10K vectors**: Brute force is faster (no graph overhead)
+//! - **> 99.9% recall required**: Graph methods have a recall ceiling
+//! - **Memory constrained + > 10M vectors**: Use IVF-PQ instead
+//!
+//! # Hierarchy in High Dimensions
+//!
+//! Research (2024-2025) shows hierarchy provides **minimal benefit for d > 32**.
+//! In high dimensions, "hubs" emerge naturally and serve the same routing function.
+//!
+//! **Practical advice**: HNSW is still the safe default. The hierarchy overhead
+//! is small, and the algorithm is battle-tested. Consider flat NSW only if you
+//! specifically need to minimize memory.
+//!
+//! # Advanced Features
+//!
+//! - [`filtered`]: ACORN-style attribute filtering
+//! - [`dual_branch`]: LID-based insertion with skip bridges (2025)
+//! - [`fused`]: Attribute-vector fusion for filtered search
+//! - [`merge`]: Index merging algorithms (NGM, IGTM, CGTM)
+//!
 //! # References
 //!
-//! - Malkov & Yashunin (2016): "Efficient and robust approximate nearest neighbor search
-//!   using Hierarchical Navigable Small World graphs"
-//! - See `docs/HNSW_IMPLEMENTATION_PLAN.md` for detailed implementation notes
-//!
-//! # Status
-//!
-//! Some compression-related fields are placeholders for future ID compression support.
+//! - Malkov & Yashunin (2016). "Efficient and robust approximate nearest neighbor
+//!   search using Hierarchical Navigable Small World graphs."
+//! - [NSW hierarchy analysis](https://arxiv.org/abs/2412.01940) (2024)
 
 #![allow(dead_code)] // Compression fields are placeholders
 

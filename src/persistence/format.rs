@@ -1,4 +1,4 @@
-//! Unified persistence format for Scholar Stack.
+//! Unified persistence format for Tekne Stack.
 //!
 //! # Design Goals
 //!

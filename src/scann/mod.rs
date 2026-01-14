@@ -1,8 +1,9 @@
-//! ScaNN: Anisotropic Vector Quantization with k-means Partitioning.
+//! ScaNN: Google's algorithm for Maximum Inner Product Search (MIPS).
+//!
+//! Optimized for **recommendations and retrieval** where you need inner products.
 //!
 //! # Feature Flag
 //!
-//! Requires the `scann` feature:
 //! ```toml
 //! vicinity = { version = "0.1", features = ["scann"] }
 //! ```
@@ -11,73 +12,7 @@
 //!
 //! Google Research's ScaNN algorithm. Under active development.
 //!
-//! # The Problem with Standard PQ for MIPS
-//!
-//! Product Quantization (PQ) minimizes reconstruction error: ||x - Q(x)||².
-//! But for Maximum Inner Product Search (MIPS), we care about inner product
-//! preservation, not reconstruction. PQ can introduce systematic bias.
-//!
-//! # Key Insight: Anisotropic Quantization
-//!
-//! **Anisotropic Vector Quantization (AVQ)** weights dimensions by their
-//! importance for inner product computation:
-//!
-//! ```text
-//! Standard PQ:  min ||x - Q(x)||²           (uniform error)
-//! Anisotropic:  min ||x - Q(x)||²_W         (weighted by query distribution)
-//! ```
-//!
-//! Where W captures the expected query distribution. If queries tend to
-//! have large values in dimension i, errors in dimension i matter more.
-//!
-//! # Three-Stage Pipeline
-//!
-//! ```text
-//! Query → [1. Partition Search] → [2. Quantized Scan] → [3. Re-ranking]
-//!              k-means              AVQ distances         Exact scores
-//!              ~256 clusters        Fast approx           Top-k only
-//! ```
-//!
-//! 1. **Partitioning**: k-means clusters database vectors. Query finds
-//!    nearest cluster centroids, only scans those partitions.
-//!
-//! 2. **Quantized scan**: Within partitions, use AVQ codes for fast
-//!    approximate inner product estimation.
-//!
-//! 3. **Re-ranking**: Compute exact inner products for top candidates
-//!    from quantized search. Corrects quantization errors.
-//!
-//! # AVQ vs PQ for MIPS
-//!
-//! | Aspect | PQ | AVQ |
-//! |--------|----|----|
-//! | Objective | Minimize reconstruction | Preserve inner products |
-//! | Error distribution | Uniform | Weighted by importance |
-//! | Best for | L2 distance | Inner product / cosine |
-//! | Training | Simpler | Needs query distribution estimate |
-//!
-//! # Parameters
-//!
-//! | Parameter | Typical | Effect |
-//! |-----------|---------|--------|
-//! | `num_partitions` | 256-4096 | More = faster search, slower build |
-//! | `num_reorder` | 100-1000 | More = better recall, slower |
-//! | `num_codebooks` | 8-32 | More = better accuracy, more memory |
-//! | `codebook_size` | 256 | Usually 256 (8-bit codes) |
-//!
-//! # When to Use
-//!
-//! - Maximum Inner Product Search (MIPS)
-//! - Recommendation systems (user-item inner products)
-//! - Large-scale (>10M vectors) where memory matters
-//!
-//! # When NOT to Use
-//!
-//! - L2/Euclidean distance (use IVF-PQ instead)
-//! - Small datasets (< 100K, overhead not worth it)
-//! - Need real-time updates (requires rebuild)
-//!
-//! # Usage
+//! # Quick Start
 //!
 //! ```ignore
 //! use vicinity::scann::{SCANNIndex, SCANNParams};
@@ -98,13 +33,78 @@
 //! let results = index.search_mips(&query, 10)?;
 //! ```
 //!
+//! # The Problem: PQ is Wrong for Inner Products
+//!
+//! Standard PQ minimizes reconstruction error:
+//!
+//! ```text
+//! PQ objective:  min ||x - Q(x)||²
+//! ```
+//!
+//! But for MIPS, we care about **inner product preservation**, not reconstruction.
+//! PQ can systematically bias results toward high-norm vectors.
+//!
+//! # The Solution: Anisotropic Quantization
+//!
+//! AVQ weights quantization error by **dimension importance**:
+//!
+//! ```text
+//! AVQ objective:  min ||x - Q(x)||²_W   (weighted by query distribution)
+//! ```
+//!
+//! If queries have large values in dimension i, errors in i matter more.
+//!
+//! # Three-Stage Pipeline
+//!
+//! ```text
+//! Query → [1. Coarse] → [2. Fine] → [3. Rerank]
+//!          k-means       AVQ scan    Exact MIPS
+//!          ~256 cells    Fast approx Top 100 only
+//! ```
+//!
+//! 1. **Coarse search**: Find nearest cluster centroids
+//! 2. **Fine search**: AVQ codes for fast approximate inner products
+//! 3. **Rerank**: Exact computation on top candidates
+//!
+//! # ScaNN vs IVF-PQ
+//!
+//! | | IVF-PQ | ScaNN |
+//! |-|--------|-------|
+//! | **Optimized for** | L2 distance | Inner product |
+//! | **Quantization** | Standard PQ | Anisotropic (AVQ) |
+//! | **Use case** | Similarity search | Recommendations |
+//! | **Reranking** | Optional | Required (part of design) |
+//!
+//! # Parameter Recommendations
+//!
+//! | Dataset | num_partitions | num_reorder | num_codebooks |
+//! |---------|----------------|-------------|---------------|
+//! | 1M | 256 | 100 | 16 |
+//! | 10M | 1024 | 200 | 16-32 |
+//! | 100M | 4096 | 500 | 32 |
+//!
+//! **Rule of thumb**: `num_reorder` ≈ 10-50x k (number of results)
+//!
+//! # When to Use
+//!
+//! - **Maximum Inner Product Search** (MIPS)
+//! - Recommendation systems (user dot item)
+//! - Two-tower retrieval models
+//! - Dense retrieval where inner product matters
+//!
+//! # When NOT to Use
+//!
+//! - L2/Euclidean distance → use IVF-PQ
+//! - Cosine similarity → normalize vectors, use any index
+//! - Small datasets (< 100K) → brute force is fine
+//! - Need real-time updates → ScaNN requires batch rebuild
+//!
 //! # References
 //!
 //! - Guo et al. (2020). "Accelerating Large-Scale Inference with Anisotropic
 //!   Vector Quantization."
 //! - Sun et al. (2023). "SOAR: Improved Indexing for Approximate Nearest
 //!   Neighbor Search."
-//! - See also: [`ivf_pq`](crate::ivf_pq) for L2 distance
 
 pub mod partitioning;
 mod quantization;

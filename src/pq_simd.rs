@@ -173,9 +173,8 @@ pub mod x86_64 {
         lut: &PackedLUT,
     ) -> Vec<f32> {
         use std::arch::x86_64::{
-            __m256, __m256i, _mm256_add_ps, _mm256_castsi256_si128, _mm256_extracti128_si256,
-            _mm256_i32gather_ps, _mm256_set1_epi32, _mm256_setzero_ps, _mm256_storeu_ps,
-            _mm_cvtepu8_epi32, _mm_loadl_epi64,
+            __m256, __m256i, _mm256_add_ps, _mm256_i32gather_ps, _mm256_setzero_ps,
+            _mm256_storeu_ps, _mm_cvtepu8_epi32, _mm_loadl_epi64,
         };
 
         let n_candidates = codes_batch.len() / num_codebooks;

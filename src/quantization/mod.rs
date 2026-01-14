@@ -1,27 +1,34 @@
 //! Vector quantization: compress vectors while preserving distance.
 //!
+//! # Which Method Should I Use?
+//!
+//! | Situation | Method | Compression | Feature |
+//! |-----------|--------|-------------|---------|
+//! | **Best accuracy** | RaBitQ 4-bit | 8x | `rabitq` |
+//! | **Best compression** | Ternary | 20x | `saq` |
+//! | **No training data** | Binary (sign) | 32x | `saq` |
+//! | **Multi-dimensional** | Product Quantization | 32x | See `ivf_pq` |
+//!
 //! # Feature Flags
 //!
-//! Individual quantization methods require their own features:
 //! ```toml
 //! vicinity = { version = "0.1", features = ["rabitq"] }  # RaBitQ
-//! vicinity = { version = "0.1", features = ["saq"] }     # Ternary quantization
+//! vicinity = { version = "0.1", features = ["saq"] }     # Ternary/Binary
 //! ```
 //!
-//! Quantization is the art of representing continuous vectors with discrete
-//! codes. The goal: **use fewer bits per dimension while keeping distance
-//! computations accurate**.
+//! # The Problem: Memory at Scale
 //!
-//! ## Why Quantize?
+//! ```text
+//! 1B vectors × 768 dims × 4 bytes = 3 TB
+//! ```
 //!
-//! A 768-dim float32 embedding is 3KB. At 1 billion vectors, that's 3TB.
-//! Quantization can achieve:
+//! Quantization compresses vectors while preserving distance accuracy:
 //!
-//! | Method | Bits/dim | Compression | Recall |
-//! |--------|----------|-------------|--------|
+//! | Method | Bits/dim | Compression | Recall@10 |
+//! |--------|----------|-------------|-----------|
 //! | float32 | 32 | 1x | 100% |
-//! | RaBitQ 4-bit | 4 | 8x | 95%+ |
-//! | Ternary | 1.58 | 20x | 85%+ |
+//! | **RaBitQ 4-bit** | 4 | 8x | 95%+ |
+//! | **Ternary** | 1.58 | 20x | 85%+ |
 //! | Binary | 1 | 32x | 75%+ |
 //!
 //! ## Scalar vs Vector Quantization
