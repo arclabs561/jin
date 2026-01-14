@@ -160,13 +160,13 @@ impl DiskGraphReader {
         // For simplicity here, we seek/read.
         self.file
             .seek(SeekFrom::Start(offset))
-            .map_err(|e| RetrieveError::Io(e))?;
+            .map_err(|e| RetrieveError::Io(e.to_string()))?;
 
         // Read degree
         let mut degree_buf = [0u8; 4];
         self.file
             .read_exact(&mut degree_buf)
-            .map_err(|e| RetrieveError::Io(e))?;
+            .map_err(|e| RetrieveError::Io(e.to_string()))?;
         let degree = u32::from_le_bytes(degree_buf) as usize;
 
         if degree > self.max_degree {
@@ -182,7 +182,7 @@ impl DiskGraphReader {
         for _ in 0..degree {
             self.file
                 .read_exact(&mut neighbor_buf)
-                .map_err(|e| RetrieveError::Io(e))?;
+                .map_err(|e| RetrieveError::Io(e.to_string()))?;
             neighbors.push(u32::from_le_bytes(neighbor_buf));
         }
 
