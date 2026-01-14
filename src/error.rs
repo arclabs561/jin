@@ -25,9 +25,27 @@ pub enum RetrieveError {
     #[error("invalid sparse vector: {0}")]
     InvalidSparseVector(String),
 
+    /// I/O error (wrapped)
+    #[error("I/O error: {0}")]
+    Io(String), // RetrieveError needs to be Clone, std::io::Error isn't. Store string representation.
+
+    /// Out of bounds access
+    #[error("index out of bounds: {0}")]
+    OutOfBounds(usize),
+
+    /// Format error
+    #[error("format error: {0}")]
+    FormatError(String),
+
     /// Other error (for extensibility).
     #[error("{0}")]
     Other(String),
+}
+
+impl From<std::io::Error> for RetrieveError {
+    fn from(err: std::io::Error) -> Self {
+        RetrieveError::Io(err.to_string())
+    }
 }
 
 /// Result type alias for vicinity operations.

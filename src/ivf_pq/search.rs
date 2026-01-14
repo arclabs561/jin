@@ -1,8 +1,41 @@
 //! IVF-PQ search implementation.
 
+use super::opq::OptimizedProductQuantizer;
 use super::pq::ProductQuantizer;
 use crate::RetrieveError;
 use serde::{Deserialize, Serialize};
+
+/// Quantizer strategy.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Quantizer {
+    /// Standard Product Quantization.
+    Product(ProductQuantizer),
+    /// Optimized Product Quantization (with rotation).
+    Optimized(OptimizedProductQuantizer),
+}
+
+impl Quantizer {
+    pub fn quantize(&self, vector: &[f32]) -> Vec<u8> {
+        match self {
+            Self::Product(pq) => pq.quantize(vector),
+            Self::Optimized(opq) => opq.quantize(vector),
+        }
+    }
+
+    pub fn compute_adc_table(&self, query: &[f32]) -> Result<Vec<f32>, RetrieveError> {
+        match self {
+            Self::Product(pq) => pq.compute_adc_table(query),
+            Self::Optimized(opq) => opq.approximate_distance_table(query),
+        }
+    }
+
+    pub fn distance_with_table(&self, table: &[f32], codes: &[u8]) -> f32 {
+        match self {
+            Self::Product(pq) => pq.distance_with_table(table, codes),
+            Self::Optimized(opq) => opq.quantizer().distance_with_table(table, codes),
+        }
+    }
+}
 
 /// IVF-PQ index for memory-efficient approximate nearest neighbor search.
 #[derive(Debug)]
@@ -18,7 +51,7 @@ pub struct IVFPQIndex {
     pub(crate) centroids: Vec<Vec<f32>>,
 
     // PQ components
-    pq: Option<ProductQuantizer>,
+    pq: Option<Quantizer>,
     // Flattened codes: [vector_0_codes, vector_1_codes, ...]
     // Stride = num_codebooks
     pub(crate) quantized_codes: Vec<u8>,
@@ -45,6 +78,9 @@ pub struct IVFPQParams {
     /// Product quantization: codebook size
     pub codebook_size: usize,
 
+    /// Use Optimized Product Quantization (OPQ)
+    pub use_opq: bool,
+
     /// ID compression method (optional)
     #[cfg(feature = "id-compression")]
     pub id_compression: Option<crate::compression::IdCompressionMethod>,
@@ -61,6 +97,7 @@ impl Default for IVFPQParams {
             nprobe: 100,
             num_codebooks: 8,
             codebook_size: 256,
+            use_opq: false,
             #[cfg(feature = "id-compression")]
             id_compression: None,
             #[cfg(feature = "id-compression")]
@@ -292,7 +329,7 @@ impl IVFPQIndex {
 
         // Stage 1: k-means clustering for IVF
         let mut kmeans =
-            crate::scann::partitioning::KMeans::new(self.dimension, self.params.num_clusters)?;
+            crate::partitioning::kmeans::KMeans::new(self.dimension, self.params.num_clusters)?;
         kmeans.fit(&self.vectors, self.num_vectors)?;
         self.centroids = kmeans.centroids().to_vec();
 
@@ -374,13 +411,24 @@ impl IVFPQIndex {
             .collect();
 
         // Stage 2: Product Quantization
-        // Train PQ
-        let mut pq = ProductQuantizer::new(
-            self.dimension,
-            self.params.num_codebooks,
-            self.params.codebook_size,
-        )?;
-        pq.fit(&self.vectors, self.num_vectors)?;
+        // Train PQ or OPQ
+        let pq: Quantizer = if self.params.use_opq {
+            let mut opq = OptimizedProductQuantizer::new(
+                self.dimension,
+                self.params.num_codebooks,
+                self.params.codebook_size,
+            )?;
+            opq.fit(&self.vectors, self.num_vectors, 10)?; // 10 iterations
+            Quantizer::Optimized(opq)
+        } else {
+            let mut pq = ProductQuantizer::new(
+                self.dimension,
+                self.params.num_codebooks,
+                self.params.codebook_size,
+            )?;
+            pq.fit(&self.vectors, self.num_vectors)?;
+            Quantizer::Product(pq)
+        };
 
         // Quantize all vectors
         self.quantized_codes = Vec::with_capacity(self.num_vectors * self.params.num_codebooks);

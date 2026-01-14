@@ -3,6 +3,8 @@
 //! Provides unified interface for partitioning vectors, supporting both
 //! k-means (flat clustering) and EVōC (hierarchical clustering).
 
+pub mod kmeans;
+
 use crate::RetrieveError;
 
 /// Partitioning result: vector index -> partition/cluster ID.
@@ -27,17 +29,19 @@ pub trait Partitioner: Send + Sync {
     fn num_partitions(&self) -> usize;
 }
 
+use crate::partitioning::kmeans::KMeans;
+
 /// k-means partitioner (flat clustering).
 #[cfg(feature = "scann")]
 pub struct KMeansPartitioner {
-    kmeans: crate::scann::partitioning::KMeans,
+    kmeans: KMeans,
 }
 
 #[cfg(feature = "scann")]
 impl KMeansPartitioner {
     pub fn new(dimension: usize, k: usize) -> Result<Self, RetrieveError> {
         Ok(Self {
-            kmeans: crate::scann::partitioning::KMeans::new(dimension, k)?,
+            kmeans: KMeans::new(dimension, k)?,
         })
     }
 }

@@ -96,9 +96,9 @@
 
 #![allow(dead_code)]
 
-mod cache;
-mod disk_io;
-mod graph;
+pub mod cache;
+pub mod disk_io;
+pub mod graph;
 
 pub use graph::DiskANNIndex;
 pub use graph::DiskANNParams;

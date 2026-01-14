@@ -1,5 +1,6 @@
 //! Product Quantization (PQ) implementation.
 
+use crate::partitioning::kmeans::KMeans;
 use crate::simd;
 use crate::RetrieveError;
 
@@ -62,8 +63,7 @@ impl ProductQuantizer {
             }
 
             // Train k-means on subvectors
-            let mut kmeans =
-                crate::scann::partitioning::KMeans::new(self.subvector_dim, self.codebook_size)?;
+            let mut kmeans = KMeans::new(self.subvector_dim, self.codebook_size)?;
 
             // Flatten subvectors for k-means (SoA format)
             let mut flat = Vec::with_capacity(num_vectors * self.subvector_dim);

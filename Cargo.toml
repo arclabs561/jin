@@ -53,6 +53,7 @@ scann = []
 sng = []
 vamana = []
 quantization = []
+nightly = []
 innr = ["dep:innr"]
 
 # Feature names referenced by cfgs in the extracted code.

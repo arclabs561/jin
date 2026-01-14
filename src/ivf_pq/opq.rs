@@ -14,9 +14,12 @@ compile_error!("OPQ requires 'scann' feature for k-means clustering");
 use super::pq::ProductQuantizer;
 use crate::RetrieveError;
 
+use serde::{Deserialize, Serialize};
+
 /// Optimized Product Quantizer.
 ///
 /// Extends Product Quantization with optimized space decomposition using rotation matrices.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizedProductQuantizer {
     dimension: usize,
     num_codebooks: usize,
