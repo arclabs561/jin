@@ -5,7 +5,7 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! vicinity = { version = "0.1", features = ["diskann"] }
+//! plesio = { version = "0.1", features = ["diskann"] }
 //! ```
 //!
 //! # Status: Experimental
@@ -16,7 +16,7 @@
 //! # Quick Start
 //!
 //! ```ignore
-//! use vicinity::diskann::{DiskANNIndex, DiskANNParams};
+//! use plesio::diskann::{DiskANNIndex, DiskANNParams};
 //!
 //! let params = DiskANNParams {
 //!     m: 32,
@@ -100,7 +100,6 @@ pub mod cache;
 pub mod disk_io;
 pub mod graph;
 
-use crate::diskann::graph::DiskANNSearcher;
-
 pub use graph::DiskANNIndex;
 pub use graph::DiskANNParams;
+pub use graph::DiskANNSearcher;

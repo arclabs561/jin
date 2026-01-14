@@ -240,19 +240,13 @@ impl SegmentWriter {
 
             let mut builder = MapBuilder::memory();
             for (term, ordinal) in sorted_terms {
-                builder.insert(term.as_bytes(), *ordinal).map_err(|e| {
-                    PersistenceError::Format {
-                        message: format!("FST build error: {}", e),
-                        expected: None,
-                        actual: None,
-                    }
-                })?;
+                builder
+                    .insert(term.as_bytes(), *ordinal)
+                    .map_err(|e| PersistenceError::Format(format!("FST build error: {}", e)))?;
             }
-            let fst_bytes = builder.into_inner().map_err(|e| PersistenceError::Format {
-                message: format!("FST finalization error: {}", e),
-                expected: None,
-                actual: None,
-            })?;
+            let fst_bytes = builder
+                .into_inner()
+                .map_err(|e| PersistenceError::Format(format!("FST finalization error: {}", e)))?;
 
             // Write FST to file
             let mut term_dict_file = self.directory.create_file(&term_dict_path)?;
@@ -374,22 +368,16 @@ impl SegmentReader {
 
             // Validate FST is not empty
             if fst_buffer.is_empty() {
-                return Err(PersistenceError::Format {
-                    message: "FST file is empty".to_string(),
-                    expected: Some("non-empty FST data".to_string()),
-                    actual: Some("0 bytes".to_string()),
-                });
+                return Err(PersistenceError::Format(
+                    "FST file is empty (expected: non-empty FST data, actual: 0 bytes)".to_string(),
+                ));
             }
 
             // Load FST from bytes
             // Use FST directly for lookups - more memory-efficient than HashMap
             // FST supports O(1) lookups and prefix searches
             Map::new(fst_buffer)
-                .map_err(|e| PersistenceError::Format {
-                    message: format!("FST load error: {}", e),
-                    expected: None,
-                    actual: None,
-                })
+                .map_err(|e| PersistenceError::Format(format!("FST load error: {}", e)))
                 .ok()
         };
         #[cfg(not(feature = "persistence"))]
@@ -407,35 +395,31 @@ impl SegmentReader {
                 Ok(()) => {
                     let postings_offset =
                         u64::from_le_bytes(term_info_buffer[0..8].try_into().map_err(|_| {
-                            PersistenceError::Format {
-                                message: "Failed to extract postings_offset bytes".to_string(),
-                                expected: Some("8-byte array".to_string()),
-                                actual: None,
-                            }
+                            PersistenceError::Format(
+                                "Failed to extract postings_offset bytes (expected 8-byte array)"
+                                    .to_string(),
+                            )
                         })?);
                     let postings_len =
                         u64::from_le_bytes(term_info_buffer[8..16].try_into().map_err(|_| {
-                            PersistenceError::Format {
-                                message: "Failed to extract postings_len bytes".to_string(),
-                                expected: Some("8-byte array".to_string()),
-                                actual: None,
-                            }
+                            PersistenceError::Format(
+                                "Failed to extract postings_len bytes (expected 8-byte array)"
+                                    .to_string(),
+                            )
                         })?);
                     let doc_frequency =
                         u32::from_le_bytes(term_info_buffer[16..20].try_into().map_err(|_| {
-                            PersistenceError::Format {
-                                message: "Failed to extract doc_frequency bytes".to_string(),
-                                expected: Some("4-byte array".to_string()),
-                                actual: None,
-                            }
+                            PersistenceError::Format(
+                                "Failed to extract doc_frequency bytes (expected 4-byte array)"
+                                    .to_string(),
+                            )
                         })?);
                     let collection_frequency =
                         u64::from_le_bytes(term_info_buffer[20..28].try_into().map_err(|_| {
-                            PersistenceError::Format {
-                                message: "Failed to extract collection_frequency bytes".to_string(),
-                                expected: Some("8-byte array".to_string()),
-                                actual: None,
-                            }
+                            PersistenceError::Format(
+                                "Failed to extract collection_frequency bytes (expected 8-byte array)"
+                                    .to_string(),
+                            )
                         })?);
                     term_infos.push(TermInfo {
                         postings_offset,

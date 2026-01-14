@@ -53,19 +53,13 @@ pub mod varint {
             }
             shift += 7;
             if shift >= 64 {
-                return Err(PersistenceError::Format {
-                    message: "Varint overflow (64 bits)".to_string(),
-                    expected: None,
-                    actual: None,
-                });
+                return Err(PersistenceError::Format(
+                    "Varint overflow (64 bits)".to_string(),
+                ));
             }
         }
 
-        Err(PersistenceError::Format {
-            message: "Incomplete varint".to_string(),
-            expected: None,
-            actual: None,
-        })
+        Err(PersistenceError::Format("Incomplete varint".to_string()))
     }
 
     /// Encode multiple values as varints.
@@ -209,11 +203,9 @@ pub mod bitpack {
             while bits_remaining > 0 {
                 let byte_idx = bit_offset / 8;
                 if byte_idx >= data.len() {
-                    return Err(PersistenceError::Format {
-                        message: "Incomplete bitpacked data".to_string(),
-                        expected: None,
-                        actual: None,
-                    });
+                    return Err(PersistenceError::Format(
+                        "Incomplete bitpacked data".to_string(),
+                    ));
                 }
 
                 let bit_in_byte = bit_offset % 8;

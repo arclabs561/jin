@@ -4,7 +4,7 @@
 //!
 //! Requires the `vamana` feature:
 //! ```toml
-//! vicinity = { version = "0.1", features = ["vamana"] }
+//! plesio = { version = "0.1", features = ["vamana"] }
 //! ```
 //!
 //! Vamana is a graph-based ANN algorithm that uses two-pass construction with
@@ -32,7 +32,7 @@
 //! Requires `features = ["vamana"]`:
 //!
 //! ```ignore
-//! use vicinity::vamana::{VamanaIndex, VamanaParams};
+//! use plesio::vamana::{VamanaIndex, VamanaParams};
 //!
 //! let params = VamanaParams {
 //!     max_degree: 64,

@@ -33,11 +33,11 @@
 //! cargo run --example ivf_pq_demo --release --features ivf_pq
 //! ```
 
+use plesio::ivf_pq::{IVFPQIndex, IVFPQParams};
 use std::collections::HashSet;
 use std::time::Instant;
-use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
 
-fn main() -> vicinity::Result<()> {
+fn main() -> plesio::Result<()> {
     println!("IVF-PQ: Billion-Scale Vector Search");
     println!("====================================\n");
 
@@ -50,7 +50,7 @@ fn main() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_basic_search() -> vicinity::Result<()> {
+fn demo_basic_search() -> plesio::Result<()> {
     println!("1. Basic IVF-PQ Search");
     println!("   --------------------\n");
 
@@ -113,7 +113,7 @@ fn demo_basic_search() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_parameter_tuning() -> vicinity::Result<()> {
+fn demo_parameter_tuning() -> plesio::Result<()> {
     println!("2. Parameter Impact on Recall/Speed");
     println!("   ---------------------------------\n");
 
@@ -175,7 +175,7 @@ fn demo_parameter_tuning() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_memory_analysis() -> vicinity::Result<()> {
+fn demo_memory_analysis() -> plesio::Result<()> {
     println!("3. Memory Analysis");
     println!("   ----------------\n");
 
@@ -233,7 +233,7 @@ fn demo_memory_analysis() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_when_to_use() -> vicinity::Result<()> {
+fn demo_when_to_use() -> plesio::Result<()> {
     println!("4. IVF-PQ vs HNSW Decision Guide");
     println!("   ------------------------------\n");
 

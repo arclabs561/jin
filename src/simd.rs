@@ -1,14 +1,23 @@
 //! Vector operations with SIMD acceleration.
 //!
-//! When the `innr` feature is enabled (default), uses the `innr` crate for
-//! SIMD-accelerated implementations. Otherwise falls back to portable code.
+//! Multiple backends are supported via feature flags:
+//!
+//! | Feature | Backend | Performance | Notes |
+//! |---------|---------|-------------|-------|
+//! | `innr` (default) | innr crate | 4-8x | Pure Rust, good baseline |
+//! | `simsimd` | SimSIMD | Up to 200x | C bindings, best on modern CPUs |
+//! | (none) | Portable | 1x | Fallback, no dependencies |
+//!
+//! # Feature Priority
+//!
+//! If multiple features are enabled, priority is: `simsimd` > `innr` > fallback
 //!
 //! # Usage
 //!
 //! For normalized embeddings, prefer `dot()` over `cosine()`.
 //!
 //! ```rust
-//! use vicinity::simd::{dot, cosine, norm};
+//! use plesio::simd::{dot, cosine, norm};
 //!
 //! let a = [1.0_f32, 0.0, 0.0];
 //! let b = [0.707, 0.707, 0.0];
@@ -18,10 +27,69 @@
 //! let n = norm(&a);
 //! ```
 
-#[cfg(feature = "innr")]
+// Priority 1: SimSIMD (fastest, but requires C bindings)
+#[cfg(feature = "simsimd")]
+mod simsimd_backend {
+    use simsimd::SpatialSimilarity;
+
+    /// Dot product using SimSIMD.
+    #[inline]
+    #[must_use]
+    pub fn dot(a: &[f32], b: &[f32]) -> f32 {
+        f32::dot(a, b).unwrap_or_else(|| super::fallback::dot(a, b))
+    }
+
+    /// Alias for `dot`.
+    #[inline]
+    #[must_use]
+    pub fn dot_portable(a: &[f32], b: &[f32]) -> f32 {
+        super::fallback::dot(a, b)
+    }
+
+    /// L2 norm of a vector.
+    #[inline]
+    #[must_use]
+    pub fn norm(v: &[f32]) -> f32 {
+        dot(v, v).sqrt()
+    }
+
+    /// Cosine similarity using SimSIMD.
+    #[inline]
+    #[must_use]
+    pub fn cosine(a: &[f32], b: &[f32]) -> f32 {
+        f32::cosine(a, b).unwrap_or_else(|| super::fallback::cosine(a, b))
+    }
+
+    /// L2 (Euclidean) distance using SimSIMD.
+    #[inline]
+    #[must_use]
+    pub fn l2_distance(a: &[f32], b: &[f32]) -> f32 {
+        // SimSIMD returns squared distance
+        f32::sqeuclidean(a, b)
+            .map(|d| d.sqrt())
+            .unwrap_or_else(|| super::fallback::l2_distance(a, b))
+    }
+
+    /// L2 distance squared using SimSIMD.
+    #[inline]
+    #[must_use]
+    pub fn l2_distance_squared(a: &[f32], b: &[f32]) -> f32 {
+        f32::sqeuclidean(a, b).unwrap_or_else(|| super::fallback::l2_distance_squared(a, b))
+    }
+}
+
+#[cfg(feature = "simsimd")]
+pub use simsimd_backend::*;
+
+// Priority 2: innr (pure Rust SIMD)
+#[cfg(all(feature = "innr", not(feature = "simsimd")))]
 pub use innr::{cosine, dot, dot_portable, l2_distance, l2_distance_squared, norm};
 
-#[cfg(not(feature = "innr"))]
+// Priority 3: Portable fallback (no dependencies)
+#[cfg(not(any(feature = "innr", feature = "simsimd")))]
+pub use fallback::*;
+
+// Fallback implementation used by all backends for error cases
 mod fallback {
     //! Portable fallback implementations when innr is not available.
 
@@ -76,9 +144,6 @@ mod fallback {
         a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum()
     }
 }
-
-#[cfg(not(feature = "innr"))]
-pub use fallback::*;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sparse operations (always local, innr doesn't provide these by default)

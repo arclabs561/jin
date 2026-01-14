@@ -47,7 +47,7 @@
 //! Hash each band. Similar items collide in *any* band with high probability.
 //!
 //! ```rust
-//! use vicinity::hash::{MinHash, MinHashLSH};
+//! use plesio::hash::{MinHash, MinHashLSH};
 //! use std::collections::HashSet;
 //!
 //! let mh = MinHash::new(128);  // 128 hash functions
@@ -88,7 +88,7 @@
 //! Small Hamming distance → similar documents.
 //!
 //! ```rust
-//! use vicinity::hash::SimHash;
+//! use plesio::hash::SimHash;
 //!
 //! let sh = SimHash::new_64();
 //! let fp1 = sh.fingerprint_text("the quick brown fox jumps over", 3);

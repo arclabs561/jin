@@ -5,13 +5,13 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! vicinity = { version = "0.1", features = ["ivf_pq"] }
+//! plesio = { version = "0.1", features = ["ivf_pq"] }
 //! ```
 //!
 //! # Quick Start
 //!
 //! ```ignore
-//! use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
+//! use plesio::ivf_pq::{IVFPQIndex, IVFPQParams};
 //!
 //! let params = IVFPQParams {
 //!     num_clusters: 1024,   // sqrt(n) rule of thumb
@@ -118,6 +118,7 @@
 //! - Ge et al. (2014). "Optimized Product Quantization."
 
 // IVF-PQ core implementation (always available when ivf_pq feature is enabled)
+pub mod opq;
 pub mod pq;
 pub mod search;
 pub use search::{IVFPQIndex, IVFPQParams};

@@ -5,9 +5,9 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use vicinity::hnsw::HNSWIndex;
+//! use plesio::hnsw::HNSWIndex;
 //!
-//! fn main() -> Result<(), vicinity::RetrieveError> {
+//! fn main() -> Result<(), plesio::RetrieveError> {
 //!     // dimension=128, M=16, ef_construction=200
 //!     let mut index = HNSWIndex::new(128, 16, 200)?;
 //!

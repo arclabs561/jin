@@ -6,9 +6,9 @@
 //! cargo run --example 01_basic_search --release
 //! ```
 
-use vicinity::hnsw::HNSWIndex;
+use plesio::hnsw::HNSWIndex;
 
-fn main() -> vicinity::Result<()> {
+fn main() -> plesio::Result<()> {
     // Sample data: 100 vectors of dimension 64
     let dim = 64;
     let n = 100;

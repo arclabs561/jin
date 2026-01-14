@@ -1,4 +1,4 @@
-//! Property-based tests for vicinity ANN components.
+//! Property-based tests for plesio ANN components.
 //!
 //! These tests verify invariants that should hold regardless of input:
 //! - Distance metrics satisfy metric space properties
@@ -419,7 +419,7 @@ mod ground_truth_props {
 
 mod lid_props {
     use super::*;
-    use vicinity::lid::{estimate_lid_mle, LidConfig, LidEstimate, LidStats};
+    use plesio::lid::{estimate_lid_mle, LidConfig, LidEstimate, LidStats};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
@@ -531,7 +531,7 @@ mod lid_props {
         fn lid_categorization_consistent(
             lids in prop::collection::vec(1.0f32..100.0, 20..50),
         ) {
-            use vicinity::lid::LidCategory;
+            use plesio::lid::LidCategory;
 
             let estimates: Vec<LidEstimate> = lids.iter()
                 .map(|&lid| LidEstimate { lid, k: 20, max_dist: 1.0 })
@@ -583,7 +583,7 @@ mod lid_props {
 
 mod twonn_props {
     use super::*;
-    use vicinity::lid::{estimate_twonn, estimate_twonn_with_ci};
+    use plesio::lid::{estimate_twonn, estimate_twonn_with_ci};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(200))]
@@ -780,7 +780,7 @@ mod twonn_props {
 
 mod lid_aggregation_props {
     use super::*;
-    use vicinity::lid::{aggregate_lid, LidAggregation, LidEstimate};
+    use plesio::lid::{aggregate_lid, LidAggregation, LidEstimate};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
@@ -992,12 +992,30 @@ mod metric_space_props {
 }
 
 // =============================================================================
-// HNSW Invariant Tests
+// HNSW Mathematical Invariants
 // =============================================================================
+//
+// HNSW's layer structure follows a geometric distribution, creating the
+// hierarchical navigable small-world property that enables O(log n) search.
+//
+// ## Layer Assignment Distribution
+//
+// P(layer = l) = (1 - 1/m_l) × (1/m_l)^l
+//
+// This geometric distribution ensures:
+// - Most vectors are at layer 0 (base layer)
+// - Each upper layer has ~1/m_l fewer vectors
+// - Expected vectors at layer l: N × (1/m_l)^l
+//
+// ## Reference
+//
+// Malkov & Yashunin (2016): "Efficient and robust approximate nearest
+// neighbor search using Hierarchical Navigable Small World graphs"
+//
 
 mod hnsw_props {
     use super::*;
-    use vicinity::hnsw::HNSWIndex;
+    use plesio::hnsw::HNSWIndex;
 
     fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
         use std::hash::{Hash, Hasher};

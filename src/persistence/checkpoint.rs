@@ -67,11 +67,10 @@ impl CheckpointHeader {
         reader.read_exact(&mut magic)?;
 
         if magic != CHECKPOINT_MAGIC {
-            return Err(PersistenceError::Format {
-                message: "Invalid checkpoint magic bytes".to_string(),
-                expected: Some(format!("{:?}", CHECKPOINT_MAGIC)),
-                actual: Some(format!("{:?}", magic)),
-            });
+            return Err(PersistenceError::Format(format!(
+                "Invalid checkpoint magic bytes (expected: {:?}, actual: {:?})",
+                CHECKPOINT_MAGIC, magic
+            )));
         }
 
         let format_version = reader.read_u32::<LittleEndian>()?;
@@ -107,11 +106,11 @@ impl CheckpointHeader {
         // Extract segment list bytes
         let segment_list_start = self.segment_list_offset as usize;
         if segment_list_start > all_data.len() {
-            return Err(PersistenceError::Format {
-                message: "Segment list offset beyond file size".to_string(),
-                expected: Some(format!("< {}", all_data.len())),
-                actual: Some(format!("{}", segment_list_start)),
-            });
+            return Err(PersistenceError::Format(format!(
+                "Segment list offset beyond file size (expected < {}, actual: {})",
+                all_data.len(),
+                segment_list_start
+            )));
         }
         let segment_list_bytes = &all_data[segment_list_start..];
 
@@ -310,11 +309,11 @@ impl CheckpointReader {
         // Extract segment list bytes
         let segment_list_start = header.segment_list_offset as usize;
         if segment_list_start > all_data.len() {
-            return Err(PersistenceError::Format {
-                message: "Segment list offset beyond file size".to_string(),
-                expected: Some(format!("< {}", all_data.len())),
-                actual: Some(format!("{}", segment_list_start)),
-            });
+            return Err(PersistenceError::Format(format!(
+                "Segment list offset beyond file size (expected < {}, actual: {})",
+                all_data.len(),
+                segment_list_start
+            )));
         }
 
         let segment_list_bytes = &all_data[segment_list_start..];

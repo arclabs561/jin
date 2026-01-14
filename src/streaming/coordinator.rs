@@ -38,8 +38,8 @@ impl Default for StreamingConfig {
 /// # Example
 ///
 /// ```rust,ignore
-/// use vicinity::streaming::StreamingCoordinator;
-/// use vicinity::hnsw::HNSWIndex;
+/// use plesio::streaming::StreamingCoordinator;
+/// use plesio::hnsw::HNSWIndex;
 ///
 /// let index = HNSWIndex::new(128)?;
 /// let mut streaming = StreamingCoordinator::new(index);

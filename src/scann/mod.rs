@@ -5,7 +5,7 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! vicinity = { version = "0.1", features = ["scann"] }
+//! plesio = { version = "0.1", features = ["scann"] }
 //! ```
 //!
 //! # Status: Experimental
@@ -15,7 +15,7 @@
 //! # Quick Start
 //!
 //! ```ignore
-//! use vicinity::scann::{SCANNIndex, SCANNParams};
+//! use plesio::scann::{SCANNIndex, SCANNParams};
 //!
 //! let params = SCANNParams {
 //!     num_partitions: 256,

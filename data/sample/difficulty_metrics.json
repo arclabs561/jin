@@ -1,0 +1,44 @@
+{
+  "quick": {
+    "n_train": 2000,
+    "n_test": 200,
+    "dim": 128,
+    "relative_contrast": {
+      "mean": 1.4158368110656738,
+      "std": 0.0619596466422081
+    },
+    "hubness_skewness": 1.435024054230304,
+    "hub_fraction": 0.0475,
+    "distance_concentration": 0.10609274357557297,
+    "intrinsic_dim": 19.389358520507812,
+    "difficulty_score": 1.6736529178326585
+  },
+  "bench": {
+    "n_train": 10000,
+    "n_test": 500,
+    "dim": 384,
+    "relative_contrast": {
+      "mean": 2.832925319671631,
+      "std": 2.6909306049346924
+    },
+    "hubness_skewness": 0.4112966801248298,
+    "hub_fraction": 0.0362,
+    "distance_concentration": 0.05129602551460266,
+    "intrinsic_dim": 60.500152587890625,
+    "difficulty_score": 1.1030562890332096
+  },
+  "hard": {
+    "n_train": 10000,
+    "n_test": 500,
+    "dim": 768,
+    "relative_contrast": {
+      "mean": 1.1449618339538574,
+      "std": 0.0282374806702137
+    },
+    "hubness_skewness": 5.026638978079541,
+    "hub_fraction": 0.0385,
+    "distance_concentration": 0.22629305720329285,
+    "intrinsic_dim": 14.49998664855957,
+    "difficulty_score": 3.77080970672547
+  }
+}

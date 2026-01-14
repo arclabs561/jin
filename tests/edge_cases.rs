@@ -1,9 +1,9 @@
-//! Edge case tests for vicinity.
+//! Edge case tests for plesio.
 //!
 //! Tests unusual inputs and boundary conditions that could cause failures.
 
+use plesio::hnsw::HNSWIndex;
 use std::collections::HashSet;
-use vicinity::hnsw::HNSWIndex;
 
 fn normalize(v: &[f32]) -> Vec<f32> {
     let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();

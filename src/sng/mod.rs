@@ -5,7 +5,7 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! vicinity = { version = "0.1", features = ["sng"] }
+//! plesio = { version = "0.1", features = ["sng"] }
 //! ```
 //!
 //! # Status: Experimental
@@ -15,7 +15,7 @@
 //! # Quick Start
 //!
 //! ```ignore
-//! use vicinity::sng::{SNGIndex, SNGParams};
+//! use plesio::sng::{SNGIndex, SNGParams};
 //!
 //! // No parameter tuning needed!
 //! let mut index = SNGIndex::new(128, SNGParams::default());

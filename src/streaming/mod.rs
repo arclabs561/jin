@@ -43,8 +43,8 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use vicinity::streaming::{StreamingIndex, UpdateOp};
-//! use vicinity::hnsw::HNSWIndex;
+//! use plesio::streaming::{StreamingIndex, UpdateOp};
+//! use plesio::hnsw::HNSWIndex;
 //!
 //! let mut index = StreamingIndex::new(HNSWIndex::new(128)?);
 //!

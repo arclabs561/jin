@@ -49,7 +49,7 @@ fn cosine_distance_handles_unnormalized_query() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn search_after_deletion_returns_valid_results() {
-    use vicinity::hnsw::HNSWIndex;
+    use plesio::hnsw::HNSWIndex;
 
     let dim = 8;
     let n = 100;
@@ -113,7 +113,7 @@ fn size_calculations_dont_overflow() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn layer0_uses_correct_connectivity() {
-    use vicinity::hnsw::HNSWIndex;
+    use plesio::hnsw::HNSWIndex;
 
     let dim = 32;
     let m = 8; // M for upper layers
@@ -142,7 +142,7 @@ fn layer0_uses_correct_connectivity() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn layer_traversal_is_top_to_bottom() {
-    use vicinity::hnsw::HNSWIndex;
+    use plesio::hnsw::HNSWIndex;
 
     let dim = 32;
     let n = 1000;
@@ -176,8 +176,8 @@ fn layer_traversal_is_top_to_bottom() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn stopping_condition_allows_sufficient_exploration() {
+    use plesio::hnsw::HNSWIndex;
     use std::collections::HashSet;
-    use vicinity::hnsw::HNSWIndex;
 
     let dim = 64;
     let n = 500;
@@ -226,8 +226,8 @@ fn stopping_condition_allows_sufficient_exploration() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn recall_is_measurable() {
+    use plesio::hnsw::HNSWIndex;
     use std::collections::HashSet;
-    use vicinity::hnsw::HNSWIndex;
 
     let dim = 64;
     let n = 500;

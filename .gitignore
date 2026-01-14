@@ -2,4 +2,11 @@
 .cargo/
 
 # Benchmark data (generated from HDF5, ~120MB)
-/data/*.bin
+/data/**/*.bin
+
+# Local clone used during migration; never commit it.
+/vicinity/
+
+# Generated plots / reports
+/doc/plots/index.html
+/doc/plots/margin_distributions.png

@@ -7,7 +7,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use vicinity::ann::autotune::{ParameterTuner, Criterion};
+//! use plesio::ann::autotune::{ParameterTuner, Criterion};
 //!
 //! // Create tuner with recall target
 //! let tuner = ParameterTuner::new()
@@ -264,6 +264,7 @@ impl ParameterTuner {
                 nprobe,
                 num_codebooks: 8,   // Default
                 codebook_size: 256, // Default
+                use_opq: false,
                 #[cfg(feature = "id-compression")]
                 id_compression: None,
                 #[cfg(feature = "id-compression")]

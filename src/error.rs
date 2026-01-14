@@ -1,4 +1,4 @@
-//! Error types for vicinity.
+//! Error types for plesio.
 
 use thiserror::Error;
 
@@ -52,5 +52,5 @@ impl From<std::io::Error> for RetrieveError {
     }
 }
 
-/// Result type alias for vicinity operations.
+/// Result type alias for plesio operations.
 pub type Result<T> = std::result::Result<T, RetrieveError>;

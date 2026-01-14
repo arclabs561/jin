@@ -9,7 +9,7 @@
 //!
 //! | Crate     | Algorithm        | Best For                      |
 //! |-----------|------------------|-------------------------------|
-//! | vicinity  | EVōC             | Embedding exploration, outliers |
+//! | plesio  | EVōC             | Embedding exploration, outliers |
 //! | stratify  | K-means, GMM     | Known k, production speed     |
 //! | stratify  | Leiden           | Graph community detection     |
 //! | stratify  | Hierarchical     | Dendrograms, any-k extraction |
@@ -26,9 +26,9 @@
 //! cargo run --example evoc_demo --release
 //! ```
 
-use vicinity::evoc::{EVoC, EVoCParams};
+use plesio::evoc::{EVoC, EVoCParams};
 
-fn main() -> vicinity::Result<()> {
+fn main() -> plesio::Result<()> {
     println!("EVōC: Hierarchical Embedding Clustering");
     println!("========================================\n");
 
@@ -43,7 +43,7 @@ fn main() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_basic_clustering() -> vicinity::Result<()> {
+fn demo_basic_clustering() -> plesio::Result<()> {
     println!("1. Basic Clustering: Discover Natural Groups");
     println!("   ------------------------------------------\n");
 
@@ -121,7 +121,7 @@ fn demo_basic_clustering() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_hierarchy_exploration() -> vicinity::Result<()> {
+fn demo_hierarchy_exploration() -> plesio::Result<()> {
     println!("2. Hierarchy Exploration: Multiple Granularities");
     println!("   ----------------------------------------------\n");
 
@@ -173,13 +173,11 @@ fn demo_hierarchy_exploration() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_when_to_use() -> vicinity::Result<()> {
+fn demo_when_to_use() -> plesio::Result<()> {
     println!("3. Clustering Decision Guide");
     println!("   -------------------------\n");
 
-    println!(
-        "   | Criterion           | EVōC (vicinity)  | K-means (stratify) | GMM (stratify)   |"
-    );
+    println!("   | Criterion           | EVōC (plesio)  | K-means (stratify) | GMM (stratify)   |");
     println!(
         "   |---------------------|------------------|--------------------|--------------------|"
     );
@@ -204,7 +202,7 @@ fn demo_when_to_use() -> vicinity::Result<()> {
     println!();
 
     println!("   Pipeline recommendation:");
-    println!("     1. EVōC (vicinity) to EXPLORE and discover natural cluster count");
+    println!("     1. EVōC (plesio) to EXPLORE and discover natural cluster count");
     println!("     2. stratify::Kmeans with discovered k for PRODUCTION (10-100x faster)");
     println!("     3. stratify::Gmm if you need probability per cluster");
     println!("     4. stratify::Leiden for graph community structure");

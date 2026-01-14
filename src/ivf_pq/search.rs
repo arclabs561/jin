@@ -32,7 +32,7 @@ impl Quantizer {
     pub fn distance_with_table(&self, table: &[f32], codes: &[u8]) -> f32 {
         match self {
             Self::Product(pq) => pq.distance_with_table(table, codes),
-            Self::Optimized(opq) => opq.quantizer().distance_with_table(table, codes),
+            Self::Optimized(opq) => opq.distance_with_table(table, codes),
         }
     }
 }

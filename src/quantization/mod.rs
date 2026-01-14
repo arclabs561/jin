@@ -12,8 +12,8 @@
 //! # Feature Flags
 //!
 //! ```toml
-//! vicinity = { version = "0.1", features = ["rabitq"] }  # RaBitQ
-//! vicinity = { version = "0.1", features = ["saq"] }     # Ternary/Binary
+//! plesio = { version = "0.1", features = ["rabitq"] }  # RaBitQ
+//! plesio = { version = "0.1", features = ["saq"] }     # Ternary/Binary
 //! ```
 //!
 //! # The Problem: Memory at Scale
@@ -92,7 +92,7 @@
 //! Requires `features = ["rabitq"]`:
 //!
 //! ```ignore
-//! use vicinity::quantization::rabitq::{RaBitQ, RaBitQConfig};
+//! use plesio::quantization::rabitq::{RaBitQ, RaBitQConfig};
 //!
 //! let config = RaBitQConfig::bits4();  // 4-bit quantization
 //! let mut quantizer = RaBitQ::new(768, config);

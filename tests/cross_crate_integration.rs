@@ -1,7 +1,7 @@
 //! Cross-crate integration tests for Scholar Stack.
 //!
 //! These tests verify that cross-crate dependencies work correctly:
-//! - vicinity uses idpaq for ID compression
+//! - plesio uses idpaq for ID compression
 //! - All crates compile with their optional dependencies
 //!
 //! # Running These Tests
@@ -17,11 +17,11 @@
 
 #[cfg(feature = "id-compression")]
 mod idpaq_integration {
-    use vicinity::compression::{IdSetCompressor, RocCompressor};
+    use plesio::compression::{IdSetCompressor, RocCompressor};
 
-    /// Verify that vicinity correctly delegates to idpaq for compression
+    /// Verify that plesio correctly delegates to idpaq for compression
     #[test]
-    fn vicinity_uses_idpaq_compressor() {
+    fn plesio_uses_idpaq_compressor() {
         let compressor = RocCompressor::new();
 
         // This pattern simulates HNSW neighbor lists
@@ -85,8 +85,8 @@ mod idpaq_integration {
 mod feature_compilation {
     #[test]
     fn default_features_compile() {
-        // Just verify vicinity compiles with default features
-        let _ = std::any::type_name::<vicinity::compression::IdCompressionMethod>();
+        // Just verify plesio compiles with default features
+        let _ = std::any::type_name::<plesio::compression::IdCompressionMethod>();
     }
 
     #[cfg(feature = "hnsw")]
@@ -112,15 +112,15 @@ mod feature_compilation {
 mod dependency_documentation {
     /// Document the compression dependency chain
     ///
-    /// vicinity (id-compression) -> idpaq
+    /// plesio (id-compression) -> idpaq
     #[test]
     fn compression_dependency_chain() {
         // This test documents the dependency:
-        // When id-compression is enabled, vicinity delegates to idpaq
+        // When id-compression is enabled, plesio delegates to idpaq
         //
         // The types should be:
-        // - vicinity::compression::RocCompressor = idpaq::RocCompressor
-        // - vicinity::compression::CompressionError = idpaq::CompressionError
+        // - plesio::compression::RocCompressor = idpaq::RocCompressor
+        // - plesio::compression::CompressionError = idpaq::CompressionError
         //
         // This is verified by the idpaq_integration tests above
         assert!(true);
@@ -128,14 +128,14 @@ mod dependency_documentation {
 
     /// Document the SIMD dependency chain
     ///
-    /// vicinity (innr feature, default) -> innr
+    /// plesio (innr feature, default) -> innr
     #[test]
     fn simd_dependency_chain() {
-        // vicinity/src/simd.rs re-exports innr functions when
+        // plesio/src/simd.rs re-exports innr functions when
         // the innr feature is enabled (which is part of default features)
         //
         // Dependency chain:
-        // - `vicinity::simd::{dot, cosine, l2_distance, ...}`
+        // - `plesio::simd::{dot, cosine, l2_distance, ...}`
         // - => `innr::{dot, cosine, l2_distance, ...}` when innr feature enabled
         // - => portable fallback when innr feature disabled
         //
@@ -143,9 +143,9 @@ mod dependency_documentation {
         let a = [1.0_f32, 0.0, 0.0];
         let b = [0.707, 0.707, 0.0];
 
-        let d = vicinity::simd::dot(&a, &b);
-        let c = vicinity::simd::cosine(&a, &b);
-        let n = vicinity::simd::norm(&a);
+        let d = plesio::simd::dot(&a, &b);
+        let c = plesio::simd::cosine(&a, &b);
+        let n = plesio::simd::norm(&a);
 
         assert!((d - 0.707).abs() < 0.01);
         assert!((c - 0.707).abs() < 0.01);

@@ -1,10 +1,10 @@
 [package]
-name = "vicinity"
+name = "plesio"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.80"
 description = "Approximate Nearest Neighbor Search: HNSW, DiskANN, IVF-PQ, ScaNN, quantization"
-repository = "https://github.com/arclabs561/vicinity"
+repository = "https://github.com/arclabs561/plesio"
 license = "MIT OR Apache-2.0"
 keywords = ["ann", "hnsw", "vector-search", "similarity", "nearest-neighbor"]
 categories = ["algorithms", "science"]
@@ -23,6 +23,10 @@ log = "0.4"
 
 # SIMD primitives (ecosystem crate)
 innr = { git = "https://github.com/arclabs561/innr.git", optional = true }
+
+# High-performance SIMD (ashvardanian/SimSIMD bindings)
+# Provides up to 200x speedups for vector distance functions
+simsimd = { version = "6.5.12", optional = true }
 
 # ID compression primitives (ecosystem crate)
 idpaq = { git = "https://github.com/arclabs561/idpaq.git", optional = true }
@@ -55,6 +59,7 @@ vamana = []
 quantization = []
 nightly = []
 innr = ["dep:innr"]
+simsimd = ["dep:simsimd"]
 
 # Feature names referenced by cfgs in the extracted code.
 # These are currently mostly organizational toggles.

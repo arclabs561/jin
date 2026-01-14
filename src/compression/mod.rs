@@ -17,7 +17,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use vicinity::compression::{RocCompressor, IdSetCompressor};
+//! use plesio::compression::{RocCompressor, IdSetCompressor};
 //!
 //! let compressor = RocCompressor::new();
 //! let ids: Vec<u32> = vec![1, 5, 10, 20, 50];

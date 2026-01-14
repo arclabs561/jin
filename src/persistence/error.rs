@@ -11,11 +11,11 @@ pub enum PersistenceError {
 
     /// Format error (invalid magic bytes, version mismatch, corruption)
     #[error("format error: {0}")]
-    FormatError(String),
+    Format(String),
 
     /// Serialization error (bincode, serde)
     #[error("serialization error: {0}")]
-    SerializationError(String),
+    Serialization(String),
 
     /// Deserialization error
     #[error("deserialization error: {0}")]
@@ -59,14 +59,14 @@ fn format_expected_actual(expected: &Option<String>, actual: &Option<String>) ->
 #[cfg(feature = "persistence")]
 impl From<postcard::Error> for PersistenceError {
     fn from(e: postcard::Error) -> Self {
-        Self::SerializationError(format!("postcard error: {}", e))
+        Self::Serialization(format!("postcard error: {}", e))
     }
 }
 
 #[cfg(all(feature = "persistence", feature = "persistence-bincode"))]
 impl From<bincode::Error> for PersistenceError {
     fn from(e: bincode::Error) -> Self {
-        Self::SerializationError(format!("bincode error (legacy): {}", e))
+        Self::Serialization(format!("bincode error (legacy): {}", e))
     }
 }
 

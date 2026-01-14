@@ -160,35 +160,32 @@ impl DenseSegmentReader {
                         let mut docid_to_index = HashMap::new();
                         // Verify file size is aligned to 12-byte entries
                         if mmap_arc.len() % 12 != 0 {
-                            return Err(PersistenceError::Format {
-                                message: format!(
-                                    "Metadata file size {} is not aligned to 12-byte entries",
-                                    mmap_arc.len()
-                                ),
-                                expected: Some("multiple of 12 bytes".to_string()),
-                                actual: Some(format!("{} bytes", mmap_arc.len())),
-                            });
+                            return Err(PersistenceError::Format(format!(
+                                "Metadata file size {} is not aligned to 12-byte entries \
+                                (expected: multiple of 12 bytes, actual: {} bytes)",
+                                mmap_arc.len(),
+                                mmap_arc.len()
+                            )));
                         }
                         let num_vectors = mmap_arc.len() / 12; // 12 bytes per entry: doc_id(4) + norm(4) + flags(4)
                         for i in 0..num_vectors {
                             let offset = i * 12;
                             // Bounds check: offset + 4 must be <= len
                             if offset + 4 > mmap_arc.len() {
-                                return Err(PersistenceError::Format {
-                                    message: format!("Metadata entry {} out of bounds", i),
-                                    expected: Some(format!("offset + 4 <= {}", mmap_arc.len())),
-                                    actual: Some(format!("offset + 4 = {}", offset + 4)),
-                                });
+                                return Err(PersistenceError::Format(format!(
+                                    "Metadata entry {} out of bounds (expected offset + 4 <= {}, actual: {})",
+                                    i,
+                                    mmap_arc.len(),
+                                    offset + 4
+                                )));
                             }
                             let doc_id_bytes: [u8; 4] = mmap_arc[offset..offset + 4]
                                 .try_into()
-                                .map_err(|_| PersistenceError::Format {
-                                    message: format!(
-                                        "Failed to extract doc_id bytes at offset {}",
+                                .map_err(|_| {
+                                    PersistenceError::Format(format!(
+                                        "Failed to extract doc_id bytes at offset {} (expected 4-byte array)",
                                         offset
-                                    ),
-                                    expected: Some("4-byte array".to_string()),
-                                    actual: None,
+                                    ))
                                 })?;
                             let doc_id = u32::from_le_bytes(doc_id_bytes);
                             docid_to_index.insert(doc_id, i);
@@ -200,14 +197,12 @@ impl DenseSegmentReader {
                         let mut metadata_buffer = Vec::new();
                         metadata_file.read_to_end(&mut metadata_buffer)?;
                         if metadata_buffer.len() % 12 != 0 {
-                            return Err(PersistenceError::Format {
-                                message: format!(
-                                    "Metadata file size {} is not aligned to 12-byte entries",
-                                    metadata_buffer.len()
-                                ),
-                                expected: Some("multiple of 12 bytes".to_string()),
-                                actual: Some(format!("{} bytes", metadata_buffer.len())),
-                            });
+                            return Err(PersistenceError::Format(format!(
+                                "Metadata file size {} is not aligned to 12-byte entries \
+                                (expected: multiple of 12 bytes, actual: {} bytes)",
+                                metadata_buffer.len(),
+                                metadata_buffer.len()
+                            )));
                         }
                         let num_vectors = metadata_buffer.len() / 12;
                         let mut docid_to_index = HashMap::new();
@@ -216,13 +211,11 @@ impl DenseSegmentReader {
                             let doc_id = u32::from_le_bytes(
                                 metadata_buffer[offset..offset + 4]
                                     .try_into()
-                                    .map_err(|_| PersistenceError::Format {
-                                        message: format!(
-                                            "Failed to extract doc_id bytes at offset {}",
+                                    .map_err(|_| {
+                                        PersistenceError::Format(format!(
+                                            "Failed to extract doc_id bytes at offset {} (expected 4-byte array)",
                                             offset
-                                        ),
-                                        expected: Some("4-byte array".to_string()),
-                                        actual: None,
+                                        ))
                                     })?,
                             );
                             docid_to_index.insert(doc_id, i);
@@ -326,11 +319,11 @@ impl DenseSegmentReader {
                         // from_bytes is safe for memory-mapped data (page-aligned, Pod type)
                         *bytemuck::from_bytes::<VectorMetadata>(&mmap[offset..offset + 12])
                     } else {
-                        return Err(PersistenceError::Format {
-                            message: "Metadata offset out of bounds".to_string(),
-                            expected: Some(format!("< {}", mmap.len())),
-                            actual: Some(format!("{}", offset + 12)),
-                        });
+                        return Err(PersistenceError::Format(format!(
+                            "Metadata offset out of bounds (expected < {}, actual: {})",
+                            mmap.len(),
+                            offset + 12
+                        )));
                     }
                 } else {
                     // Fallback to file read
@@ -368,11 +361,11 @@ impl DenseSegmentReader {
                                 &mmap[byte_offset..byte_offset + 4],
                             ));
                         } else {
-                            return Err(PersistenceError::Format {
-                                message: "Vector offset out of bounds".to_string(),
-                                expected: Some(format!("< {}", mmap.len())),
-                                actual: Some(format!("{}", byte_offset + 4)),
-                            });
+                            return Err(PersistenceError::Format(format!(
+                                "Vector offset out of bounds (expected < {}, actual: {})",
+                                mmap.len(),
+                                byte_offset + 4
+                            )));
                         }
                     }
                     vec
@@ -415,28 +408,31 @@ impl DenseSegmentReader {
         metadata_file.read_to_end(&mut metadata_buffer)?;
         let offset = vector_index * 12;
         if offset + 12 > metadata_buffer.len() {
-            return Err(PersistenceError::Format {
-                message: format!("Metadata entry {} out of bounds", vector_index),
-                expected: Some(format!("offset + 12 <= {}", metadata_buffer.len())),
-                actual: Some(format!("offset + 12 = {}", offset + 12)),
-            });
+            return Err(PersistenceError::Format(format!(
+                "Metadata entry {} out of bounds (expected offset + 12 <= {}, actual: {})",
+                vector_index,
+                metadata_buffer.len(),
+                offset + 12
+            )));
         }
         // Extract bytes from buffer
         let doc_id_bytes: [u8; 4] =
             metadata_buffer[offset..offset + 4]
                 .try_into()
-                .map_err(|_| PersistenceError::Format {
-                    message: format!("Failed to extract doc_id bytes at offset {}", offset),
-                    expected: Some("4-byte array".to_string()),
-                    actual: None,
+                .map_err(|_| {
+                    PersistenceError::Format(format!(
+                        "Failed to extract doc_id bytes at offset {} (expected 4-byte array)",
+                        offset
+                    ))
                 })?;
         let norm_bytes: [u8; 4] =
             metadata_buffer[offset + 4..offset + 8]
                 .try_into()
-                .map_err(|_| PersistenceError::Format {
-                    message: format!("Failed to extract norm bytes at offset {}", offset + 4),
-                    expected: Some("4-byte array".to_string()),
-                    actual: None,
+                .map_err(|_| {
+                    PersistenceError::Format(format!(
+                        "Failed to extract norm bytes at offset {} (expected 4-byte array)",
+                        offset + 4
+                    ))
                 })?;
 
         Ok(VectorMetadata {

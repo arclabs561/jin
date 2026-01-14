@@ -1,8 +1,11 @@
 //! DiskANN graph structure and Vamana construction.
 
+use crate::RetrieveError;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use smallvec::SmallVec;
+use std::collections::HashSet;
+use std::path::Path;
 
 /// DiskANN index for disk-based approximate nearest neighbor search.
 ///
@@ -103,10 +106,6 @@ impl DiskANNIndex {
         Ok(())
     }
 }
-
-use rand::seq::SliceRandom;
-use rand::Rng;
-use smallvec::SmallVec;
 
 /// Disk-based searcher for DiskANN.
 ///

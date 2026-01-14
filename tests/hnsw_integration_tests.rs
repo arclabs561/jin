@@ -5,8 +5,8 @@
 //! Note: HNSWIndex uses internal indices (0, 1, 2, ...) based on insertion order,
 //! not the doc_id passed to add(). The index also uses cosine distance internally.
 
+use plesio::hnsw::{HNSWIndex, HNSWParams};
 use std::collections::HashSet;
-use vicinity::hnsw::{HNSWIndex, HNSWParams};
 
 /// Generate random vectors for testing.
 fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {

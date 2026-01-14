@@ -10,7 +10,7 @@
 
 use std::collections::HashSet;
 
-use vicinity::hnsw::{HNSWIndex, HNSWParams};
+use plesio::hnsw::{HNSWIndex, HNSWParams};
 
 fn dot(a: &[f32], b: &[f32]) -> f32 {
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
@@ -329,7 +329,7 @@ fn test_scaling_recall() {
 
 #[test]
 fn test_compare_neighbor_selection() {
-    use vicinity::hnsw::NeighborhoodDiversification;
+    use plesio::hnsw::NeighborhoodDiversification;
 
     let dim = 32;
     let k = 10;
@@ -534,8 +534,8 @@ fn test_high_ef_search() {
 // Streaming / IndexOps E2E Tests
 // =============================================================================
 
-use vicinity::hnsw::{InPlaceConfig, InPlaceIndex, MappedInPlaceIndex};
-use vicinity::streaming::{IndexOps, StreamingCoordinator};
+use plesio::hnsw::{InPlaceConfig, InPlaceIndex, MappedInPlaceIndex};
+use plesio::streaming::{IndexOps, StreamingCoordinator};
 
 /// End-to-end test: streaming updates via IndexOps trait
 #[test]

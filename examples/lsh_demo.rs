@@ -29,9 +29,9 @@
 //! cargo run --example lsh_demo --features lsh
 //! ```
 
+use plesio::hash::{MinHash, MinHashLSH, SimHash};
 use std::collections::HashSet;
 use std::time::Instant;
-use vicinity::hash::{MinHash, MinHashLSH, SimHash};
 
 fn main() {
     println!("Locality Sensitive Hashing: When and Why");

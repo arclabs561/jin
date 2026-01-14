@@ -1061,6 +1061,42 @@ impl HNSWIndex {
     /// Assign layer for a new vector using exponential distribution.
     ///
     /// Returns the maximum layer where this vector will appear.
+    /// Assign a layer to a new vector using a geometric distribution.
+    ///
+    /// # Mathematical Foundation
+    ///
+    /// The layer assignment follows a geometric distribution with parameter `p = 1/m_l`.
+    /// This creates the hierarchical structure essential for HNSW's O(log n) search.
+    ///
+    /// ## Probability Distribution
+    ///
+    /// ```text
+    /// P(layer = l) = (1 - 1/m_l) × (1/m_l)^l
+    /// ```
+    ///
+    /// This is a truncated geometric distribution where:
+    /// - `m_l` is typically `1/ln(M)` ≈ 1.44 for M=16
+    /// - Most vectors are at layer 0 (base layer)
+    /// - Higher layers are exponentially sparser
+    ///
+    /// ## Expected Properties
+    ///
+    /// - **E[layer]** ≈ 1/(m_l - 1): Expected layer level
+    /// - **Layer 0 probability**: P(L=0) = 1 - 1/m_l ≈ 0.31 for default m_l
+    /// - **Expected vectors per layer**: N × (1/m_l)^l
+    ///
+    /// ## Why This Works
+    ///
+    /// The geometric distribution creates a navigable small-world graph:
+    /// 1. Upper layers have O(log n) vectors, enabling fast coarse search
+    /// 2. Lower layers have O(n) vectors, enabling fine-grained retrieval
+    /// 3. The hierarchical structure mimics skip lists, giving O(log n) complexity
+    ///
+    /// ## Reference
+    ///
+    /// Malkov & Yashunin (2016): "Efficient and robust approximate nearest
+    /// neighbor search using Hierarchical Navigable Small World graphs"
+    /// - Section 4.2: Level generation
     fn assign_layer(&self) -> u8 {
         #[cfg(feature = "hnsw")]
         {
@@ -1068,6 +1104,7 @@ impl HNSWIndex {
             let mut rng = rand::rng();
 
             let mut layer = 0u8;
+            // Geometric distribution: P(l > L) = (1/m_l)^L
             while rng.random::<f64>() < 1.0 / self.params.m_l && layer < 255 {
                 layer += 1;
             }

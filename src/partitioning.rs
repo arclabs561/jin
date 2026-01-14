@@ -29,6 +29,7 @@ pub trait Partitioner: Send + Sync {
     fn num_partitions(&self) -> usize;
 }
 
+#[cfg(feature = "scann")]
 use crate::partitioning::kmeans::KMeans;
 
 /// k-means partitioner (flat clustering).

@@ -5,7 +5,7 @@
 // (Rust 2024 edition strictness - this is a SIMD crate where unsafe is pervasive)
 #![allow(unsafe_op_in_unsafe_fn)]
 
-//! vicinity: Approximate Nearest Neighbor Search primitives.
+//! plesio: Approximate Nearest Neighbor Search primitives.
 //!
 //! Provides standalone implementations of state-of-the-art ANN algorithms:
 //!
@@ -42,10 +42,10 @@
 //!
 //! ```toml
 //! # Minimal (HNSW + SIMD)
-//! vicinity = "0.1"
+//! plesio = "0.1"
 //!
 //! # With quantization support
-//! vicinity = { version = "0.1", features = ["ivf_pq"] }
+//! plesio = { version = "0.1", features = ["ivf_pq"] }
 //! ```
 //!
 //! # Critical Nuances & The HNSW Critique (2025)
@@ -60,8 +60,12 @@
 //!   angular diversity, allowing "glances" around obstacles.
 //! - **Memory Bloat**: The hierarchical layers add 30-40% overhead. For d > 32,
 //!   the hierarchy often provides negligible speedup over a well-constructed flat graph.
+//! - **Hub Highway Hypothesis (2025)**: Research demonstrated that flat NSW graphs
+//!   retain *all* benefits of HNSW on high-d data. Hub nodes form a "hub highway"
+//!   that serves the same routing function as explicit hierarchy layers.
 //! - **Construction Sensitivity**: HNSW quality depends heavily on insertion order.
-//!   Vamana's two-pass build (random graph -> refined) is more robust.
+//!   LID-based ordering (descending) can improve recall by 12%. Vamana's two-pass
+//!   build (random graph -> refined) is more robust.
 //!
 //! **Verdict**: Use HNSW for RAM-based, low-latency search. Look at Vamana/DiskANN
 //! for higher recall or SSD-resident data.
@@ -87,6 +91,51 @@
 //! - Small datasets (< 10K vectors): Brute force is faster (SIMD is powerful).
 //! - Very high recall requirements (> 99.9%): ANN overhead not worth it.
 //! - Low intrinsic dimensionality: KD-trees can be exact and fast.
+//!
+//! ## 5. Quantization Trade-offs (2024-2025 Research)
+//!
+//! | Method | Compression | Recall | Query Speedup | Use Case |
+//! |--------|-------------|--------|---------------|----------|
+//! | **Binary** | 32x | ~96% | 24x | Extreme speed, lower accuracy OK |
+//! | **Scalar (INT8)** | 4x | ~99.3% | 4x | Balance of speed and accuracy |
+//! | **Product (PQ)** | 8-64x | ~95-98% | 8-32x | Memory-constrained billion-scale |
+//! | **OPQ** | 8-64x | ~97-99% | 8-32x | Better than PQ via rotation |
+//!
+//! Binary quantization uses Hamming distance (2 CPU cycles per comparison).
+//! Matryoshka embeddings enable dimension reduction before quantization for
+//! further compression (e.g., 256x total with MRL + binary).
+//!
+//! ## 6. Future Directions (2025+ Research)
+//!
+//! Several promising research directions are not yet implemented:
+//!
+//! | Technique | Benefit | Reference |
+//! |-----------|---------|-----------|
+//! | **GPU Indexing** | 9.3x speedup, 3.75x cost reduction | OpenSearch cuVS 2025 |
+//! | **Filtered ANNS** | Correctness guarantees for metadata filters | ACORN (SIGMOD 2024) |
+//! | **Probabilistic Routing** | 1.6-2.5x throughput via PEOs | Theoretical ANN 2024 |
+//! | **FreshDiskANN** | Real-time updates with 2-hop reconnection | Microsoft Research |
+//! | **Learned Indexes** | RL/DL for routing decisions | CRINN, learned ANN |
+//!
+//! ### GPU Acceleration
+//!
+//! NVIDIA cuVS (via OpenSearch) showed 9.3x query speedup and 3.75x cost reduction
+//! on billion-scale workloads. GPU acceleration is most beneficial for:
+//! - Large batch queries (amortize kernel launch)
+//! - High-dimensional data (d > 256)
+//! - Index construction (embarrassingly parallel)
+//!
+//! ### Filtered ANNS (ACORN)
+//!
+//! Traditional approach: post-filter ANN results. Problem: may return < k results.
+//! ACORN builds predicate-aware graphs with formal correctness guarantees.
+//! Useful when: attribute filtering is common (e.g., "similar products in category X").
+//!
+//! ### Probabilistic Routing
+//!
+//! Instead of deterministic greedy search, use learned probabilistic routing.
+//! Position-Encoded Outputs (PEOs) achieve 1.6-2.5x throughput improvement
+//! with theoretical guarantees on recall.
 
 pub mod ann;
 pub mod classic;

@@ -6,13 +6,13 @@
 //!
 //! Requires the `nsw` feature:
 //! ```toml
-//! vicinity = { version = "0.1", features = ["nsw"] }
+//! plesio = { version = "0.1", features = ["nsw"] }
 //! ```
 //!
 //! # Quick Start
 //!
 //! ```ignore
-//! use vicinity::nsw::{NSWIndex, NSWParams};
+//! use plesio::nsw::{NSWIndex, NSWParams};
 //!
 //! let params = NSWParams { m: 16, ef_construction: 200 };
 //! let mut index = NSWIndex::new(768, params);

@@ -6,7 +6,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use vicinity::ann::{index_factory, ANNIndex};
+//! use plesio::ann::{index_factory, ANNIndex};
 //!
 //! // Create HNSW index (requires "hnsw" feature)
 //! let mut index = index_factory(128, "HNSW32")?;
@@ -467,6 +467,7 @@ pub fn index_factory(dimension: usize, factory_string: &str) -> Result<AnyANNInd
                 nprobe: (num_clusters / 10).clamp(1, 100), // Default nprobe
                 num_codebooks,
                 codebook_size,
+                use_opq: false,
                 #[cfg(feature = "id-compression")]
                 id_compression: None,
                 #[cfg(feature = "id-compression")]

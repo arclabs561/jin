@@ -101,11 +101,10 @@ impl WalSegmentHeader {
         reader.read_exact(&mut magic)?;
 
         if magic != WAL_MAGIC {
-            return Err(PersistenceError::Format {
-                message: "Invalid WAL magic bytes".to_string(),
-                expected: Some(format!("{:?}", WAL_MAGIC)),
-                actual: Some(format!("{:?}", magic)),
-            });
+            return Err(PersistenceError::Format(format!(
+                "Invalid WAL magic bytes (expected: {:?}, actual: {:?})",
+                WAL_MAGIC, magic
+            )));
         }
 
         let version = reader.read_u32::<LittleEndian>()?;

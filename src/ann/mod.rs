@@ -14,7 +14,7 @@
 //! Use `factory::index_factory()` to create indexes from string descriptions:
 //!
 //! ```rust,ignore
-//! use vicinity::ann::{index_factory, ANNIndex};
+//! use plesio::ann::{index_factory, ANNIndex};
 //!
 //! // Create HNSW index (requires "hnsw" feature)
 //! let mut index = index_factory(128, "HNSW32")?;

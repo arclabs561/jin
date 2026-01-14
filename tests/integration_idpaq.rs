@@ -1,11 +1,11 @@
-//! Integration tests verifying idpaq usage in vicinity.
+//! Integration tests verifying idpaq usage in plesio.
 //!
 //! These tests enforce that the id-compression feature correctly delegates
 //! to the idpaq crate for ID set compression in ANN indexes.
 
 #![cfg(feature = "id-compression")]
 
-use vicinity::compression::{CompressionError, IdSetCompressor, RocCompressor};
+use plesio::compression::{CompressionError, IdSetCompressor, RocCompressor};
 
 // =============================================================================
 // Basic Integration Tests

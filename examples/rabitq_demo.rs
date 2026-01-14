@@ -26,9 +26,9 @@
 //! cargo run --example rabitq_demo --release --features rabitq
 //! ```
 
-use vicinity::quantization::rabitq::{RaBitQConfig, RaBitQQuantizer};
+use plesio::quantization::rabitq::{RaBitQConfig, RaBitQQuantizer};
 
-fn main() -> vicinity::Result<()> {
+fn main() -> plesio::Result<()> {
     println!("RaBitQ: Randomized Binary Quantization");
     println!("=======================================\n");
 
@@ -41,7 +41,7 @@ fn main() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_basic_quantization() -> vicinity::Result<()> {
+fn demo_basic_quantization() -> plesio::Result<()> {
     println!("1. Basic Quantization: Random Rotation + Binary Codes");
     println!("   ---------------------------------------------------\n");
 
@@ -87,7 +87,7 @@ fn demo_basic_quantization() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_compression_accuracy_tradeoff() -> vicinity::Result<()> {
+fn demo_compression_accuracy_tradeoff() -> plesio::Result<()> {
     println!("2. Compression vs Accuracy Trade-off");
     println!("   ----------------------------------\n");
 
@@ -144,7 +144,7 @@ fn demo_compression_accuracy_tradeoff() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_distance_estimation() -> vicinity::Result<()> {
+fn demo_distance_estimation() -> plesio::Result<()> {
     println!("3. Distance Estimation with Corrective Factors");
     println!("   --------------------------------------------\n");
 
@@ -201,7 +201,7 @@ fn demo_distance_estimation() -> vicinity::Result<()> {
     Ok(())
 }
 
-fn demo_when_to_use() -> vicinity::Result<()> {
+fn demo_when_to_use() -> plesio::Result<()> {
     println!("4. When to Use RaBitQ");
     println!("   -------------------\n");
 

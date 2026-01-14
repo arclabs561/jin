@@ -60,7 +60,7 @@ impl DiskGraphWriter {
     /// Write adjacency list for a node.
     pub fn write_adjacency(&mut self, neighbors: &[u32]) -> PersistenceResult<()> {
         if neighbors.len() > self.max_degree {
-            return Err(PersistenceError::SerializationError(format!(
+            return Err(PersistenceError::Serialization(format!(
                 "Node degree {} exceeds max_degree {}",
                 neighbors.len(),
                 self.max_degree
@@ -115,7 +115,7 @@ impl DiskGraphReader {
         let mut magic = [0u8; 8];
         file.read_exact(&mut magic)?;
         if &magic != GRAPH_MAGIC {
-            return Err(PersistenceError::FormatError(
+            return Err(PersistenceError::Format(
                 "Invalid DiskANN graph file".to_string(),
             ));
         }
@@ -170,7 +170,7 @@ impl DiskGraphReader {
         let degree = u32::from_le_bytes(degree_buf) as usize;
 
         if degree > self.max_degree {
-            return Err(RetrieveError::FormatError(
+            return Err(RetrieveError::Other(
                 "Invalid node degree in graph file".to_string(),
             ));
         }
