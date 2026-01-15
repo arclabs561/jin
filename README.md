@@ -1,5 +1,14 @@
 # jin
 
+<p align="center">
+  <img
+    src="doc/readme_logo.png"
+    width="160"
+    alt="jin logo"
+    style="box-shadow: 0 10px 28px rgba(0,0,0,0.18); border-radius: 14px;"
+  />
+</p>
+
 Approximate nearest neighbor search in Rust.
 
 Dual-licensed under MIT or Apache-2.0.
