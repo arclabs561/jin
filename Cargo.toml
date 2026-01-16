@@ -1,6 +1,7 @@
 [package]
 name = "jin"
 version = "0.1.0"
+authors = ["Arc <attobop@gmail.com>"]
 edition = "2021"
 rust-version = "1.80"
 description = "Approximate Nearest Neighbor Search: HNSW, DiskANN, IVF-PQ, ScaNN, quantization"
@@ -8,6 +9,10 @@ repository = "https://github.com/arclabs561/jin"
 license = "MIT OR Apache-2.0"
 keywords = ["ann", "hnsw", "vector-search", "similarity", "nearest-neighbor"]
 categories = ["algorithms", "science"]
+
+[lib]
+# Keep `rlib` for normal Rust usage; add `cdylib` for optional PyO3 builds.
+crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 smallvec = { version = "1.11", features = ["serde"] }
@@ -21,15 +26,28 @@ rayon = "1.10"
 thiserror = "2.0"
 log = "0.4"
 
+# Python bindings (feature-gated; used for ann-benchmarks integration)
+# Note: do NOT enable `pyo3/extension-module` here. It breaks `cargo test --all-features`
+# by disabling libpython linking for test binaries on macOS.
+# Maturin sets `PYO3_BUILD_EXTENSION_MODULE=1` when building wheels.
+pyo3 = { version = "0.27.2", optional = true }
+numpy = { version = "0.27.0", optional = true }
+
 # SIMD primitives (ecosystem crate)
-innr = { git = "https://github.com/arclabs561/innr.git", optional = true }
+innr = { version = "0.1.0", optional = true }
 
 # High-performance SIMD (ashvardanian/SimSIMD bindings)
 # Provides up to 200x speedups for vector distance functions
 simsimd = { version = "6.5.12", optional = true }
 
 # ID compression primitives (ecosystem crate)
-cnk = { path = "../cnk", optional = true }
+cnk = { version = "0.1.0", optional = true }
+
+# Succinct data structures (ecosystem crate)
+sbits = { version = "0.1.0", optional = true }
+
+# Stochastic sampling (ecosystem crate)
+kuji = "0.1.0"
 
 # Persistence & IO
 byteorder = "1.5"
@@ -38,18 +56,18 @@ libc = "0.2"
 hex = "0.4"
 fst = "0.4"
 memmap2 = { version = "0.9", optional = true }
-postcard = { version = "1.0", optional = true, features = ["use-crc", "alloc"] }
+postcard = { version = "1.0", optional = true, features = ["use-crc", "alloc", "use-std"] }
 bytemuck = { version = "1.14", optional = true, features = ["derive"] }
 
 # Compression
-constriction = { version = "0.4", optional = true }
+ans = { version = "0.1.0", optional = true }
 
 # Legacy serialization (kept for backward compatibility)
 bincode = { version = "1.3", optional = true }
 
 [features]
 default = ["hnsw", "innr"]
-persistence = ["dep:postcard", "dep:bytemuck", "dep:memmap2", "dep:constriction"]
+persistence = ["dep:postcard", "dep:bytemuck", "dep:memmap2"]
 hnsw = []
 ivf_pq = []
 diskann = []
@@ -60,6 +78,7 @@ quantization = []
 nightly = []
 innr = ["dep:innr"]
 simsimd = ["dep:simsimd"]
+python = ["dep:pyo3", "dep:numpy", "hnsw"]
 
 # Feature names referenced by cfgs in the extracted code.
 # These are currently mostly organizational toggles.
@@ -73,7 +92,8 @@ lsh = []
 annoy = []
 evoc = []
 
-# id-compression = ["dep:cnk"]  # TODO: enable when cnk is published
+id-compression = ["dep:cnk", "dep:sbits", "dep:ans"]
+succinct-filters = ["dep:sbits"]
 persistence-bincode = ["dep:bincode", "persistence"]
 memmap = ["persistence"]  # Alias for persistence with mmap focus
 
@@ -86,6 +106,7 @@ turboquant = []
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.5"
 tempfile = "3"
+memmap2 = "0.9"
 
 [[bench]]
 name = "hnsw"
@@ -107,6 +128,10 @@ harness = false
 name = "scaling"
 harness = false
 
+[[bench]]
+name = "hnsw_adaptive"
+harness = false
+
 # Examples with feature requirements
 [[example]]
 name = "lsh_demo"
@@ -120,23 +145,9 @@ required-features = ["rabitq"]
 name = "ivf_pq_demo"
 required-features = ["ivf_pq"]
 
-[profile.release]
-lto = "thin"
-codegen-units = 1
-debug = 1  # Enable symbols for profiling (flamegraph, perf)
-
-[profile.bench]
-lto = "thin"
-codegen-units = 1
-debug = 1
-
-# Maximum optimization for production (no debug symbols)
-[profile.release-optimized]
-inherits = "release"
-lto = "fat"
-panic = "abort"
-strip = true
-debug = false
+[[example]]
+name = "07_filter_bitset_memory"
+required-features = ["succinct-filters"]
 
 [lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
@@ -145,7 +156,7 @@ future_incompatible = { level = "warn", priority = -1 }
 nonstandard_style = { level = "warn", priority = -1 }
 # Allow cfg checks for internal feature toggles (classic ANN algorithms and optional data formats)
 unexpected_cfgs = { level = "warn", check-cfg = [
-    "cfg(feature, values(\"nsw\", \"kdtree\", \"balltree\", \"kmeans_tree\", \"rptree\", \"lsh\", \"annoy\", \"simd\", \"rand\", \"hdf5\", \"id-compression\"))"
+    "cfg(feature, values(\"nsw\", \"kdtree\", \"balltree\", \"kmeans_tree\", \"rptree\", \"lsh\", \"annoy\", \"simd\", \"rand\", \"hdf5\", \"id-compression\", \"python\", \"succinct-filters\"))"
 ] }
 # Documentation lints: temporarily relaxed, enable incrementally
 # missing_docs = "warn"
@@ -184,3 +195,4 @@ type_complexity = "allow"
 multiple_crate_versions = "allow"
 wrong_self_convention = "allow"
 module_name_repetitions = "allow"
+
