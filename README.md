@@ -1,14 +1,5 @@
 # jin
 
-<p align="center">
-  <img
-    src="doc/readme_logo.png"
-    width="160"
-    alt="jin logo"
-    style="box-shadow: 0 10px 28px rgba(0,0,0,0.18); border-radius: 14px;"
-  />
-</p>
-
 Approximate nearest neighbor search in Rust.
 
 Algorithms and benchmarks for vector search.
@@ -84,7 +75,7 @@ Layer 0:  A-E-C-F-B-G-D-H      (dense, high recall)
 The `ef_search` parameter controls how many candidates HNSW explores:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/arclabs561/jin/main/doc/plots/recall_vs_ef.png" width="720" alt="Recall vs ef_search" />
+  <img src="doc/plots/recall_vs_ef.png" width="720" alt="Recall vs ef_search" />
 </p>
 
 Higher `ef_search` = better recall, slower queries. For most applications, `ef_search=50-100` achieves >95% recall.
@@ -94,7 +85,7 @@ Higher `ef_search` = better recall, slower queries. For most applications, `ef_s
 Not all datasets are equal. Recall depends on data characteristics:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/arclabs561/jin/main/doc/plots/recall_vs_ef_by_difficulty.png" width="720" alt="Recall by difficulty" />
+  <img src="doc/plots/recall_vs_ef_by_difficulty.png" width="720" alt="Recall by difficulty" />
 </p>
 
 Based on He et al. (2012) and Radovanovic et al. (2010):
@@ -104,7 +95,7 @@ Based on He et al. (2012) and Radovanovic et al. (2010):
 - **Distance Concentration**: In high dims, distances converge. Lower variance = harder.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/arclabs561/jin/main/doc/plots/difficulty_comparison.png" width="720" alt="Difficulty metrics" />
+  <img src="doc/plots/difficulty_comparison.png" width="720" alt="Difficulty metrics" />
 </p>
 
 ```sh
@@ -117,7 +108,7 @@ JIN_DATASET=hard cargo run --example 03_quick_benchmark --release  # hard (stres
 Different algorithms suit different constraints:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/arclabs561/jin/main/doc/plots/algorithm_comparison.png" width="720" alt="Algorithm comparison" />
+  <img src="doc/plots/algorithm_comparison.png" width="720" alt="Algorithm comparison" />
 </p>
 
 | Algorithm | Best For | Tradeoff |
@@ -132,7 +123,7 @@ Different algorithms suit different constraints:
 Graph construction time scales with `M` (edges per node):
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/arclabs561/jin/main/doc/plots/build_time_vs_m.png" width="720" alt="Build time vs M" />
+  <img src="doc/plots/build_time_vs_m.png" width="720" alt="Build time vs M" />
 </p>
 
 Higher `M` = better recall, but more memory and slower builds.
@@ -142,7 +133,7 @@ Higher `M` = better recall, but more memory and slower builds.
 Memory usage scales linearly with vector count:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/arclabs561/jin/main/doc/plots/memory_scaling.png" width="720" alt="Memory scaling" />
+  <img src="doc/plots/memory_scaling.png" width="720" alt="Memory scaling" />
 </p>
 
 For dim=128, M=16: approximately 0.5 KB per vector (vector + graph edges).
