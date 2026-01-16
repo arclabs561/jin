@@ -16,7 +16,7 @@ Start here. These work immediately with synthetic data.
 cargo run --example 01_basic_search --release
 cargo run --example 02_measure_recall --release
 cargo run --example 03_quick_benchmark --release                       # bench: 10K x 384
-PLESIO_DATASET=quick cargo run --example 03_quick_benchmark --release  # CI: 2K x 128
+JIN_DATASET=quick cargo run --example 03_quick_benchmark --release     # CI: 2K x 128
 ```
 
 ## Educational (Motivated Toy)
@@ -57,8 +57,8 @@ Difficulty progression based on He et al. "On the Difficulty of Nearest Neighbor
 
 ```sh
 cargo run --example 03_quick_benchmark --release                      # bench (default)
-PLESIO_DATASET=quick cargo run --example 03_quick_benchmark --release # CI
-PLESIO_DATASET=hard cargo run --example 03_quick_benchmark --release  # stress test
+JIN_DATASET=quick cargo run --example 03_quick_benchmark --release    # CI
+JIN_DATASET=hard cargo run --example 03_quick_benchmark --release     # stress test
 ```
 
 ### Real ANN Benchmark Datasets

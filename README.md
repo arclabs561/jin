@@ -1,14 +1,21 @@
 # jin
 
-Approximate Nearest Neighbor search in Rust.
+<p align="center">
+  <img
+    src="doc/readme_logo.png"
+    width="160"
+    alt="jin logo"
+    style="box-shadow: 0 10px 28px rgba(0,0,0,0.18); border-radius: 14px;"
+  />
+</p>
+
+Approximate nearest neighbor search in Rust.
+
+Algorithms and benchmarks for vector search.
 
 (jin: Chinese 近 "near")
 
 Dual-licensed under MIT or Apache-2.0.
-
-<p align="center">
-  <img src="doc/readme_logo.png" width="200" alt="jin logo" />
-</p>
 
 ## Distance metrics (what `jin` actually does today)
 
@@ -26,13 +33,27 @@ This is not yet uniform across the crate.
 ```rust
 use jin::hnsw::HNSWIndex;
 
-let mut index = HNSWIndex::new(128, 16, 32)?;  // dim, M, ef_construction
-for (id, vec) in vectors.iter().enumerate() {
-    index.add_slice(id as u32, vec)?;
-}
-index.build()?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Vectors should be L2-normalized for cosine distance.
+    let vectors: Vec<Vec<f32>> = vec![
+        vec![1.0, 0.0, 0.0, 0.0],
+        vec![0.0, 1.0, 0.0, 0.0],
+        vec![0.0, 0.0, 1.0, 0.0],
+        vec![0.0, 0.0, 0.0, 1.0],
+    ];
 
-let results = index.search(&query, 10, 50)?;  // k, ef_search
+    let query = vec![1.0, 0.0, 0.0, 0.0];
+
+    let mut index = HNSWIndex::new(4, 16, 32)?; // dim, m, m_max
+    for (id, v) in vectors.iter().enumerate() {
+        index.add_slice(id as u32, v)?;
+    }
+    index.build()?;
+
+    let results = index.search(&query, 2, 50)?; // k, ef_search
+    println!("{results:?}");
+    Ok(())
+}
 ```
 
 ## The Problem
@@ -104,7 +125,7 @@ Different algorithms suit different constraints:
 | **Brute force** | < 10K vectors | Exact, but O(N) |
 | **LSH** | Binary/sparse data | Fast, lower recall |
 | **IVF-PQ** | Memory-constrained | Compressed, lower recall |
-| **HNSW** | General use | Best recall/latency |
+| **HNSW** | General use | Strong recall/latency tradeoff |
 
 ## Build Cost
 
@@ -163,7 +184,7 @@ cargo bench
 
 See [examples/](examples/) for more: semantic search, IVF-PQ, LSH, LID, and real dataset benchmarks.
 
-For benchmarking datasets, see [doc/datasets.md](doc/datasets.md) — covers bundled data, ann-benchmarks.com datasets, and modern embedding dimensions.
+For benchmarking datasets, see [doc/datasets.md](doc/datasets.md) — covers bundled data, ann-benchmarks.com datasets, and typical embedding dimensions.
 
 ## References
 
