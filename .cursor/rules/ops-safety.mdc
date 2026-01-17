@@ -1,0 +1,29 @@
+---
+description: Ops safety (cwd, git, gh) and layering invariants
+alwaysApply: true
+---
+
+## CWD / repo safety
+
+- Always run repo-affecting commands (git init/clone/mv, gh repo create/edit) from an explicit working directory.
+- Before creating or moving a repo, print `pwd` and confirm the target path exists.
+- Never create a new repo inside another repo (no accidental `walk/yukti` situations).
+- If a tool output shows timeouts/aborts, narrow scope (limit depth/paths) before retrying.
+
+## Layering invariant (L0–L6)
+
+- Treat the stack as a DAG. Higher layers may depend on lower layers, never the reverse.
+- Prefer feature flags to keep heavy dependencies optional.
+
+## Tekne Workspace Layout
+
+Repositories must be checked out as siblings in a flat `dev/` directory to ensure local `[patch]` paths work:
+
+- `dev/tekne`
+- `dev/anno`
+- `dev/cerno`
+- `dev/innr`
+- ... (etc)
+
+Do **not** nest them (e.g. `tekne/crates/anno`) or `[patch]` relative paths will break.
+

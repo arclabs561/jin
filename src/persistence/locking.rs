@@ -32,6 +32,31 @@ pub struct FileLock {
     lock_type: LockType,
 }
 
+/// Cluster-wide distributed lock.
+///
+/// Automatically unlocks on drop (uses hiqlite dlock).
+pub struct DistributedLock {
+    _inner: hiqlite::DLock,
+    key: String,
+}
+
+impl DistributedLock {
+    /// Acquire a distributed lock.
+    pub async fn acquire(client: &hiqlite::Client, key: impl Into<String>) -> PersistenceResult<Self> {
+        let key = key.into();
+        let lock = client.dlock(&key).await?;
+        Ok(Self {
+            _inner: lock,
+            key,
+        })
+    }
+
+    /// Get the lock key.
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+}
+
 impl FileLock {
     /// Acquire a file lock.
     ///

@@ -1,0 +1,65 @@
+---
+title: "Tekne Stack Conventions"
+id: tekne-stack
+description: "Foundational technical hierarchy and engineering principles for the Tekne Stack"
+priority: 100
+alwaysApply: true
+---
+
+# Tekne Stack Conventions
+
+## The L0–L6 Technical Stack
+
+We strictly enforce a hierarchy to prevent compile-time bloat and ensure `no_std` compatibility in lower layers. Mathematical elegance must not compromise system performance.
+
+| Layer | Domain | Type | Canonical Crates |
+|:---|:---|:---|:---|
+| **L0** | **Iron** | Hardware/SIMD | `innr` (SIMD), `faer` (LinAlg) |
+| **L1** | **Logic** | Math Primitives | `logp` (Info), `wass` (OT), `lapl` (Spectral), `hyp` (Hyperbolic), `rmt` (Matrix), `cnk` (Compression) |
+| **L2** | **Algos** | Composite Primitives | `rkhs` (Kernels), `fynch` (Sorting), `slabs` (Chunking), `clump` (Clustering) |
+| **L3** | **Aggregators** | Stateful Structures | `jin` (ANN Index), `tier` (Hierarchy) |
+| **L4** | **Embeddings** | Semantic Models | `subsume` (Box/Entailment) |
+| **L5** | **Domain** | Systems/NLP/IR | `lattix` (Graph), `cerno` (Retrieval), `anno` (NLP) |
+| **L6** | **Orch** | Multi-Agent/RAG | `hop` (RAG Pipe), `bop` (Agents) |
+
+### The Tekne Facade Pattern
+The crate named `tekne` is a **pure facade**.
+- It must **not** contain logic or large source files.
+- It acts as a gateway `Cargo.toml` that re-exports other crates via feature flags (e.g., `features = ["simd", "ann"]`).
+- It must **not** embed other repositories as git submodules or vendored code. Use `[patch.crates-io]` for local development.
+
+## Dependency Topology: The "Sober Engineering" Model
+
+```text
+LAYER 0: THE IRON (Hardware & Math)
+┌─────────────────────────────────────────────────────────────┐
+│                          innr                               │
+│    SIMD kernels (AVX2/NEON), distance metrics               │
+└─────────────────────────────────────────────────────────────┘
+          │                   │
+          ▼                   ▼
+    ┌────────────┐      ┌────────────┐
+    │ faer (ext) │      │ ans / sbits│
+    │ LinAlg     │      │ Compression│
+    └────────────┘      └────────────┘
+
+... (Layers 1-6 follow the same partial order)
+```
+
+## Critical Engineering Principles
+
+1.  **Performance > Elegance**: `clump` (K-means) stays Euclidean/Spherical. Hyperbolic clustering belongs in `tier` or specialized modules, not the hot path.
+2.  **Static > Dynamic**: Avoid runtime code generation (JIT) unless profiling proves `dyn dispatch` is the bottleneck. `faer` and `innr` handle 90% of cases.
+3.  **Offline vs. Online**: Expensive math (Gromov-Wasserstein, MMD permutation tests) belongs in offline alignment/evaluation steps, not in the query latency path.
+4.  **Math with Provenance**: Every complex algorithm must cite its "Foundational Paper" (TAOCP style) and its "Bleeding Edge" context.
+
+## Naming Philosophy
+
+1.  **Brevity with Soul**: 3-5 character names (`wass`, `logp`, `cnk`).
+2.  **Concept-First**: Name after the *phenomenon*, not the history (`logp` > `shannon`).
+3.  **Verbs for Tools, Nouns for Primitives**: `hop` (action) vs `lattix` (structure).
+
+## Canonical visualization artifact (local)
+
+When you need a single “what connects to what?” view, use:
+- `evals/arch/dev_repos_overview.html`

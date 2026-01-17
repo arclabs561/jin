@@ -1,0 +1,30 @@
+---
+title: "Tekne Module Taxonomy"
+id: tekne-module-taxonomy
+description: "Assessment of documentation quality and purpose by module"
+alwaysApply: false
+---
+
+# Tekne Module Taxonomy
+
+Assessment of documentation quality and pedagogical readiness across the stack.
+
+## Grade A: Pedagogical Gold Standard (TAOCP / Mackay Style)
+
+| Module | Lines | Additions |
+|:---|:---|:---|
+| `jin/hnsw` | ~210 | Mathematical invariant check, probability distribution |
+| `tier/kmeans` | ~110 | Hard vs soft, GMM math, linkage table |
+| `hyp` (lib.rs) | ~80 | **Model selection table**, when NOT to use |
+| `innr` (lib.rs) | ~60 | **Function selection table**, SIMD dispatch |
+
+## Verification Checklist
+
+For each module, verify:
+- [ ] Problem statement (what does this solve?)
+- [ ] Why this approach (what's the insight?)
+- [ ] Comparison to alternatives (when to use/not use)
+- [ ] Parameters with effects (not just names)
+- [ ] Complexity (time/space)
+- [ ] Working code example
+- [ ] References (papers, not just URLs)

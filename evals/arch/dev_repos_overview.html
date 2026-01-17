@@ -1,0 +1,3534 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dev: repos overview (local)</title>
+    <style>
+      :root {
+        /* Inspired by usgraphics.com: light field, crisp rules, restrained accents. */
+        --fg: #000;
+        --muted: #3d3d3d;
+        --bg: #eee;
+        --card: #fff;
+        --border: #d6d6d6;
+        --accent: #e7040f; /* primary */
+        --link: #00794c; /* accent/link */
+        --radius: 6px;
+        /* Prefer Berkeley Mono if installed; fall back to common monospace stacks. */
+        --mono: "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--sans);
+        font-size: 14px;
+        line-height: 1.3;
+        /* Berkeley Mono-ish defaults (safe even when falling back). */
+        font-variant-ligatures: contextual common-ligatures;
+        font-feature-settings: "calt" 1, "liga" 1;
+      }
+      header {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
+      }
+      .hdr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: start;
+        gap: 10px;
+      }
+      .hdr .title {
+        font-family: var(--mono);
+        font-size: 15px;
+        line-height: 1.1;
+      }
+      .hdr .subtitle {
+        margin-top: 2px;
+      }
+      .hdr .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+        margin-top: 2px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .hdr .controls .meta {
+        padding: 2px 0;
+      }
+      header .subtitle {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      main {
+        padding: 12px;
+        max-width: 1200px;
+      }
+      .grid {
+        display: grid;
+        /* Denser: use more columns on wide viewports, fewer rows. */
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 10px;
+        margin: 8px 0 10px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: var(--radius);
+        padding: 8px;
+      }
+      .card .k {
+        color: var(--muted);
+        font-size: 10px;
+        margin-bottom: 3px;
+      }
+      .card .v {
+        font-family: var(--mono);
+        font-size: 12px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      pre.mermaid {
+        background: #f7f7f7;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 10px;
+        overflow: auto;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--border);
+        padding: 5px 7px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+        margin: 10px 0 0;
+      }
+      .pill {
+        display: inline-block;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-family: var(--mono);
+        font-size: 12px;
+        background: var(--card);
+      }
+      a {
+        color: var(--link);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 12px;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1px 6px;
+      }
+
+      /* Level dots */
+      .lvl {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        display: inline-block;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+      }
+      .dot-l0 { background: #cfe1ff; }
+      .dot-l1 { background: #f3d2a4; }
+      .dot-l2 { background: #dcc9ff; }
+      .dot-l3 { background: #bfe9cb; }
+      .dot-l4 { background: #f4c4da; }
+      .dot-l5 { background: #ddd; }
+      .dot-l6 { background: #bfeeea; }
+      .dot-unknown { background: #eee; }
+
+      /* Floating nav button + modal (avoids persistent vertical header) */
+      .navbtn {
+        position: static;
+        font-family: var(--mono);
+        font-size: 12px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--fg);
+        border-radius: var(--radius);
+        padding: 6px 10px;
+        cursor: pointer;
+        box-shadow: none;
+      }
+      .navbtn:hover {
+        border-color: var(--fg);
+      }
+      .navbtn:active {
+        transform: translateY(1px);
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        background: rgba(17, 17, 17, 0.35);
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 16px;
+      }
+      .modal.open {
+        display: flex;
+      }
+      .modal .sheet {
+        width: min(860px, 100%);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+      }
+      .modal .sheet .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .modal .sheet .top .title {
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      .modal .sheet .top .close {
+        font-family: var(--mono);
+        font-size: 12px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 999px;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+      .modal .links {
+        line-height: 1.6;
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+      .modal .links a {
+        text-decoration: none;
+      }
+      .modal .links a:hover {
+        text-decoration: underline;
+      }
+      .modal .explain {
+        margin-top: 10px;
+        font-family: var(--sans);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* Table ergonomics */
+      table thead th {
+        position: sticky;
+        top: 0;
+        background: #f0f0f0;
+        z-index: 5;
+      }
+      tbody tr:nth-child(2n) td {
+        background: #f8f8f8;
+      }
+      tbody tr:hover td {
+        background: #f1f1f1;
+      }
+      .filter {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin: 8px 0 10px 0;
+      }
+      .filter input[type="text"] {
+        width: 100%;
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--card);
+      }
+      .pill.kind-default { background: #eef7ff; border-color: #cfe1ff; }
+      .pill.kind-optional { background: #fff4e8; border-color: #f3d2a4; }
+
+      /* Summary: dense key/value table (replaces summary card grid) */
+      #summary-card {
+        margin: 10px 0 10px;
+      }
+      #summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--mono);
+        font-size: 11px;
+        table-layout: fixed;
+      }
+      #summary-table td {
+        border-bottom: 1px solid var(--border);
+        padding: 3px 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #summary-table tr:last-child td {
+        border-bottom: none;
+      }
+      #summary-table .sk {
+        width: 140px;
+        color: var(--muted);
+      }
+      #summary-table .sv {
+        color: var(--fg);
+      }
+      /* Sparklines & Lang Bars */
+      .spark-svg {
+        width: 40px;
+        height: 14px;
+        display: block;
+      }
+      .spark-base {
+        stroke: rgba(0, 0, 0, 0.20);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+        shape-rendering: crispEdges;
+      }
+      .spark-fill {
+        fill: rgba(0, 0, 0, 0.06); /* quiet by default */
+        stroke: none;
+      }
+      .spark-line {
+        fill: none;
+        stroke: rgba(0, 0, 0, 0.55); /* quiet by default */
+        stroke-width: 1.25;
+        vector-effect: non-scaling-stroke;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .spark-dot {
+        fill: rgba(231, 4, 15, 0.95);
+        stroke: rgba(255, 255, 255, 0.9);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+      /* On row hover: use accent as an "importance flag" without taking more space. */
+      tbody tr:hover .spark-fill {
+        fill: rgba(231, 4, 15, 0.12);
+      }
+      tbody tr:hover .spark-line {
+        stroke: rgba(231, 4, 15, 0.85);
+      }
+      .spark-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lang-bar {
+        display: flex;
+        height: 6px;
+        width: 40px;
+        background: #eee;
+        border-radius: 2px;
+        overflow: hidden;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+      }
+      .lang-seg {
+        height: 100%;
+      }
+      .lang-rust { background: #dea584; }
+      .lang-python { background: #3572a5; }
+      .lang-javascript { background: #f1e05a; }
+      .lang-lean { background: #a7c080; }
+      .lang-html { background: #e34c26; }
+      .lang-json { background: #888; }
+      .lang-toml { background: #9c4221; }
+      .lang-shell { background: #89e051; }
+      .lang-other { background: #ccc; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="hdr">
+        <div>
+          <div class="title">dev: repos overview (local)</div>
+          <div class="subtitle">
+            A repo-level view (not crate-level): “what interacts with what”, plus recent activity and
+            rough disk footprint.
+          </div>
+        </div>
+        <div class="controls">
+          <span class="meta" id="hdr-generated-at"></span>
+          <button class="navbtn" id="navbtn" type="button">nav</button>
+        </div>
+      </div>
+      <!-- generated_at is also shown in the summary grid; keep header compact -->
+      <!-- <div class="subtitle muted" style="font-family: var(--mono);">generated_at: 2026-01-15T11:42:15-05:00</div> -->
+    </header>
+    <main>
+      <div class="card" id="summary-card">
+        <div class="k">Summary</div>
+        <table id="summary-table">
+          <colgroup>
+            <col style="width: 15%">
+            <col style="width: 35%">
+            <col style="width: 15%">
+            <col style="width: 35%">
+          </colgroup>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card" id="render-status" style="display: none;">
+        <div class="k">Render status</div>
+        <div class="v" id="render-status-body"></div>
+      </div>
+      <div class="modal" id="navmodal" aria-hidden="true">
+        <div class="sheet">
+          <div class="top">
+            <div class="title">Contents</div>
+            <button class="close" id="navclose" type="button">close</button>
+          </div>
+          <div class="links">
+            <a href="#section-howto">how to read</a> ·
+            <a href="#section-at-a-glance">at a glance</a> ·
+            <a href="#section-performance">performance</a> ·
+            <a href="#section-clusters">clusters</a> ·
+            <a href="#section-repo-graph">repo graph</a> ·
+            <a href="#section-edge-explain">edge explanations</a> ·
+            <a href="#section-recent">recent repos</a> ·
+            <a href="#section-stats">tokei + activity</a> ·
+            <a href="#section-dev-overrides">dev overrides</a> ·
+            <a href="#section-actual">crate graph (actual)</a> ·
+            <a href="#section-conceptual">crate graph (conceptual)</a> ·
+            <a href="#section-mismatch">mismatch</a> ·
+            <a href="#section-tekne">tekne facade</a> ·
+            <a href="#section-validate">validate</a>
+          </div>
+          <div class="explain">
+            Edge reading: <span class="pill">solid</span> default/always-on; <span class="pill">dotted</span> optional/feature-gated.
+            “Dev overrides” describes Cargo `[patch]` rules used for local development.
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="card" id="section-links">
+          <div class="k">Quick links</div>
+          <div class="v">
+            - This file is intended to stand alone.
+            - Older pages (kept): <a href="./depgraph.html">depgraph.html</a>, <a href="./tekne_facade.html">tekne_facade.html</a>, <a href="./validate.html">validate.html</a>
+          </div>
+        </div>
+
+        <div class="card" id="section-howto">
+          <div class="k">How to read this page (definitions)</div>
+          <div class="v" style="font-family: var(--sans);">
+            - <span class="pill">repo graph</span>: hand-curated “who depends on who” at the repository level.
+            Solid edges are default; dotted edges are feature-gated / optional.
+            <br />
+            - <span class="pill">crate graph (actual)</span>: what Cargo sees for the dev super-workspace snapshot (also uses dotted for “optional”).
+            <br />
+            - <span class="pill">crate graph (conceptual)</span>: the intended Tekne layering (a small, human-checked set).
+            <br />
+            - <span class="pill">dev overrides</span>: Cargo <code>[patch]</code> rules that redirect git deps to local checkouts for development.
+            <br />
+            - “where to confirm”: clickable pointers to the relevant <code>Cargo.toml</code> or feature flag; it’s a starting point for reading, not proof.
+          </div>
+        </div>
+
+        <div class="card" id="section-at-a-glance">
+          <div class="k">At a glance (what each layer is for)</div>
+          <table id="glance-table">
+            <thead>
+              <tr>
+                <th>crate</th>
+                <th>level</th>
+                <th>one-line</th>
+                <th>local</th>
+                <th>docs</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="note">
+            This is intentionally short: “what it is for” + where to read next.
+          </div>
+        </div>
+
+        <div class="card" id="section-performance">
+          <div class="k">Performance & Scaling (Jan 2026 Optimizations)</div>
+          <table id="perf-table">
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Baseline</th>
+                <th>Optimized</th>
+                <th>Speedup</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="note">
+            Measured on local hardware. <strong>Sparse</strong> refers to matrix-free paths; 
+            <strong>Optimized</strong> refers to BLAS/SIMD-accelerated paths.
+          </div>
+        </div>
+
+        <div class="card" id="section-clusters">
+        <div class="k">Conceptual Clusters (overlapping views)</div>
+        <div class="note" style="margin-top: 0;">
+          The Tekne ecosystem is not a strict partition. Crates can belong to multiple clusters.
+          <br/>
+          <span class="pill" style="background: #eef7ff; border-color: #cfe1ff;">Tekne</span> Facade / User-facing
+          <span class="pill" style="background: #fff4e8; border-color: #f3d2a4;">Math Core</span> Foundational logic
+          <span class="pill" style="background: #f6f0ff; border-color: #dcc9ff;">Incubation</span> Experimental
+          <span class="pill" style="background: #ecfff2; border-color: #bfe9cb;">Orchestration</span> Apps/Services
+        </div>
+        <pre class="mermaid" id="cluster-mermaid"></pre>
+      </div>
+
+        <div class="card" id="section-clusters">
+          <div class="k">Conceptual Clusters (from tekne-stack.mdc)</div>
+          <table id="cluster-table">
+            <thead>
+              <tr>
+                <th style="width: 120px;">cluster</th>
+                <th style="width: 180px;">purpose</th>
+                <th>members</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="pill">Tekne (Facade)</span></td>
+                <td class="muted">User-facing stdlib</td>
+                <td><code>jin</code>, <code>innr</code>, <code>cerno</code>, <code>anno</code>, <code>slabs</code>, <code>lattix</code>, <code>strata</code>, <code>hyp</code>, <code>subsume</code></td>
+              </tr>
+              <tr>
+                <td><span class="pill">Math Core</span></td>
+                <td class="muted">Foundational math/logic</td>
+                <td><code>innr</code>, <code>logp</code>, <code>wass</code>, <code>lapl</code>, <code>rkhs</code>, <code>rmt</code>, <code>fynch</code>, <code>cnk</code>, <code>sbits</code>, <code>ans</code></td>
+              </tr>
+              <tr>
+                <td><span class="pill">Incubation</span></td>
+                <td class="muted">New/experimental</td>
+                <td><code>clump</code>, <code>kuji</code>, <code>pare</code>, <code>knit</code>, <code>skel</code></td>
+              </tr>
+              <tr>
+                <td><span class="pill">Orchestration</span></td>
+                <td class="muted">Services & Apps</td>
+                <td><code>hop</code>, <code>bop</code>, <code>axum-mcp</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card" id="section-repo-graph">
+          <div class="k">Repo interaction graph, grouped by levels (hand-curated)</div>
+          <div class="note" style="margin-top: 0;">
+            Legend: <span class="pill">solid</span> = used by default / always-on,
+            <span class="pill">dotted</span> = optional / feature-gated.
+            Dev wiring via <code>/Users/arc/Documents/dev/Cargo.toml</code> is assumed (not drawn as a node).
+          </div>
+          <pre class="mermaid" id="repo-mermaid"></pre>
+          <div class="note">
+            Edges here are “integration edges” (git deps, patch overrides, or “built together as a
+            super-workspace”), not every internal module call.
+          </div>
+        </div>
+
+        <div class="card" id="section-edge-explain">
+          <div class="k">Edge explanations (why an arrow exists)</div>
+          <div class="filter">
+            <input id="edge-filter" type="text" placeholder="filter edges (type to match from/to/why/confirm)..." />
+          </div>
+          <table id="edge-table">
+            <thead>
+              <tr>
+                <th>from</th>
+                <th>to</th>
+                <th>kind</th>
+                <th>why</th>
+                <th>where to confirm</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="note">
+            “where to confirm” points at the most relevant manifest / feature flag.
+            It’s not proof; it’s a place to start reading.
+          </div>
+        </div>
+
+        <div class="card" id="section-recent">
+          <div class="k">Recently touched repos (git `.git/` mtime snapshot)</div>
+          <table id="recent-table">
+            <thead>
+              <tr>
+                <th>repo</th>
+                <th>level</th>
+                <th>git mtime</th>
+                <th>size (rough)</th>
+                <th>notes</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="note">
+            “size (rough)” is from a `dust -d 2` run for a few large repos; missing entries are
+            intentionally left blank.
+          </div>
+        </div>
+
+        <div class="card" id="section-stats">
+          <div class="k">tokei + activity (last 60d)</div>
+          <div class="filter" style="margin-top: 6px;">
+            <span class="pill">view</span>
+            <label class="pill" style="cursor: pointer;">
+              <input type="radio" name="stats-view" value="core" checked /> core
+            </label>
+            <label class="pill" style="cursor: pointer;">
+              <input type="radio" name="stats-view" value="all" /> all
+            </label>
+            <span class="muted" style="font-family: var(--sans); font-size: 12px;">
+              core excludes large artifact dirs (hover)
+              <span class="pill" id="core-excludes-pill" style="cursor: help;">excludes</span>
+            </span>
+          </div>
+          <table id="stats-table">
+            <thead>
+              <tr>
+                <th>repo</th>
+                <th>level</th>
+                <th>LOC (code)</th>
+                <th>top langs</th>
+                <th>commits/day</th>
+                <th>files touched/day</th>
+                <th>lines changed/day</th>
+                <th>last commit</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="note">
+            Source: <code>tokei -o json</code> and <code>git log --since=60.days</code>. Sparklines are normalized per-repo.
+          </div>
+        </div>
+
+        <div class="card" id="section-dev-overrides">
+          <div class="k">Dev overrides (where “patches to local” currently exist)</div>
+          <table id="overrides-table">
+            <thead>
+              <tr>
+                <th>repo</th>
+                <th>mechanism</th>
+                <th>notes</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="note">
+            This is shown as a table (not as edges) to keep the main graph readable.
+          </div>
+        </div>
+
+
+        <div class="card">
+          <div class="k">Crate-level graphs (workspace snapshot)</div>
+          <div class="note" style="margin-top: 0;">
+            This section is about the Rust <span class="pill">workspace</span> view (what Cargo sees)
+            vs a small conceptual edge set (what the Tekne stack implies).
+          </div>
+        </div>
+
+        <div class="card" id="section-actual">
+          <div class="k">Actual Cargo workspace edges (what the compiler sees)</div>
+          <pre class="mermaid" id="actual-mermaid"></pre>
+        </div>
+
+        <div class="card" id="section-conceptual">
+          <div class="k">Conceptual Tekne stack edges (small, hand-curated)</div>
+          <pre class="mermaid" id="conceptual-mermaid"></pre>
+        </div>
+
+        <div class="card" id="section-mismatch">
+          <div class="k">Mismatch report (conceptual vs actual)</div>
+          <table id="mismatch-table">
+            <thead>
+              <tr>
+                <th>edge</th>
+                <th>conceptual</th>
+                <th>actual</th>
+                <th>note</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="note">
+            If you want “conceptual” edges to become “actual”, that’s a Cargo dependency choice.
+          </div>
+        </div>
+
+        <div class="card" id="section-tekne">
+          <div class="k">tekne facade: features ↔ crates (summary)</div>
+          <table id="tekne-table">
+            <thead>
+              <tr>
+                <th>feature</th>
+                <th>crate</th>
+                <th>re-export</th>
+                <th>in dev workspace?</th>
+                <th>level</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="card" id="section-validate">
+          <div class="k">Validation breadcrumb (from prior run)</div>
+          <div class="v">
+            - run_at: <span class="pill">2026-01-15T12:20:09Z</span>
+            - commands: <code>just validate</code>, <code>just validate-strict</code>
+            - raw output saved at:
+              <a
+                href="file:///Users/arc/.cursor/projects/Users-arc-Documents-dev/agent-tools/87904aa6-5cea-45f4-89ee-bb6730a9729d.txt"
+                ><code>/Users/arc/.cursor/projects/Users-arc-Documents-dev/agent-tools/87904aa6-5cea-45f4-89ee-bb6730a9729d.txt</code></a
+              >
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      // Conceptual “levels” (Tekne stack layers), reused from evals/sparse_ot/tekne_layers.html.
+      // Note: levels are a human model; they won’t always match Cargo edges.
+      const levelByRepo = new Map([
+        ["innr", "L0"],
+        ["logp", "L1"],
+        ["wass", "L1"],
+        ["lapl", "L1"],
+        ["hyp", "L1"],
+        ["rmt", "L1"],
+        ["cnk", "L1"],
+        ["kuji", "L1"],
+        ["skel", "L1"],
+        ["rkhs", "L2"],
+        ["fynch", "L2"],
+        ["slabs", "L2"],
+        ["pare", "L2"],
+        ["knit", "L2"],
+        ["clump", "L2"],
+        ["jin", "L3"],
+        ["strata", "L3"],
+        ["subsume", "L4"],
+        ["lattix", "L5"],
+        ["cerno", "L5"],
+        ["anno", "L5"],
+        ["hop", "L6"],
+        ["bop", "L6"],
+      ]);
+
+      // Workspace-only graph (hand-updated snapshot).
+      // NOTE: this is a lightweight, human-maintained view; regenerate from `cargo metadata`
+      // if you want a fully complete and feature-accurate edge set.
+      const workspace = {
+        generated_at: "2026-01-15T16:42:15Z",
+        workspace_members: [
+          "ans",
+          "sbits",
+          "cnk",
+          "fynch",
+          "hyp",
+          "innr",
+          "jin",
+          "lapl",
+          "logp",
+          "rkhs",
+          "axum-mcp",
+          "axum-mcp-macros",
+          "rmt",
+          "slabs",
+          "strata",
+          "wass",
+          "ans-fuzz",
+          "sbits-fuzz",
+          "pare",
+          "kuji",
+          "clump",
+          "skel",
+          "knit",
+        ],
+        edges: [
+          { from: "ans-fuzz", to: "ans", dep_name: "ans" },
+          { from: "sbits-fuzz", to: "sbits", dep_name: "sbits" },
+          { from: "jin", to: "innr", dep_name: "innr" },
+          { from: "jin", to: "cnk", dep_name: "cnk (optional)" },
+          { from: "strata", to: "jin", dep_name: "jin (optional)" },
+          { from: "strata", to: "lapl", dep_name: "lapl (optional)" },
+          { from: "strata", to: "logp", dep_name: "logp (optional)" },
+          { from: "strata", to: "rkhs", dep_name: "rkhs (optional)" },
+          { from: "strata", to: "clump", dep_name: "clump (optional)" },
+        ],
+      };
+
+      // Minimal conceptual edge set from the Tekne stack conventions.
+      // Intentionally small and human-checked.
+      const conceptualEdges = [
+        { from: "jin", to: "innr", note: "ANN uses SIMD primitives" },
+        { from: "strata", to: "jin", note: "uses knn graphs / ANN search" },
+        { from: "strata", to: "lapl", note: "spectral clustering uses Laplacian" },
+        { from: "strata", to: "logp", note: "NMI/MI/entropy for evaluation" },
+        { from: "rkhs", to: "innr", note: "kernels/metrics often reuse SIMD ops" },
+        { from: "slabs", to: "innr", note: "semantic chunking can reuse similarity ops" },
+        { from: "hyp", to: "innr", note: "distance ops / norms as a foundation" },
+        { from: "wass", to: "innr", note: "vector primitives for cost computation" },
+      ];
+
+      const workspaceMembers = new Set(workspace.workspace_members);
+
+      const repos = [
+        // Most-recent-first (by `.git/` mtime)
+        { name: "strata", git_mtime: "2026-01-14 21:59:17 -0500", size: "4.2G", notes: "Cluster: Tekne. Clustering/hierarchy (Leiden, RAPTOR)." },
+        { name: "polygonal-number-theorem", git_mtime: "2026-01-14 21:14:55 -0500", size: "", notes: "Lean/math" },
+        { name: "hyp", git_mtime: "2026-01-14 20:43:13 -0500", size: "", notes: "Cluster: Tekne. Hyperbolic geometry (Poincaré/Lorentz)." },
+        { name: "jin", git_mtime: "2026-01-14 19:59:48 -0500", size: "42G", notes: "Cluster: Tekne. ANN search (HNSW, DiskANN)." },
+        { name: "cnk", git_mtime: "2026-01-14 19:59:48 -0500", size: "", notes: "Cluster: Math Core. Set compression (ROC, ANS)." },
+        { name: "smtq", git_mtime: "2026-01-14 17:11:10 -0500", size: "", notes: "Cluster: Incubation (SMT/SAT/Q solvers)." },
+        { name: "trackweave", git_mtime: "2026-01-14 15:34:28 -0500", size: "", notes: "Cluster: Incubation (Audio/DSP)." },
+        { name: "rkhs", git_mtime: "2026-01-14 14:11:54 -0500", size: "", notes: "Cluster: Math Core. Kernels (RBF, MMD)." },
+        { name: "lattix", git_mtime: "2026-01-14 14:11:54 -0500", size: "", notes: "Cluster: Tekne. Graph learning (GNN, KGE)." },
+        { name: "hop", git_mtime: "2026-01-14 14:11:54 -0500", size: "273G", notes: "Cluster: Orchestration. RAG pipeline." },
+        { name: "fynch", git_mtime: "2026-01-14 14:11:54 -0500", size: "", notes: "Cluster: Math Core. Differentiable sorting (PAVA)." },
+        { name: "cerno", git_mtime: "2026-01-14 14:11:54 -0500", size: "53G", notes: "Cluster: Tekne. Retrieval (BM25, Dense, Fusion)." },
+        { name: "bop", git_mtime: "2026-01-14 14:11:54 -0500", size: "1.6G", notes: "Cluster: Orchestration. Agent orchestration." },
+      ];
+
+      // BEGIN AUTO: repoStats
+      const repoStats = {
+  "core_excludes": [
+    "**/target/**",
+    "**/.venv/**",
+    "**/node_modules/**",
+    "**/benchmark-results/**",
+    "**/benchmarks/**/results/**",
+    "**/docs-archive/**",
+    "**/docs_archive/**",
+    "**/real-datasets/**",
+    "**/real_datasets/**",
+    "**/datasets/**",
+    "**/dataset/**",
+    "**/data/**",
+    "**/generated/**",
+    "**/exports/**",
+    "**/doc/plots/**",
+    "**/test_index/**",
+    "**/filter_db_*/**",
+    "**/__pycache__/**",
+    "**/.pytest_cache/**"
+  ],
+  "generated_at": "2026-01-15T18:22:19.407968Z",
+  "repos": {
+    "bop": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 3,
+          "n": 20,
+          "sum": 4,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,64.7 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 8668,
+          "n": 20,
+          "sum": 8669,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-13",
+        "lines": {
+          "max": 55791,
+          "n": 20,
+          "sum": 55797,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 3,
+          "n": 20,
+          "sum": 4,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,64.7 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 262,
+          "n": 20,
+          "sum": 263,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,93.7 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-13",
+        "lines": {
+          "max": 25771,
+          "n": 20,
+          "sum": 25777,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/bop",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 55386,
+            "code": 305685,
+            "comments": 60046,
+            "lang": "Python",
+            "pct": 93.6
+          },
+          {
+            "blanks": 1529,
+            "code": 7530,
+            "comments": 1277,
+            "lang": "JavaScript",
+            "pct": 2.3
+          },
+          {
+            "blanks": 9,
+            "code": 1872,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 0.6
+          },
+          {
+            "blanks": 288,
+            "code": 1647,
+            "comments": 42,
+            "lang": "Rust",
+            "pct": 0.5
+          },
+          {
+            "blanks": 278,
+            "code": 1336,
+            "comments": 185,
+            "lang": "Shell",
+            "pct": 0.4
+          },
+          {
+            "blanks": 149,
+            "code": 866,
+            "comments": 20,
+            "lang": "CSS",
+            "pct": 0.3
+          }
+        ],
+        "total": {
+          "blanks": 72913,
+          "code": 326558,
+          "comments": 102214
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 55321,
+            "code": 305242,
+            "comments": 60028,
+            "lang": "Python",
+            "pct": 93.8
+          },
+          {
+            "blanks": 1529,
+            "code": 7530,
+            "comments": 1277,
+            "lang": "JavaScript",
+            "pct": 2.3
+          },
+          {
+            "blanks": 288,
+            "code": 1647,
+            "comments": 42,
+            "lang": "Rust",
+            "pct": 0.5
+          },
+          {
+            "blanks": 278,
+            "code": 1336,
+            "comments": 185,
+            "lang": "Shell",
+            "pct": 0.4
+          },
+          {
+            "blanks": 2,
+            "code": 1305,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 0.4
+          },
+          {
+            "blanks": 149,
+            "code": 866,
+            "comments": 20,
+            "lang": "CSS",
+            "pct": 0.3
+          }
+        ],
+        "total": {
+          "blanks": 72841,
+          "code": 325548,
+          "comments": 102196
+        }
+      }
+    },
+    "cerno": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 31,
+          "n": 20,
+          "sum": 85,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,37.2 L17,45.7 L18,74.1 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 1160,
+          "n": 20,
+          "sum": 4361,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,81.6 L17,54.0 L18,24.3 L19,6.0"
+        },
+        "last_commit": "2026-01-13",
+        "lines": {
+          "max": 161258,
+          "n": 20,
+          "sum": 454109,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,86.8 L17,51.9 L18,6.0 L19,84.2"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 31,
+          "n": 20,
+          "sum": 85,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,37.2 L17,45.7 L18,74.1 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 1154,
+          "n": 20,
+          "sum": 4344,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,81.5 L17,53.8 L18,23.9 L19,6.0"
+        },
+        "last_commit": "2026-01-13",
+        "lines": {
+          "max": 161258,
+          "n": 20,
+          "sum": 452932,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,86.8 L17,51.9 L18,6.0 L19,84.2"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/cerno",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 18155,
+            "code": 91439,
+            "comments": 9772,
+            "lang": "Rust",
+            "pct": 74.6
+          },
+          {
+            "blanks": 3169,
+            "code": 14109,
+            "comments": 1471,
+            "lang": "Python",
+            "pct": 11.5
+          },
+          {
+            "blanks": 0,
+            "code": 6828,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 5.6
+          },
+          {
+            "blanks": 258,
+            "code": 1215,
+            "comments": 107,
+            "lang": "TOML",
+            "pct": 1.0
+          },
+          {
+            "blanks": 267,
+            "code": 943,
+            "comments": 180,
+            "lang": "Shell",
+            "pct": 0.8
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 36228,
+          "code": 122607,
+          "comments": 45030
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 18025,
+            "code": 90510,
+            "comments": 9755,
+            "lang": "Rust",
+            "pct": 74.4
+          },
+          {
+            "blanks": 3169,
+            "code": 14109,
+            "comments": 1471,
+            "lang": "Python",
+            "pct": 11.6
+          },
+          {
+            "blanks": 0,
+            "code": 6828,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 5.6
+          },
+          {
+            "blanks": 258,
+            "code": 1215,
+            "comments": 107,
+            "lang": "TOML",
+            "pct": 1.0
+          },
+          {
+            "blanks": 267,
+            "code": 943,
+            "comments": 180,
+            "lang": "Shell",
+            "pct": 0.8
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 36088,
+          "code": 121677,
+          "comments": 44928
+        }
+      }
+    },
+    "cnk": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 6,
+          "n": 20,
+          "sum": 8,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,79.3 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 1036,
+          "n": 20,
+          "sum": 2078,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,6.2 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 3490,
+          "n": 20,
+          "sum": 6006,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,6.0 L19,32.6"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 6,
+          "n": 20,
+          "sum": 8,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,79.3 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 10,
+          "n": 20,
+          "sum": 26,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,23.6 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 1546,
+          "n": 20,
+          "sum": 2118,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,6.0 L19,66.1"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/cnk",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 199,
+            "code": 742,
+            "comments": 85,
+            "lang": "Rust",
+            "pct": 95.0
+          },
+          {
+            "blanks": 4,
+            "code": 25,
+            "comments": 3,
+            "lang": "TOML",
+            "pct": 3.2
+          },
+          {
+            "blanks": 17,
+            "code": 0,
+            "comments": 24,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 304,
+          "code": 781,
+          "comments": 305
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 199,
+            "code": 742,
+            "comments": 85,
+            "lang": "Rust",
+            "pct": 95.0
+          },
+          {
+            "blanks": 4,
+            "code": 25,
+            "comments": 3,
+            "lang": "TOML",
+            "pct": 3.2
+          },
+          {
+            "blanks": 17,
+            "code": 0,
+            "comments": 24,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 304,
+          "code": 781,
+          "comments": 305
+        }
+      }
+    },
+    "fynch": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 3,
+          "n": 20,
+          "sum": 3,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 4212,
+          "n": 20,
+          "sum": 4212,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 6110,
+          "n": 20,
+          "sum": 6110,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 3,
+          "n": 20,
+          "sum": 3,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 12,
+          "n": 20,
+          "sum": 12,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 3414,
+          "n": 20,
+          "sum": 3414,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/fynch",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 288,
+            "code": 1350,
+            "comments": 129,
+            "lang": "Rust",
+            "pct": 87.6
+          },
+          {
+            "blanks": 4,
+            "code": 21,
+            "comments": 4,
+            "lang": "TOML",
+            "pct": 1.4
+          },
+          {
+            "blanks": 18,
+            "code": 0,
+            "comments": 38,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 657,
+          "code": 1541,
+          "comments": 798
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 288,
+            "code": 1350,
+            "comments": 129,
+            "lang": "Rust",
+            "pct": 87.6
+          },
+          {
+            "blanks": 4,
+            "code": 21,
+            "comments": 4,
+            "lang": "TOML",
+            "pct": 1.4
+          },
+          {
+            "blanks": 18,
+            "code": 0,
+            "comments": 38,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 657,
+          "code": 1541,
+          "comments": 798
+        }
+      }
+    },
+    "hop": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 26,
+          "n": 20,
+          "sum": 67,
+          "svg": "M0,94.0 L1,73.7 L2,6.0 L3,73.7 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,87.2 L19,77.1"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 40278,
+          "n": 20,
+          "sum": 44954,
+          "svg": "M0,94.0 L1,90.6 L2,90.1 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,6.0 L19,93.4"
+        },
+        "last_commit": "2026-01-13",
+        "lines": {
+          "max": 33648305,
+          "n": 20,
+          "sum": 65362558,
+          "svg": "M0,94.0 L1,6.0 L2,12.4 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,93.3 L19,94.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 26,
+          "n": 20,
+          "sum": 67,
+          "svg": "M0,94.0 L1,73.7 L2,6.0 L3,73.7 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,87.2 L19,77.1"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 1233,
+          "n": 20,
+          "sum": 4537,
+          "svg": "M0,94.0 L1,15.2 L2,6.0 L3,92.9 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,27.9 L19,73.7"
+        },
+        "last_commit": "2026-01-13",
+        "lines": {
+          "max": 33459314,
+          "n": 20,
+          "sum": 64814083,
+          "svg": "M0,94.0 L1,6.0 L2,12.4 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,93.7 L19,94.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/hop",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 21931,
+            "code": 122533,
+            "comments": 10630,
+            "lang": "Rust",
+            "pct": 44.0
+          },
+          {
+            "blanks": 21804,
+            "code": 104801,
+            "comments": 8751,
+            "lang": "Python",
+            "pct": 37.7
+          },
+          {
+            "blanks": 1533,
+            "code": 13907,
+            "comments": 9,
+            "lang": "HTML",
+            "pct": 5.0
+          },
+          {
+            "blanks": 956,
+            "code": 4970,
+            "comments": 626,
+            "lang": "Shell",
+            "pct": 1.8
+          },
+          {
+            "blanks": 15,
+            "code": 3206,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 1.2
+          },
+          {
+            "blanks": 243,
+            "code": 1128,
+            "comments": 319,
+            "lang": "Just",
+            "pct": 0.4
+          }
+        ],
+        "total": {
+          "blanks": 133506,
+          "code": 278206,
+          "comments": 220081
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 21787,
+            "code": 121392,
+            "comments": 10521,
+            "lang": "Rust",
+            "pct": 47.6
+          },
+          {
+            "blanks": 21481,
+            "code": 103261,
+            "comments": 8660,
+            "lang": "Python",
+            "pct": 40.5
+          },
+          {
+            "blanks": 956,
+            "code": 4970,
+            "comments": 626,
+            "lang": "Shell",
+            "pct": 1.9
+          },
+          {
+            "blanks": 12,
+            "code": 1933,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 0.8
+          },
+          {
+            "blanks": 243,
+            "code": 1128,
+            "comments": 319,
+            "lang": "Just",
+            "pct": 0.4
+          },
+          {
+            "blanks": 105,
+            "code": 1021,
+            "comments": 220,
+            "lang": "YAML",
+            "pct": 0.4
+          }
+        ],
+        "total": {
+          "blanks": 76717,
+          "code": 255270,
+          "comments": 105247
+        }
+      }
+    },
+    "hyp": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 20,
+          "n": 20,
+          "sum": 24,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,89.6 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 39,
+          "n": 20,
+          "sum": 70,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,73.7 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 3162,
+          "n": 20,
+          "sum": 5627,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,30.3 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 20,
+          "n": 20,
+          "sum": 24,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,89.6 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 39,
+          "n": 20,
+          "sum": 70,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,73.7 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 3162,
+          "n": 20,
+          "sum": 5627,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,30.3 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/hyp",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 445,
+            "code": 1931,
+            "comments": 197,
+            "lang": "Rust",
+            "pct": 95.9
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 2.3
+          },
+          {
+            "blanks": 4,
+            "code": 24,
+            "comments": 0,
+            "lang": "TOML",
+            "pct": 1.2
+          },
+          {
+            "blanks": 29,
+            "code": 0,
+            "comments": 66,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 554,
+          "code": 2013,
+          "comments": 494
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 445,
+            "code": 1931,
+            "comments": 197,
+            "lang": "Rust",
+            "pct": 95.9
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 2.3
+          },
+          {
+            "blanks": 4,
+            "code": 24,
+            "comments": 0,
+            "lang": "TOML",
+            "pct": 1.2
+          },
+          {
+            "blanks": 29,
+            "code": 0,
+            "comments": 66,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 554,
+          "code": 2013,
+          "comments": 494
+        }
+      }
+    },
+    "jin": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 44,
+          "n": 20,
+          "sum": 52,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,80.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 373,
+          "n": 20,
+          "sum": 610,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,61.7 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 31314,
+          "n": 20,
+          "sum": 62370,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,6.0 L19,20.5"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 44,
+          "n": 20,
+          "sum": 52,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,80.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 371,
+          "n": 20,
+          "sum": 601,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,61.5 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 31314,
+          "n": 20,
+          "sum": 61977,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,6.0 L19,20.8"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/jin",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 0,
+            "code": 107626,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 60.5
+          },
+          {
+            "blanks": 6934,
+            "code": 35479,
+            "comments": 2599,
+            "lang": "Rust",
+            "pct": 19.9
+          },
+          {
+            "blanks": 734,
+            "code": 26939,
+            "comments": 0,
+            "lang": "HTML",
+            "pct": 15.1
+          },
+          {
+            "blanks": 585,
+            "code": 3176,
+            "comments": 283,
+            "lang": "Python",
+            "pct": 1.8
+          },
+          {
+            "blanks": 31,
+            "code": 153,
+            "comments": 25,
+            "lang": "TOML",
+            "pct": 0.1
+          },
+          {
+            "blanks": 30,
+            "code": 86,
+            "comments": 31,
+            "lang": "Shell",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 9952,
+          "code": 177970,
+          "comments": 8644
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 6934,
+            "code": 35479,
+            "comments": 2599,
+            "lang": "Rust",
+            "pct": 90.3
+          },
+          {
+            "blanks": 585,
+            "code": 3176,
+            "comments": 283,
+            "lang": "Python",
+            "pct": 8.1
+          },
+          {
+            "blanks": 31,
+            "code": 153,
+            "comments": 25,
+            "lang": "TOML",
+            "pct": 0.4
+          },
+          {
+            "blanks": 30,
+            "code": 86,
+            "comments": 31,
+            "lang": "Shell",
+            "pct": 0.2
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 0.1
+          },
+          {
+            "blanks": 0,
+            "code": 44,
+            "comments": 0,
+            "lang": "HTML",
+            "pct": 0.1
+          }
+        ],
+        "total": {
+          "blanks": 9179,
+          "code": 39274,
+          "comments": 8545
+        }
+      }
+    },
+    "lattix": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 43,
+          "n": 20,
+          "sum": 55,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,77.6 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 215,
+          "n": 20,
+          "sum": 430,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,18.3 L19,6.0"
+        },
+        "last_commit": "2026-01-13",
+        "lines": {
+          "max": 14046,
+          "n": 20,
+          "sum": 28719,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,17.3 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 43,
+          "n": 20,
+          "sum": 55,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,77.6 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 215,
+          "n": 20,
+          "sum": 430,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,18.3 L19,6.0"
+        },
+        "last_commit": "2026-01-13",
+        "lines": {
+          "max": 14046,
+          "n": 20,
+          "sum": 28719,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,17.3 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/lattix",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 2885,
+            "code": 13584,
+            "comments": 1023,
+            "lang": "Rust",
+            "pct": 94.8
+          },
+          {
+            "blanks": 50,
+            "code": 282,
+            "comments": 39,
+            "lang": "TOML",
+            "pct": 2.0
+          },
+          {
+            "blanks": 15,
+            "code": 66,
+            "comments": 11,
+            "lang": "Python",
+            "pct": 0.5
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 0.3
+          },
+          {
+            "blanks": 58,
+            "code": 0,
+            "comments": 195,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 4164,
+          "code": 14333,
+          "comments": 4528
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 2885,
+            "code": 13584,
+            "comments": 1023,
+            "lang": "Rust",
+            "pct": 94.8
+          },
+          {
+            "blanks": 50,
+            "code": 282,
+            "comments": 39,
+            "lang": "TOML",
+            "pct": 2.0
+          },
+          {
+            "blanks": 15,
+            "code": 66,
+            "comments": 11,
+            "lang": "Python",
+            "pct": 0.5
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 0.3
+          },
+          {
+            "blanks": 58,
+            "code": 0,
+            "comments": 195,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 4164,
+          "code": 14333,
+          "comments": 4528
+        }
+      }
+    },
+    "polygonal-number-theorem": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 12,
+          "n": 20,
+          "sum": 15,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 32,
+          "n": 20,
+          "sum": 51,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-15",
+        "lines": {
+          "max": 1970,
+          "n": 20,
+          "sum": 2978,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 12,
+          "n": 20,
+          "sum": 15,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 32,
+          "n": 20,
+          "sum": 51,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-15",
+        "lines": {
+          "max": 1970,
+          "n": 20,
+          "sum": 2978,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/polygonal-number-theorem",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 158,
+            "code": 1326,
+            "comments": 415,
+            "lang": "Lean",
+            "pct": 92.0
+          },
+          {
+            "blanks": 0,
+            "code": 95,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 6.6
+          },
+          {
+            "blanks": 3,
+            "code": 15,
+            "comments": 2,
+            "lang": "TOML",
+            "pct": 1.0
+          },
+          {
+            "blanks": 52,
+            "code": 0,
+            "comments": 131,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 213,
+          "code": 1442,
+          "comments": 548
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 158,
+            "code": 1326,
+            "comments": 415,
+            "lang": "Lean",
+            "pct": 92.0
+          },
+          {
+            "blanks": 0,
+            "code": 95,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 6.6
+          },
+          {
+            "blanks": 3,
+            "code": 15,
+            "comments": 2,
+            "lang": "TOML",
+            "pct": 1.0
+          },
+          {
+            "blanks": 52,
+            "code": 0,
+            "comments": 131,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 213,
+          "code": 1442,
+          "comments": 548
+        }
+      }
+    },
+    "rkhs": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 3,
+          "n": 20,
+          "sum": 3,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 4253,
+          "n": 20,
+          "sum": 4253,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 5688,
+          "n": 20,
+          "sum": 5688,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 3,
+          "n": 20,
+          "sum": 3,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 7,
+          "n": 20,
+          "sum": 7,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 1598,
+          "n": 20,
+          "sum": 1598,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/rkhs",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 107,
+            "code": 452,
+            "comments": 50,
+            "lang": "Rust",
+            "pct": 86.1
+          },
+          {
+            "blanks": 4,
+            "code": 21,
+            "comments": 1,
+            "lang": "TOML",
+            "pct": 4.0
+          },
+          {
+            "blanks": 15,
+            "code": 0,
+            "comments": 36,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 249,
+          "code": 525,
+          "comments": 296
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 107,
+            "code": 452,
+            "comments": 50,
+            "lang": "Rust",
+            "pct": 86.1
+          },
+          {
+            "blanks": 4,
+            "code": 21,
+            "comments": 1,
+            "lang": "TOML",
+            "pct": 4.0
+          },
+          {
+            "blanks": 15,
+            "code": 0,
+            "comments": 36,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 249,
+          "code": 525,
+          "comments": 296
+        }
+      }
+    },
+    "smtq": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 6,
+          "n": 20,
+          "sum": 6,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 43,
+          "n": 20,
+          "sum": 43,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 3711,
+          "n": 20,
+          "sum": 3711,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 6,
+          "n": 20,
+          "sum": 6,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 43,
+          "n": 20,
+          "sum": 43,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 3711,
+          "n": 20,
+          "sum": 3711,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/smtq",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 295,
+            "code": 2848,
+            "comments": 42,
+            "lang": "Rust",
+            "pct": 94.7
+          },
+          {
+            "blanks": 2,
+            "code": 12,
+            "comments": 3,
+            "lang": "TOML",
+            "pct": 0.4
+          },
+          {
+            "blanks": 6,
+            "code": 0,
+            "comments": 7,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 424,
+          "code": 3007,
+          "comments": 241
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 295,
+            "code": 2848,
+            "comments": 42,
+            "lang": "Rust",
+            "pct": 94.7
+          },
+          {
+            "blanks": 2,
+            "code": 12,
+            "comments": 3,
+            "lang": "TOML",
+            "pct": 0.4
+          },
+          {
+            "blanks": 6,
+            "code": 0,
+            "comments": 7,
+            "lang": "Markdown",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 424,
+          "code": 3007,
+          "comments": 241
+        }
+      }
+    },
+    "strata": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 36,
+          "n": 20,
+          "sum": 45,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,76.9 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 136,
+          "n": 20,
+          "sum": 206,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,70.1 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 11979,
+          "n": 20,
+          "sum": 17293,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,64.5 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 36,
+          "n": 20,
+          "sum": 45,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,76.9 L19,6.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 134,
+          "n": 20,
+          "sum": 204,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,69.7 L19,6.0"
+        },
+        "last_commit": "2026-01-14",
+        "lines": {
+          "max": 11828,
+          "n": 20,
+          "sum": 17142,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,94.0 L12,94.0 L13,94.0 L14,94.0 L15,94.0 L16,94.0 L17,94.0 L18,64.1 L19,6.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/strata",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 1897,
+            "code": 9573,
+            "comments": 775,
+            "lang": "Rust",
+            "pct": 97.4
+          },
+          {
+            "blanks": 25,
+            "code": 90,
+            "comments": 19,
+            "lang": "TOML",
+            "pct": 0.9
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 0.5
+          },
+          {
+            "blanks": 70,
+            "code": 0,
+            "comments": 117,
+            "lang": "Markdown",
+            "pct": 0.0
+          },
+          {
+            "blanks": 0,
+            "code": 0,
+            "comments": 7,
+            "lang": "Plain Text",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 2580,
+          "code": 9827,
+          "comments": 2734
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 1897,
+            "code": 9573,
+            "comments": 775,
+            "lang": "Rust",
+            "pct": 97.4
+          },
+          {
+            "blanks": 25,
+            "code": 90,
+            "comments": 19,
+            "lang": "TOML",
+            "pct": 0.9
+          },
+          {
+            "blanks": 8,
+            "code": 47,
+            "comments": 10,
+            "lang": "BASH",
+            "pct": 0.5
+          },
+          {
+            "blanks": 70,
+            "code": 0,
+            "comments": 117,
+            "lang": "Markdown",
+            "pct": 0.0
+          },
+          {
+            "blanks": 0,
+            "code": 0,
+            "comments": 7,
+            "lang": "Plain Text",
+            "pct": 0.0
+          }
+        ],
+        "total": {
+          "blanks": 2580,
+          "code": 9827,
+          "comments": 2734
+        }
+      }
+    },
+    "trackweave": {
+      "exists": true,
+      "git_all": {
+        "commits": {
+          "max": 14,
+          "n": 20,
+          "sum": 43,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,6.0 L12,18.6 L13,94.0 L14,81.4 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,94.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 511,
+          "n": 20,
+          "sum": 619,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,6.0 L12,83.3 L13,94.0 L14,92.3 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,94.0"
+        },
+        "last_commit": "2025-12-31",
+        "lines": {
+          "max": 74761,
+          "n": 20,
+          "sum": 86204,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,6.0 L12,88.4 L13,94.0 L14,92.5 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,94.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "git_core": {
+        "commits": {
+          "max": 14,
+          "n": 20,
+          "sum": 43,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,6.0 L12,18.6 L13,94.0 L14,81.4 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,94.0"
+        },
+        "end": "2026-01-15",
+        "files": {
+          "max": 511,
+          "n": 20,
+          "sum": 619,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,6.0 L12,83.3 L13,94.0 L14,92.3 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,94.0"
+        },
+        "last_commit": "2025-12-31",
+        "lines": {
+          "max": 74761,
+          "n": 20,
+          "sum": 86204,
+          "svg": "M0,94.0 L1,94.0 L2,94.0 L3,94.0 L4,94.0 L5,94.0 L6,94.0 L7,94.0 L8,94.0 L9,94.0 L10,94.0 L11,6.0 L12,88.4 L13,94.0 L14,92.5 L15,94.0 L16,94.0 L17,94.0 L18,94.0 L19,94.0"
+        },
+        "since_days": 60,
+        "spark": {
+          "bin_days": 3,
+          "bins": 20
+        },
+        "start": "2025-11-17"
+      },
+      "path": "/Users/arc/Documents/dev/trackweave",
+      "tokei_all": {
+        "top_langs": [
+          {
+            "blanks": 12228,
+            "code": 71056,
+            "comments": 5652,
+            "lang": "Python",
+            "pct": 97.5
+          },
+          {
+            "blanks": 1,
+            "code": 696,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 1.0
+          },
+          {
+            "blanks": 86,
+            "code": 310,
+            "comments": 33,
+            "lang": "Shell",
+            "pct": 0.4
+          },
+          {
+            "blanks": 32,
+            "code": 175,
+            "comments": 23,
+            "lang": "TOML",
+            "pct": 0.2
+          },
+          {
+            "blanks": 20,
+            "code": 135,
+            "comments": 20,
+            "lang": "JavaScript",
+            "pct": 0.2
+          },
+          {
+            "blanks": 42,
+            "code": 108,
+            "comments": 28,
+            "lang": "Just",
+            "pct": 0.1
+          }
+        ],
+        "total": {
+          "blanks": 13078,
+          "code": 72911,
+          "comments": 7475
+        }
+      },
+      "tokei_core": {
+        "top_langs": [
+          {
+            "blanks": 12228,
+            "code": 71056,
+            "comments": 5652,
+            "lang": "Python",
+            "pct": 97.5
+          },
+          {
+            "blanks": 1,
+            "code": 696,
+            "comments": 0,
+            "lang": "JSON",
+            "pct": 1.0
+          },
+          {
+            "blanks": 86,
+            "code": 310,
+            "comments": 33,
+            "lang": "Shell",
+            "pct": 0.4
+          },
+          {
+            "blanks": 32,
+            "code": 175,
+            "comments": 23,
+            "lang": "TOML",
+            "pct": 0.2
+          },
+          {
+            "blanks": 20,
+            "code": 135,
+            "comments": 20,
+            "lang": "JavaScript",
+            "pct": 0.2
+          },
+          {
+            "blanks": 42,
+            "code": 108,
+            "comments": 28,
+            "lang": "Just",
+            "pct": 0.1
+          }
+        ],
+        "total": {
+          "blanks": 13078,
+          "code": 72911,
+          "comments": 7475
+        }
+      }
+    }
+  },
+  "since_days": 60
+};
+      // END AUTO: repoStats
+
+      const summary = [
+        { k: "generated_at", v: "2026-01-15T11:09:56-05:00" },
+        { k: "repos in table", v: `${repos.length}` },
+        { k: "largest disk drivers", v: "hop (~273G), cerno (~53G), jin (~42G)" },
+        { k: "note", v: "crate-level graph is in depgraph.html; this page is repo-level" },
+        { k: "dev workspace root", v: "/Users/arc/Documents/dev/Cargo.toml" },
+        { k: "rust integration pattern", v: "super-workspace (path deps) + per-repo workspaces (git deps + [patch])" },
+        { k: "workspace snapshot", v: `${workspace.workspace_members.length} members, ${workspace.edges.length} edges` },
+      ];
+
+      const summaryBody = document.querySelector("#summary-table tbody");
+      // Pack 2 key/value pairs per row to reduce vertical height.
+      for (let i = 0; i < summary.length; i += 2) {
+        const a = summary[i];
+        const b = summary[i + 1] ?? null;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="sk">${a.k}</td><td class="sv">${a.v}</td>
+          <td class="sk">${b ? b.k : ""}</td><td class="sv">${b ? b.v : ""}</td>
+        `;
+        summaryBody.appendChild(tr);
+      }
+
+      // Header meta: keep the title area clean, but surface a single timestamp.
+      // We intentionally don't auto-update it here: the summary is the authoritative value.
+      const hdrGen = document.getElementById("hdr-generated-at");
+      if (hdrGen) {
+        const gen = summary.find((x) => x.k === "generated_at")?.v ?? "";
+        const short = gen ? gen.slice(0, 10) : "";
+        hdrGen.textContent = short ? `gen ${short}` : "";
+        hdrGen.title = gen ? `generated_at: ${gen}` : "generated_at";
+      }
+
+      // Cluster definitions
+      const clusters = {
+        "Tekne (Facade)": ["jin", "innr", "cerno", "anno", "slabs", "lattix", "strata", "hyp", "subsume"],
+        "Math Core": ["innr", "logp", "wass", "lapl", "rkhs", "rmt", "fynch", "cnk", "sbits", "ans"],
+        "Incubation": ["clump", "kuji", "pare", "knit", "skel"],
+        "Orchestration": ["hop", "bop", "axum-mcp"],
+      };
+
+      const clusterGraph = `
+%% Conceptual clusters (overlapping)
+graph TD
+  subgraph Tekne["Tekne (Facade)"]
+    direction TB
+    JIN[jin]
+    INNR[innr]
+    CERNO[cerno]
+    ANNO[anno]
+    SLABS[slabs]
+    LATTIX[lattix]
+    STRATA[strata]
+    HYP[hyp]
+    SUBSUME[subsume]
+  end
+
+  subgraph MathCore["Math Core"]
+    direction TB
+    INNR_M[innr]
+    LOGP[logp]
+    WASS[wass]
+    LAPL[lapl]
+    RKHS[rkhs]
+    RMT[rmt]
+    FYNCH[fynch]
+    CNK[cnk]
+    SBITS[sbits]
+    ANS[ans]
+  end
+
+  subgraph Incubation["Incubation"]
+    direction TB
+    CLUMP[clump]
+    KUJI[kuji]
+    PARE[pare]
+    KNIT[knit]
+    SKEL[skel]
+  end
+
+  subgraph Orchestration["Orchestration"]
+    direction TB
+    HOP[hop]
+    BOP[bop]
+    AXUM_MCP[axum-mcp]
+  end
+
+  %% Styling
+  classDef tekne fill:#eef7ff,stroke:#cfe1ff,color:#111;
+  classDef math fill:#fff4e8,stroke:#f3d2a4,color:#111;
+  classDef incubation fill:#f6f0ff,stroke:#dcc9ff,color:#111;
+  classDef orch fill:#ecfff2,stroke:#bfe9cb,color:#111;
+
+  class Tekne tekne;
+  class MathCore math;
+  class Incubation incubation;
+  class Orchestration orch;
+
+  %% Shared nodes are tricky in Mermaid subgraphs without duplication or complex edges.
+  %% Here we show the primary membership visually, and the overlap is implicit in the names.
+`;
+
+      document.getElementById("cluster-mermaid").textContent = clusterGraph.trim();
+
+      // Repo graph edges, but laid out as “levels” (Tekne stack layers).
+      const repoGraph = `
+%% Repo-level integration graph, grouped by Tekne “levels” (hand-curated)
+flowchart TB
+  subgraph L0["L0: SIMD Foundation"]
+    INNR[innr]
+  end
+
+  subgraph L1["L1: Mathematical Primitives"]
+    LOGP[logp]
+    WASS[wass]
+    LAPL[lapl]
+    HYP[hyp]
+    RMT[rmt]
+    CNK[cnk]
+  end
+
+  subgraph L2["L2: Composite Primitives"]
+    RKHS[rkhs]
+    FYNCH[fynch]
+    SLABS[slabs]
+  end
+
+  subgraph L3["L3: Aggregators"]
+    JIN[jin]
+    STRATA[strata]
+  end
+
+  subgraph L4["L4: Embedding Models"]
+    SUBSUME[subsume]
+  end
+
+  subgraph L5["L5: Domain Stacks"]
+    LATTIX[lattix]
+    CERNO[cerno]
+    ANNO[anno]
+  end
+
+  subgraph L6["L6: Orchestration"]
+    HOP[hop]
+    BOP[bop]
+  end
+
+  %% Edges: solid = default/always; dashed = optional/feature-gated
+  JIN --> INNR
+  JIN --> CNK
+
+  STRATA -.-> JIN
+  STRATA -.-> LOGP
+  STRATA -.-> LAPL
+  STRATA -.-> RKHS
+
+  CERNO --> INNR
+  CERNO --> FYNCH
+  CERNO --> JIN
+  CERNO --> CNK
+  CERNO --> LOGP
+
+  HOP --> ANNO
+  HOP -.-> CERNO
+  HOP -.-> LATTIX
+  HOP -.-> JIN
+  HOP -.-> HYP
+  HOP -.-> SUBSUME
+  HOP -.-> WASS
+  HOP -.-> STRATA
+
+  BOP -.-> CERNO
+
+  %% Styling (subtle level coloring)
+  classDef lvl0 fill:#eef7ff,stroke:#cfe1ff,color:#111;
+  classDef lvl1 fill:#fff4e8,stroke:#f3d2a4,color:#111;
+  classDef lvl2 fill:#f6f0ff,stroke:#dcc9ff,color:#111;
+  classDef lvl3 fill:#ecfff2,stroke:#bfe9cb,color:#111;
+  classDef lvl4 fill:#fff0f6,stroke:#f4c4da,color:#111;
+  classDef lvl5 fill:#f7f7f7,stroke:#ddd,color:#111;
+  classDef lvl6 fill:#f0fffe,stroke:#bfeeea,color:#111;
+
+  class INNR lvl0;
+  class LOGP,WASS,LAPL,HYP,RMT,CNK lvl1;
+  class RKHS,FYNCH,SLABS lvl2;
+  class JIN,STRATA lvl3;
+  class SUBSUME lvl4;
+  class LATTIX,CERNO,ANNO lvl5;
+  class HOP,BOP lvl6;
+`;
+
+      document.getElementById("repo-mermaid").textContent = repoGraph.trim();
+
+      const repoEdges = [
+        // L3->L0/L1/L2 usage (these are the foundational “pulls”)
+        {
+          from: "jin",
+          to: "innr",
+          kind: "solid",
+          why: "ANN search uses SIMD primitives for distance/similarity hot loops.",
+          confirm: "jin/Cargo.toml (dep on innr)",
+        },
+        {
+          from: "jin",
+          to: "cnk",
+          kind: "solid",
+          why: "ANN / compression adjacency (e.g. PQ / compact IDs) — used where enabled.",
+          confirm: "jin/Cargo.toml (optional dep on cnk)",
+        },
+
+        // strata optionally composes primitives/aggregators
+        {
+          from: "strata",
+          to: "jin",
+          kind: "dotted",
+          why: "kNN graphs / ANN-powered adjacency for clustering pipelines (feature-gated).",
+          confirm: "strata/Cargo.toml (optional dep on jin)",
+        },
+        {
+          from: "strata",
+          to: "lapl",
+          kind: "dotted",
+          why: "spectral clustering paths use graph Laplacians (feature-gated).",
+          confirm: "strata/Cargo.toml (optional dep on lapl)",
+        },
+        {
+          from: "strata",
+          to: "logp",
+          kind: "dotted",
+          why: "evaluation metrics (entropy/MI/NMI) for clustering quality (feature-gated).",
+          confirm: "strata/Cargo.toml (optional dep on logp)",
+        },
+        {
+          from: "strata",
+          to: "rkhs",
+          kind: "dotted",
+          why: "kernel methods as optional building blocks for clustering variants.",
+          confirm: "strata/Cargo.toml (optional dep on rkhs)",
+        },
+
+        // cerno as retrieval stack composes primitives
+        {
+          from: "cerno",
+          to: "innr",
+          kind: "solid",
+          why: "reranking similarity and MaxSim-style kernels benefit from SIMD primitives.",
+          confirm: "cerno/Cargo.toml + cerno-rerank/Cargo.toml (innr features)",
+        },
+        {
+          from: "cerno",
+          to: "fynch",
+          kind: "solid",
+          why: "differentiable sorting/ranking used by training/eval tooling.",
+          confirm: "cerno/Cargo.toml (workspace deps / features)",
+        },
+        {
+          from: "cerno",
+          to: "jin",
+          kind: "solid",
+          why: "retrieval needs ANN for candidate generation / indexing backends.",
+          confirm: "cerno/Cargo.toml ([workspace.dependencies] + [patch])",
+        },
+        {
+          from: "cerno",
+          to: "cnk",
+          kind: "solid",
+          why: "compressed IDs / posting lists / memory-sensitive retrieval structures.",
+          confirm: "cerno/Cargo.toml ([workspace.dependencies] + [patch])",
+        },
+        {
+          from: "cerno",
+          to: "logp",
+          kind: "solid",
+          why: "calibration, entropy diagnostics, and evaluation metrics.",
+          confirm: "cerno/Cargo.toml (workspace deps)",
+        },
+
+        // hop as orchestration composes domain stacks & primitives behind feature gates
+        {
+          from: "hop",
+          to: "anno",
+          kind: "solid",
+          why: "NER/entities are core inputs to hop’s higher-level flows.",
+          confirm: "hop/hop-core/Cargo.toml (anno dependency)",
+        },
+        {
+          from: "hop",
+          to: "cerno",
+          kind: "dotted",
+          why: "fusion/rerank integrations are optional (feature-gated).",
+          confirm: "hop/hop-core/Cargo.toml (cerno-* optional deps)",
+        },
+        {
+          from: "hop",
+          to: "lattix",
+          kind: "dotted",
+          why: "knowledge graph integration is optional (feature-gated).",
+          confirm: "hop/hop-core/Cargo.toml (lattix-core optional dep)",
+        },
+        {
+          from: "hop",
+          to: "jin",
+          kind: "dotted",
+          why: "alternative vector backend (ANN beyond baseline HNSW) is optional.",
+          confirm: "hop/hop-core/Cargo.toml (jin optional dep) + feature `jin-backend`",
+        },
+        {
+          from: "hop",
+          to: "hyp",
+          kind: "dotted",
+          why: "hyperbolic embeddings are optional.",
+          confirm: "hop/hop-core/Cargo.toml (hyp optional dep) + feature `hyperbolic`",
+        },
+        {
+          from: "hop",
+          to: "subsume",
+          kind: "dotted",
+          why: "box embeddings are optional.",
+          confirm: "hop/hop-core/Cargo.toml (subsume-* optional deps) + feature `box-embeddings`",
+        },
+        {
+          from: "hop",
+          to: "wass",
+          kind: "dotted",
+          why: "sparse optimal transport entity matching is optional.",
+          confirm: "hop/hop-core/Cargo.toml (wass optional dep) + feature `sparse-ot`",
+        },
+        {
+          from: "hop",
+          to: "strata",
+          kind: "dotted",
+          why: "RAPTOR / clustering integrations are optional.",
+          confirm: "hop/hop-core/Cargo.toml (strata optional dep, if enabled in that repo)",
+        },
+
+        // bop optional integration
+        {
+          from: "bop",
+          to: "cerno",
+          kind: "dotted",
+          why: "optional fusion integration (agent orchestration can call into retrieval/fusion).",
+          confirm: "bop/Cargo.toml (optional cerno integration)",
+        },
+      ];
+
+      function mermaidSafeId(s) {
+        return String(s).replace(/[^A-Za-z0-9_]/g, "_");
+      }
+
+      function isOptionalDepName(depName) {
+        return typeof depName === "string" && depName.toLowerCase().includes("optional");
+      }
+
+      function toMermaidGraph(title, edges) {
+        // Mermaid node IDs are finicky; some of our crate names include `-`.
+        // Use safe IDs for rendering, but preserve the original labels.
+        const lines = [];
+        lines.push(`%% ${title}`);
+        lines.push(`graph TD`);
+
+        const nodes = new Set();
+        for (const e of edges) {
+          nodes.add(e.from);
+          nodes.add(e.to);
+        }
+
+        // Declarations (only when needed).
+        for (const n of [...nodes].sort()) {
+          const id = mermaidSafeId(n);
+          if (id !== n) {
+            const label = String(n).replace(/"/g, '\\"');
+            lines.push(`  ${id}["${label}"]`);
+          }
+        }
+
+        for (const e of edges) {
+          const from = mermaidSafeId(e.from);
+          const to = mermaidSafeId(e.to);
+          const arrow = isOptionalDepName(e.dep_name) ? "-.->" : "-->";
+          // Keep this graph readable: no edge labels (use dotted line for optional).
+          lines.push(`  ${from} ${arrow} ${to}`);
+        }
+        return lines.join("\n");
+      }
+
+      document.getElementById("actual-mermaid").textContent = toMermaidGraph(
+        "Actual (workspace-only) Cargo deps",
+        workspace.edges,
+      );
+      document.getElementById("conceptual-mermaid").textContent = toMermaidGraph(
+        "Conceptual Tekne relationships",
+        conceptualEdges,
+      );
+
+      // Mismatch table
+      const actualEdgeKey = (e) => `${e.from} -> ${e.to}`;
+      const actualKeys = new Set(workspace.edges.map(actualEdgeKey));
+      const conceptualKeys = new Set(conceptualEdges.map(actualEdgeKey));
+      const mismatchBody = document.querySelector("#mismatch-table tbody");
+      const allKeys = new Set([...actualKeys, ...conceptualKeys]);
+      const sorted = [...allKeys].sort();
+
+      for (const key of sorted) {
+        const [from, to] = key.split(" -> ").map((x) => x.trim());
+        const isConceptual = conceptualKeys.has(key);
+        const isActual = actualKeys.has(key);
+        const note = conceptualEdges.find((e) => actualEdgeKey(e) === key)?.note ?? "";
+        const status =
+          !isActual && isConceptual
+            ? "missing in Cargo"
+            : !isConceptual && isActual
+              ? "missing in conceptual"
+              : "";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${from} → ${to}</td>
+          <td>${isConceptual ? "yes" : ""}</td>
+          <td>${isActual ? "yes" : ""}</td>
+          <td>${status || note || ""}</td>
+        `;
+        mismatchBody.appendChild(tr);
+      }
+
+      function formatGitMtimeShort(s) {
+        // Input looks like: "2026-01-14 21:59:17 -0500"
+        // Render: "2026-01-14" with full timestamp on hover.
+        const m = String(s).match(/^(\d{4}-\d{2}-\d{2})\s+/);
+        return m ? m[1] : String(s);
+      }
+
+      function levelDot(level) {
+        const cls = level ? `dot dot-${level.toLowerCase()}` : "dot dot-unknown";
+        const label = level || "";
+        if (!label) return "";
+        const n = Number(String(label).replace(/^L/i, ""));
+        const stars = Number.isFinite(n) && n > 0 ? "★".repeat(n) : "";
+        const title = stars ? `title="${stars}"` : "";
+        return `<span class="lvl" ${title}><span class="${cls}"></span><span>${label}</span></span>`;
+      }
+
+      function fmtInt(n) {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return "";
+        return x.toLocaleString("en-US");
+      }
+
+      const tbody = document.querySelector("#recent-table tbody");
+      for (const r of repos) {
+        const level = levelByRepo.get(r.name) ?? "";
+        const tr = document.createElement("tr");
+        const mtimeShort = formatGitMtimeShort(r.git_mtime);
+        tr.innerHTML = `
+          <td><a href="file:///Users/arc/Documents/dev/${r.name}"><code>${r.name}</code></a></td>
+          <td>${levelDot(level)}</td>
+          <td title="${String(r.git_mtime).replace(/"/g, "&quot;")}"><code>${mtimeShort}</code></td>
+          <td>${r.size}</td>
+          <td>${r.notes}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      // Stats table (tokei + activity)
+      const statsBody = document.querySelector("#stats-table tbody");
+      const viewInputs = Array.from(document.querySelectorAll('input[name="stats-view"]'));
+      const excludesPill = document.getElementById("core-excludes-pill");
+      if (excludesPill && repoStats?.core_excludes) {
+        excludesPill.title = repoStats.core_excludes.join("\n");
+      }
+
+      function fmtCompactInt(n) {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return "";
+        if (x >= 1e9) return (x / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
+        if (x >= 1e6) return (x / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+        if (x >= 1e3) return (x / 1e3).toFixed(1).replace(/\.0$/, "") + "k";
+        return String(Math.trunc(x));
+      }
+
+      function renderSpark(sparkObj, sparkMeta, label) {
+        const svgPath = sparkObj?.svg ?? "";
+        const sum = fmtCompactInt(sparkObj?.sum);
+        const mx = fmtCompactInt(sparkObj?.max);
+        const n = Number(sparkObj?.n ?? 0);
+        const binDays = Number(sparkMeta?.bin_days ?? 1);
+        const bins = Number(sparkMeta?.bins ?? n);
+
+        // Keep the visible footprint small; details are in the tooltip.
+        const title = `${label}\n` + `sum=${sum}  max/day=${mx}\n` + `spark=max/day over ${binDays}d buckets (${bins} bins)`;
+
+        if (!svgPath || !Number.isFinite(n) || n < 2) return `<span class="muted">-</span>`;
+
+        // Our generator uses a padded range; baseline aligns with 0-activity.
+        const baselineY = 94;
+        const lastX = n - 1;
+        const m = String(svgPath).match(/(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)(?!.*\d)/);
+        const lastY = m ? m[2] : baselineY;
+        const fillPath = `${svgPath} L${lastX},${baselineY} L0,${baselineY} Z`;
+        return `
+          <div class="spark-cell" title="${title.replace(/"/g, "&quot;")}">
+            <svg class="spark-svg" viewBox="0 0 ${n - 1} 100" preserveAspectRatio="none" aria-hidden="true">
+              <path class="spark-base" d="M0,${baselineY} L${lastX},${baselineY}" />
+              <path class="spark-fill" d="${fillPath}" />
+              <path class="spark-line" d="${svgPath}" />
+              <circle class="spark-dot" cx="${lastX}" cy="${lastY}" r="2" />
+            </svg>
+          </div>
+        `;
+      }
+
+      function renderLangs(topLangs) {
+        if (!topLangs || topLangs.length === 0) return "";
+        const segments = topLangs.map(l => {
+           let k = l.lang.toLowerCase().replace(" ", "-");
+           if (k === "bash") k = "shell";
+           if (!['rust','python','javascript','lean','html','json','toml','shell'].includes(k)) k = 'other';
+           return `<div class="lang-seg lang-${k}" style="width: ${l.pct}%" title="${l.lang}: ${l.pct}% (${fmtInt(l.code)} LOC)"></div>`;
+        }).join("");
+
+        const title = topLangs.slice(0, 4).map((x) => `${x.lang} ${Math.round(x.pct)}%`).join(", ");
+        return `<div class="lang-bar" title="${title.replace(/"/g, "&quot;")}">${segments}</div>`;
+      }
+
+      function renderStats(view) {
+        statsBody.innerHTML = "";
+        for (const r of repos) {
+          const repo = repoStats?.repos?.[r.name] ?? null;
+          const level = levelByRepo.get(r.name) ?? "";
+          const tok = repo?.[`tokei_${view}`] ?? null;
+          const git = repo?.[`git_${view}`] ?? null;
+          const sparkMeta = git?.spark ?? null;
+          const tokTotal = tok?.total ?? {};
+          const loc = fmtInt(tokTotal?.code);
+          const topLangs = tok?.top_langs ?? [];
+          const lastCommit = repo?.git_all?.last_commit ?? repo?.git_core?.last_commit ?? "";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><a href="file:///Users/arc/Documents/dev/${r.name}"><code>${r.name}</code></a></td>
+            <td>${levelDot(level)}</td>
+            <td><code>${loc}</code></td>
+            <td>${renderLangs(topLangs)}</td>
+            <td>${renderSpark(git?.commits, sparkMeta, "commits/day")}</td>
+            <td>${renderSpark(git?.files, sparkMeta, "files touched/day")}</td>
+            <td>${renderSpark(git?.lines, sparkMeta, "lines changed/day")}</td>
+            <td><code>${lastCommit || ""}</code></td>
+          `;
+          statsBody.appendChild(tr);
+        }
+      }
+
+      function currentView() {
+        const picked = viewInputs.find((x) => x.checked);
+        return picked?.value === "all" ? "all" : "core";
+      }
+
+      for (const i of viewInputs) {
+        i.addEventListener("change", () => renderStats(currentView()));
+      }
+      renderStats(currentView());
+
+      // “Dev overrides” table (so patch mechanics don't clutter the graph)
+      const overrides = [
+        { repo: "cerno", mechanism: "[patch] in Cargo.toml", notes: "Overrides git deps (innr, fynch, jin, cnk, ans) to local sibling paths for dev." },
+        { repo: "lattix", mechanism: "[patch] in Cargo.toml", notes: "Overrides subsume packages to local sibling paths for dev." },
+        { repo: "hop", mechanism: "(suggested)", notes: "If you want consistent local dev across repos, add [patch] overrides here too (like cerno does). Not currently listed as implemented." },
+      ];
+      const overridesBody = document.querySelector("#overrides-table tbody");
+      for (const o of overrides) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><code>${o.repo}</code></td>
+          <td>${o.mechanism}</td>
+          <td>${o.notes}</td>
+        `;
+        overridesBody.appendChild(tr);
+      }
+
+      // Edge explanations table (repo-level, hand-curated)
+      const edgeBody = document.querySelector("#edge-table tbody");
+      function localFileUrl(relPath) {
+        return `file:///Users/arc/Documents/dev/${relPath}`;
+      }
+      function linkifyConfirm(text) {
+        // Convert occurrences like "hop/hop-core/Cargo.toml" into clickable file:// links.
+        const s = String(text ?? "");
+        const re = /([A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*\/Cargo\.toml)/g;
+        const parts = [];
+        let last = 0;
+        for (const m of s.matchAll(re)) {
+          const idx = m.index ?? 0;
+          if (idx > last) parts.push({ t: s.slice(last, idx), isLink: false });
+          parts.push({ t: m[1], isLink: true });
+          last = idx + m[1].length;
+        }
+        if (last < s.length) parts.push({ t: s.slice(last), isLink: false });
+        if (!parts.length) return `<code>${s}</code>`;
+        return parts
+          .map((p) =>
+            p.isLink
+              ? `<a href="${localFileUrl(p.t)}"><code>${p.t}</code></a>`
+              : p.t.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+          )
+          .join("");
+      }
+      for (const e of repoEdges) {
+        const tr = document.createElement("tr");
+        const isOptional = e.kind === "dotted";
+        const kind = isOptional ? "optional" : "default";
+        const kindPill = isOptional
+          ? `<span class="pill kind-optional">optional</span>`
+          : `<span class="pill kind-default">default</span>`;
+        const confirmHtml = linkifyConfirm(e.confirm);
+        tr.innerHTML = `
+          <td><code>${e.from}</code></td>
+          <td><code>${e.to}</code></td>
+          <td>${kindPill}</td>
+          <td>${e.why}</td>
+          <td>${confirmHtml}</td>
+        `;
+        edgeBody.appendChild(tr);
+      }
+
+      // Lightweight filtering for edge explanations (client-side).
+      const edgeFilter = document.getElementById("edge-filter");
+      function applyEdgeFilter() {
+        const q = (edgeFilter.value || "").trim().toLowerCase();
+        const rows = Array.from(edgeBody.querySelectorAll("tr"));
+        for (const row of rows) {
+          const text = row.textContent ? row.textContent.toLowerCase() : "";
+          row.style.display = !q || text.includes(q) ? "" : "none";
+        }
+      }
+      edgeFilter.addEventListener("input", applyEdgeFilter);
+
+      // tekne facade mapping (compact)
+      const tekneFeatures = [
+        { feature: "simd", crate: "innr", reexport: "tekne::innr" },
+        { feature: "ann", crate: "jin", reexport: "tekne::jin" },
+        { feature: "hyperbolic", crate: "hyp", reexport: "tekne::hyp" },
+        { feature: "boxes", crate: "subsume-core", reexport: "tekne::subsume (subsume_core)" },
+        { feature: "cluster", crate: "strata", reexport: "tekne::strata" },
+        { feature: "graph", crate: "lattix", reexport: "tekne::lattix" },
+        { feature: "retrieval", crate: "cerno", reexport: "tekne::cerno" },
+        { feature: "nlp", crate: "anno", reexport: "tekne::anno" },
+        { feature: "chunk", crate: "slabs", reexport: "tekne::slabs" },
+      ];
+
+      const tekneBody = document.querySelector("#tekne-table tbody");
+      for (const row of tekneFeatures) {
+        const inWs = workspaceMembers.has(row.crate) ? "yes" : "";
+        const lvl =
+          row.crate === "subsume-core"
+            ? "L4 (package)"
+            : (levelByRepo.get(row.crate) ?? "");
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.feature}</td>
+          <td><code>${row.crate}</code></td>
+          <td><code>${row.reexport}</code></td>
+          <td>${inWs}</td>
+          <td>${lvl}</td>
+        `;
+        tekneBody.appendChild(tr);
+      }
+
+      // “At a glance” table: short purpose + links.
+      const glance = [
+        { crate: "ans", level: "L1", one: "entropy coding primitives (ANS / rANS)", docs: "https://docs.rs/ans" },
+        { crate: "sbits", level: "L1", one: "succinct data structures (bitsets, filters)", docs: "" },
+        { crate: "innr", level: "L0", one: "SIMD similarity primitives (dot/cosine/l2/maxsim)", docs: "https://docs.rs/innr" },
+        { crate: "logp", level: "L1", one: "information theory (entropy/KL/MI)", docs: "https://docs.rs/logp" },
+        { crate: "lapl", level: "L1", one: "spectral/Laplacian utilities (includes sparse matrix-free path)", docs: "https://docs.rs/lapl" },
+        { crate: "cnk", level: "L1", one: "ID/set compression primitives", docs: "https://docs.rs/cnk" },
+        { crate: "hyp", level: "L1", one: "hyperbolic geometry models (Poincaré/Lorentz)", docs: "https://docs.rs/hyp" },
+        { crate: "wass", level: "L1", one: "optimal transport utilities", docs: "https://docs.rs/wass" },
+        { crate: "rmt", level: "L1", one: "random matrix theory utilities", docs: "https://docs.rs/rmt" },
+        { crate: "rkhs", level: "L2", one: "kernel methods (RBF/MMD) - optimized ndarray path", docs: "https://docs.rs/rkhs" },
+        { crate: "fynch", level: "L2", one: "differentiable sorting/ranking", docs: "https://docs.rs/fynch" },
+        { crate: "slabs", level: "L2", one: "chunking strategies (sentence/semantic/recursive)", docs: "https://docs.rs/slabs" },
+        { crate: "pare", level: "L2", one: "Pareto frontier (skyline) selection", docs: "" },
+        { crate: "knit", level: "L2", one: "rank fusion operators (RRF, Borda)", docs: "" },
+        { crate: "kuji", level: "L1", one: "sampling primitives (stochastic selection)", docs: "" },
+        { crate: "skel", level: "L1", one: "topology/shape primitives (simplicial complexes)", docs: "" },
+        { crate: "clump", level: "L2", one: "dense clustering primitives (k-means, DBSCAN)", docs: "" },
+        { crate: "jin", level: "L3", one: "ANN indices (HNSW/DiskANN/IVF-PQ)", docs: "https://docs.rs/jin" },
+        { crate: "strata", level: "L3", one: "clustering + hierarchy (RAPTOR) - sparse spectral enabled", docs: "https://docs.rs/strata" },
+        { crate: "axum-mcp", level: "L6", one: "MCP server framework (axum + stdio)", docs: "" },
+        { crate: "axum-mcp-macros", level: "L6", one: "proc-macros for axum-mcp", docs: "" },
+        { crate: "subsume", level: "L4", one: "box embeddings for containment", docs: "https://docs.rs/subsume-core" },
+        { crate: "lattix", level: "L5", one: "graph learning + KGE", docs: "https://docs.rs/lattix" },
+        { crate: "cerno", level: "L5", one: "retrieval + fusion + rerank", docs: "https://docs.rs/cerno" },
+        { crate: "anno", level: "L5", one: "NER + relations + coref", docs: "https://docs.rs/anno" },
+        { crate: "hop", level: "L6", one: "RAG orchestration (ingest→index→search)", docs: "" },
+        { crate: "bop", level: "L6", one: "agent orchestration", docs: "" },
+      ];
+
+      // Performance Wins (Jan 2026 Optimization)
+      const performanceWins = [
+        { task: "Spectral Embedding (n=1024)", dense: "12.4 ms", sparse: "581 µs", speedup: "21x", why: "Sparse matrix-free mat-vec avoids O(n²) materialization." },
+        { task: "Spectral Embedding (n=64)", dense: "8.4 ms", sparse: "36 µs", speedup: "230x", why: "Avoids high-constant Jacobi eigensolver." },
+        { task: "RBF Gram Matrix (n=1024)", dense: "38.6 ms", sparse: "7.7 ms", speedup: "~5x", why: "BLAS-accelerated dot product expansion vs manual loops." },
+        { task: "HNSW vs Brute (n=100)", dense: "71 µs", sparse: "40 µs", speedup: "1.8x", why: "HNSW crossover point reached very early in Rust." },
+      ];
+
+      const perfBody = document.querySelector("#perf-table tbody");
+      for (const w of performanceWins) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${w.task}</td>
+          <td><code>${w.dense}</code></td>
+          <td><code>${w.sparse}</code></td>
+          <td><strong>${w.speedup}</strong></td>
+          <td>${w.why}</td>
+        `;
+        perfBody.appendChild(tr);
+      }
+
+      const glanceBody = document.querySelector("#glance-table tbody");
+      for (const g of glance) {
+        const localPath = `file:///Users/arc/Documents/dev/${g.crate}`;
+        const localLink = `<a href="${localPath}"><code>${g.crate}/</code></a>`;
+        const docsLink = g.docs ? `<a href="${g.docs}"><code>${g.docs}</code></a>` : "";
+        const level = g.level || "";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><code>${g.crate}</code></td>
+          <td>${levelDot(level)}</td>
+          <td>${g.one}</td>
+          <td>${localLink}</td>
+          <td>${docsLink}</td>
+        `;
+        glanceBody.appendChild(tr);
+      }
+
+      // Mermaid rendering (CDN). Render all <pre class="mermaid"> nodes.
+      const statusEl = document.getElementById("render-status");
+      const statusBodyEl = document.getElementById("render-status-body");
+
+      // Floating nav modal
+      const navBtn = document.getElementById("navbtn");
+      const navModal = document.getElementById("navmodal");
+      const navClose = document.getElementById("navclose");
+
+      function openNav() {
+        navModal.classList.add("open");
+        navModal.setAttribute("aria-hidden", "false");
+      }
+      function closeNav() {
+        navModal.classList.remove("open");
+        navModal.setAttribute("aria-hidden", "true");
+      }
+
+      navBtn?.addEventListener("click", openNav);
+      navClose?.addEventListener("click", closeNav);
+      navModal?.addEventListener("click", (e) => {
+        if (e.target === navModal) closeNav();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeNav();
+      });
+
+      // Close modal when clicking a link inside it.
+      navModal?.querySelectorAll("a[href^=\"#\"]").forEach((a) => {
+        a.addEventListener("click", () => closeNav());
+      });
+
+      try {
+        const mermaid = await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs");
+        mermaid.default.initialize({ startOnLoad: false, theme: "neutral" });
+
+        const nodes = Array.from(document.querySelectorAll("pre.mermaid"));
+        const errors = [];
+
+        // Render individually so one bad diagram doesn't break everything.
+        for (const node of nodes) {
+          try {
+            await mermaid.default.run({ nodes: [node] });
+          } catch (e) {
+            errors.push({
+              id: node.id || "(no id)",
+              err: e && typeof e === "object" && "message" in e ? String(e.message) : String(e),
+            });
+          }
+        }
+
+        if (errors.length) {
+          statusEl.style.display = "block";
+          statusBodyEl.textContent =
+            `Mermaid rendered with ${errors.length} error(s):\n` +
+            errors.map((x) => `- ${x.id}: ${x.err}`).join("\n");
+        }
+      } catch (e) {
+        statusEl.style.display = "block";
+        statusBodyEl.textContent =
+          "Mermaid failed to load/render.\n" +
+          (e && typeof e === "object" && "message" in e ? String(e.message) : String(e));
+      }
+    </script>
+  </body>
+</html>
+

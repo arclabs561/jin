@@ -1,0 +1,51 @@
+---
+title: "Integration Priorities"
+id: integration-priorities
+description: "Guidelines for how Tekne repositories interact and point to canonical overview"
+alwaysApply: true
+---
+
+# Integration Priorities: What Actually Matters
+
+## Canonical integration view (single HTML artifact)
+
+**Canonical file**: `evals/arch/dev_repos_overview.html`
+
+**Rule**: If you need to understand or explain how repos interact, update that one HTML page instead of creating a new report page.
+
+**It should contain**:
+- **Levels (L0–L6)**: group repos by the Tekne stack layers (conceptual).
+- **Repo-level graph**: integration edges (git deps, `[patch]` overrides, and the local “super-workspace”).
+- **Crate-level graph**: the dev workspace view (“what Cargo sees”) plus a small conceptual edge set, and a mismatch table.
+- **Tekne facade table**: feature ↔ crate mapping.
+- **Recent activity + size**: the few biggest disk drivers + a short “what changed recently” list.
+
+**Links**:
+- `tekne-stack.mdc` defines the *meaning* of levels (L0–L6).
+- `tekne-module-taxonomy.mdc` assesses doc quality by module; it is not a dependency graph.
+
+## The Ecosystem at a Glance
+
+```
+PRODUCTION SCALE                        MATH PRIMITIVES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+anno    328K LOC  5557 tests           logp    1.4K LOC  26 tests
+hop     178K LOC  2389 tests           fynch   950 LOC   18 tests
+cerno   138K LOC  2647 tests           rkhs    737 LOC    8 tests
+jin      44K LOC   360 tests           lapl    513 LOC    8 tests
+lattix   22K LOC   248 tests           wass    516 LOC    6 tests
+subsume  22K LOC   275 tests           rmt     438 LOC    7 tests
+tier     11K LOC   135 tests
+innr      6K LOC   144 tests
+```
+
+## The Real Problems
+
+### Problem 1: Differentiable ranking should stay centralized
+`fynch` is the single canonical crate for differentiable sort/rank/top-k.
+
+### Problem 2: fynch/metrics vs cerno-eval Overlap
+Keep **core rank-based** metrics in one place (e.g. `fynch::metrics`), and keep domain adapters (IR / KGE / NED) in their domain crates.
+
+### Problem 3: New Math Crates Are Islands
+The “islands” problem is missing usage/tests, not missing dependency edges. Ensure integration tests verify that combining components improves outcomes versus using them individually.

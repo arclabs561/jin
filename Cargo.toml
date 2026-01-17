@@ -49,6 +49,9 @@ sbits = { version = "0.1.0", optional = true }
 # Stochastic sampling (ecosystem crate)
 kuji = "0.1.0"
 
+# Distributed Coordination
+hiqlite = { version = "0.12", features = ["full"] }
+
 # Persistence & IO
 byteorder = "1.5"
 crc32fast = "1.4"
@@ -128,26 +131,9 @@ harness = false
 name = "scaling"
 harness = false
 
-[[bench]]
-name = "hnsw_adaptive"
-harness = false
-
-# Examples with feature requirements
-[[example]]
-name = "lsh_demo"
-required-features = ["lsh"]
-
-[[example]]
-name = "rabitq_demo"
-required-features = ["rabitq"]
-
-[[example]]
-name = "ivf_pq_demo"
-required-features = ["ivf_pq"]
-
-[[example]]
-name = "07_filter_bitset_memory"
-required-features = ["succinct-filters"]
+# [[bench]]
+# name = "hnsw_adaptive"
+# harness = false
 
 [lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
@@ -195,4 +181,3 @@ type_complexity = "allow"
 multiple_crate_versions = "allow"
 wrong_self_convention = "allow"
 module_name_repetitions = "allow"
-
