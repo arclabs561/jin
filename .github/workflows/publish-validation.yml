@@ -1,0 +1,42 @@
+name: publish-validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo publish (dry-run)
+        run: cargo publish --dry-run
+
+      - name: crates.io status (jin)
+        run: |
+          python3 - <<'PY'
+          import json
+          import urllib.request
+          
+          name = "jin"
+          url = f"https://crates.io/api/v1/crates/{name}"
+          try:
+              with urllib.request.urlopen(url, timeout=10) as resp:
+                  data = json.load(resp)
+          except Exception as e:
+              print(f"crates.io query failed for {name}: {e}")
+              raise SystemExit(1)
+          
+          crate = data.get("crate", {})
+          print(f"name={crate.get('name')}")
+          print(f"max_version={crate.get('max_version')}")
+          print(f"downloads={crate.get('downloads')}")
+          PY
