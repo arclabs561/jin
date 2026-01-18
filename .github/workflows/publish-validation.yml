@@ -24,6 +24,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import json
+          import urllib.error
           import urllib.request
           
           name = "jin"
@@ -31,6 +32,12 @@ jobs:
           try:
               with urllib.request.urlopen(url, timeout=10) as resp:
                   data = json.load(resp)
+          except urllib.error.HTTPError as e:
+              if e.code == 404:
+                  print(f"crates.io: {name} not found (ok for first publish)")
+                  raise SystemExit(0)
+              print(f"crates.io query failed for {name}: HTTP {e.code}: {e}")
+              raise SystemExit(1)
           except Exception as e:
               print(f"crates.io query failed for {name}: {e}")
               raise SystemExit(1)
