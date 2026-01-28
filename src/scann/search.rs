@@ -29,6 +29,8 @@ pub struct SCANNParams {
     pub num_reorder: usize,
     pub num_codebooks: usize, // M (subspaces)
     pub codebook_size: usize, // 256 (8-bit) usually
+    /// Random seed for deterministic training (k-means + PQ codebooks).
+    pub seed: u64,
 }
 
 impl Default for SCANNParams {
@@ -38,6 +40,7 @@ impl Default for SCANNParams {
             num_reorder: 100,
             num_codebooks: 16,
             codebook_size: 256,
+            seed: 42,
         }
     }
 }
@@ -102,7 +105,8 @@ impl SCANNIndex {
         }
 
         // 1. Train Partitioning (Coarse Quantizer)
-        let mut kmeans = KMeans::new(self.dimension, self.params.num_partitions)?;
+        let mut kmeans =
+            KMeans::new(self.dimension, self.params.num_partitions)?.with_seed(self.params.seed);
         kmeans.fit(&self.vectors, self.num_vectors)?;
         self.partition_centroids = kmeans.centroids().to_vec();
 
@@ -136,6 +140,7 @@ impl SCANNIndex {
             self.dimension,
             self.params.num_codebooks,
             self.params.codebook_size,
+            self.params.seed,
         )?;
         quantizer.fit_residuals(&residuals, self.num_vectors)?;
 

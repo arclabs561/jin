@@ -1,13 +1,18 @@
 //! Unified Approximate Nearest Neighbor (ANN) search algorithms.
 //!
 //! Pure Rust implementations of state-of-the-art ANN algorithms:
-//! - **HNSW**: Hierarchical Navigable Small World (graph-based) - see `dense::hnsw`
+//! - **HNSW**: Hierarchical Navigable Small World (graph-based) - see [`crate::hnsw`]
+//! - **NSW**: Flat Navigable Small World (single-layer graph) - see [`crate::nsw`]
 //! - **AnisotropicVQ-kmeans**: Anisotropic Vector Quantization with k-means Partitioning
-//!   (vendor name: SCANN/ScaNN) - see `dense::scann`
-//! - **IVF-PQ**: Inverted File Index with Product Quantization - see `dense::ivf_pq`
-//! - **DiskANN**: Disk-based ANN for very large datasets - see `dense::diskann`
+//!   (vendor name: SCANN/ScaNN) - see [`crate::scann`]
+//! - **IVF-PQ**: Inverted File Index with Product Quantization - see [`crate::ivf_pq`]
+//! - **DiskANN**: Disk-based ANN for very large datasets - see [`crate::diskann`]
 //!
 //! All algorithms are optimized with SIMD acceleration and minimal dependencies.
+//!
+//! Note: not every algorithm is enabled by default; many are feature-gated. The factory
+//! (`factory::index_factory`) is a convenience layer and does not expose every possible
+//! parameter for every index type.
 //!
 //! # Index Factory
 //!
@@ -24,13 +29,7 @@
 //! ```
 
 // Autotune for automatic parameter optimization
-#[cfg(any(
-    feature = "hnsw",
-    feature = "nsw",
-    feature = "ivf_pq",
-    feature = "scann",
-    feature = "dense"
-))]
+#[cfg(any(feature = "hnsw", feature = "ivf_pq",))]
 pub mod autotune;
 
 #[cfg(any(
@@ -38,7 +37,6 @@ pub mod autotune;
     feature = "nsw",
     feature = "ivf_pq",
     feature = "scann",
-    feature = "dense"
 ))]
 pub mod factory;
 pub mod traits;
@@ -48,7 +46,6 @@ pub mod traits;
     feature = "nsw",
     feature = "ivf_pq",
     feature = "scann",
-    feature = "dense"
 ))]
 pub use factory::{index_factory, AnyANNIndex};
 pub use traits::{ANNIndex, ANNStats};

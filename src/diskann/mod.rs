@@ -1,6 +1,8 @@
 //! DiskANN: Billion-scale ANN on a single machine with SSD.
 //!
-//! Search 1B+ vectors with ~5ms latency using NVMe storage.
+//! Reported to support billion-scale search with single-digit millisecond latency using NVMe
+//! storage (see DiskANN reference). Real performance depends on dataset, recall target,
+//! hardware, and index parameters.
 //!
 //! # Feature Flag
 //!
@@ -60,7 +62,8 @@
 //! | 100M | 95% | ~1ms | 8 GB | 50 GB |
 //! | 1B | 95% | ~5ms | 64 GB | 500 GB |
 //!
-//! **Throughput**: ~5000 QPS per node on NVMe
+//! **Throughput**: see the paper for reported throughput; it depends strongly on
+//! hardware and parameter choices.
 //!
 //! # Parameter Recommendations
 //!
@@ -78,7 +81,7 @@
 //!
 //! # When NOT to Use
 //!
-//! - Dataset fits in RAM → use HNSW (10x faster)
+//! - Dataset fits in RAM → in-memory methods (e.g. HNSW/NSW) are typically much faster
 //! - Only have HDD → seek time makes this impractical
 //! - Need <1ms latency → use in-memory index with smaller dataset
 //!
@@ -93,6 +96,7 @@
 //! - Jayaram Subramanya et al. (2019). "DiskANN: Fast Accurate Billion-point
 //!   Nearest Neighbor Search on a Single Node."
 //! - See also: [`vamana`](crate::vamana) for the graph construction algorithm
+//! - NeurIPS 2019 landing page: `https://proceedings.neurips.cc/paper/2019/hash/09853c7fb1d3f8ee67a61b6bf4a7f8e6-Abstract.html`
 
 #![allow(dead_code)]
 

@@ -2,13 +2,14 @@
 
 use crate::hnsw::distance;
 use crate::hnsw::graph::{HNSWIndex, Layer};
+use crate::hnsw::search::greedy_search_layer;
 use crate::RetrieveError;
 use smallvec::SmallVec;
 
 /// Select neighbors using RND (Relative Neighborhood Diversification).
 ///
-/// Exact formula from 2025-2026 research: dist(X_q, X_j) < dist(X_i, X_j) for all neighbors X_i.
-/// This is the best-performing ND strategy with highest pruning ratios (20-25%).
+/// Criterion: include candidate \(X_j\) if it is closer to the query than it is to
+/// every already-selected neighbor \(X_i\) (i.e. dist(q, j) < dist(i, j) for all selected i).
 fn select_neighbors_rnd(
     _query_vector: &[f32],
     candidates: &[(u32, f32)],
@@ -284,73 +285,65 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
         .map(|_| Layer::new_uncompressed(vec![SmallVec::new(); index.num_vectors]))
         .collect();
 
-    // Global entry point: node in highest layer (updated as we insert)
+    // Global entry point for the already-inserted subgraph.
+    //
+    // IMPORTANT: we are doing an *offline* build from stored vectors, but we still must
+    // respect insertion order: the entry point must be a node that has already been
+    // inserted (otherwise early nodes route through "future" nodes that have no edges yet).
     let mut global_entry_point = 0u32;
-    let mut global_entry_layer = 0u8;
-
-    for (idx, &layer) in index.layer_assignments.iter().enumerate() {
-        if layer > global_entry_layer {
-            global_entry_point = idx as u32;
-            global_entry_layer = layer;
-        }
-    }
+    let mut global_entry_layer = index.layer_assignments[0];
 
     // Insert each vector into the graph
     for current_id in 0..index.num_vectors {
         let current_layer = index.layer_assignments[current_id] as usize;
         let current_vector = index.get_vector(current_id).to_vec(); // Copy to avoid borrowing
 
-        // Track closest node found while descending through upper layers.
-        // This is the key fix: we propagate the closest node down through layers
-        // instead of always starting from node 0.
+        // First node initializes the entry point.
+        if current_id == 0 {
+            global_entry_point = 0;
+            global_entry_layer = index.layer_assignments[0];
+            continue;
+        }
+
+        // Track closest node found while descending through layers.
+        // We propagate the best entry point down (standard HNSW insertion).
         let mut layer_entry_point = global_entry_point;
 
-        // For each layer from current_layer down to 0
-        for layer_idx in (0..=current_layer.min(max_layer)).rev() {
-            // Find candidates in this layer, starting from best entry point
-            let mut candidates = Vec::with_capacity(index.params.ef_construction);
-            let to_explore = vec![layer_entry_point];
-            let mut visited =
-                std::collections::HashSet::with_capacity(index.params.ef_construction);
+        let entry_layer = (global_entry_layer as usize).min(max_layer);
 
-            // Explore up to ef_construction candidates
-            // Use VecDeque for O(1) pop_front instead of O(n) remove(0)
-            use std::collections::VecDeque;
-            let mut to_explore_deque: VecDeque<u32> = to_explore.into_iter().collect();
-            while let Some(explore_id) = to_explore_deque.pop_front() {
-                if candidates.len() >= index.params.ef_construction {
-                    break;
-                }
-                if visited.contains(&explore_id) {
-                    continue;
-                }
-                visited.insert(explore_id);
-
-                let explore_vec = index.get_vector(explore_id as usize);
-                let dist = distance::cosine_distance(&current_vector, explore_vec);
-                candidates.push((explore_id, dist));
-
-                // Add neighbors to explore (borrow layer immutably)
-                if layer_idx < index.layers.len() {
-                    let neighbors = index.layers[layer_idx].get_neighbors(explore_id);
-                    for &neighbor_id in neighbors.iter() {
-                        if !visited.contains(&neighbor_id) {
-                            to_explore_deque.push_back(neighbor_id);
-                        }
-                    }
+        // 1) Descend from the current entry layer down to (current_layer + 1) using ef=1 greedy search.
+        // We do NOT add edges here; we only refine the entry point.
+        if entry_layer > current_layer {
+            for layer_idx in ((current_layer + 1)..=entry_layer).rev() {
+                let layer = &index.layers[layer_idx];
+                let results = greedy_search_layer(
+                    &current_vector,
+                    layer_entry_point,
+                    layer,
+                    &index.vectors,
+                    index.dimension,
+                    1,
+                );
+                if let Some((best_id, _)) = results.first() {
+                    layer_entry_point = *best_id;
                 }
             }
+        }
 
-            // Update entry point for next layer: use closest candidate found
-            // This is crucial for HNSW performance - we want to start the next
-            // layer's search from the best position found so far.
-            if !candidates.is_empty() {
-                let closest = candidates
-                    .iter()
-                    .min_by(|a, b| a.1.total_cmp(&b.1))
-                    .map(|(id, _)| *id)
-                    .unwrap_or(layer_entry_point);
-                layer_entry_point = closest;
+        // 2) For layers <= min(current_layer, entry_layer), run ef_construction search and connect.
+        for layer_idx in (0..=current_layer.min(entry_layer)).rev() {
+            let candidates = greedy_search_layer(
+                &current_vector,
+                layer_entry_point,
+                &index.layers[layer_idx],
+                &index.vectors,
+                index.dimension,
+                index.params.ef_construction,
+            );
+
+            // Update entry point for the next lower layer.
+            if let Some((best_id, _)) = candidates.first() {
+                layer_entry_point = *best_id;
             }
 
             // Select neighbors using configured diversification strategy
@@ -360,7 +353,7 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                 index.params.m
             };
 
-            let selected = select_neighbors(
+            let mut selected = select_neighbors(
                 &current_vector,
                 &candidates,
                 m_actual,
@@ -368,6 +361,13 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                 index.dimension,
                 &index.params.neighborhood_diversification,
             );
+
+            // Enforce layer membership + insertion order invariants.
+            // We are inserting `current_id` now, so only nodes < current_id exist in the graph.
+            selected.retain(|&id| {
+                let id_usize = id as usize;
+                id_usize < current_id && (index.layer_assignments[id_usize] as usize) >= layer_idx
+            });
 
             // Pre-compute all neighbor vectors and distances (before any mutable borrows)
             // selected contains the new neighbors we want to add
@@ -511,6 +511,12 @@ pub fn construct_graph(index: &mut HNSWIndex) -> Result<(), RetrieveError> {
                     *reverse_neighbors = reverse_candidates.iter().map(|(id, _)| *id).collect();
                 }
             }
+        }
+
+        // 3) Update global entry point if this node reaches a new top layer.
+        if current_layer > (global_entry_layer as usize) {
+            global_entry_point = current_id as u32;
+            global_entry_layer = index.layer_assignments[current_id];
         }
     }
 

@@ -7,11 +7,10 @@ Practical insights from recent approximate nearest neighbor research.
 | Paper | Year | Key Idea | Status in Jin |
 |-------|------|----------|---------------|
 | FreshDiskANN | 2021 | Tombstones + streaming merge for live updates | `hnsw::tombstones` |
-| IP-DiskANN | 2025 | In-place updates without rebuild; 20-40% lower deletion cost | `hnsw::inplace` |
+| IP-DiskANN | 2025 | In-place updates without rebuild (see paper for reported trade-offs) | `hnsw::inplace` |
 | RaBitQ | 2024 | 1-bit/dim quantization with O(1/sqrt(d)) error bound | Planned |
 | HENN | 2025 | Epsilon-net navigation with theoretical guarantees | Research only |
-| PEOs | 2024 | Probabilistic edge routing; 1.6-2.5x QPS improvement | `hnsw::probabilistic_routing` |
-| GATE | 2025 | Query-aware navigation via hub extraction | Research only |
+| PEOs | 2024 | Probabilistic routing for graph-based ANNS | `hnsw::probabilistic_routing` |
 | CleANN | 2025 | Real-time insertions via workload adaptation | Research only |
 | DGAI | 2025 | Decoupled on-disk graph index for updates | Research only |
 | Dual-Branch HNSW | 2025 | LID-based insertion with skip bridges | `hnsw::dual_branch` |
@@ -44,21 +43,21 @@ if tombstones.should_compact(total_nodes) {
 
 ### 2. Probabilistic Edge Routing (existing: `hnsw/probabilistic_routing.rs`)
 
-From PEOs (Lu et al., 2024): Skip distance computation on edges unlikely to improve.
+From Lu et al. (2024): probabilistically test edges to reduce wasted distance computations.
 
-**Benefit**: 1.6-2.5x QPS with <1% recall loss.
+**Reported benefit**: higher throughput with minimal recall loss (exact numbers depend on dataset/parameters; see paper).
 
 ### 3. Dual-Branch with Skip Bridges (existing: `hnsw/dual_branch.rs`)
 
 From arXiv 2501.13992: LID-based insertion strategy with skip bridges.
 
-**Benefit**: 18-30% recall improvement on clustered data.
+**Reported benefit**: improved recall on challenging/clustered regimes at similar latency (see arXiv:2501.13992 for measured deltas).
 
 ## Ideas for Future Implementation
 
 ### RaBitQ Quantization
 
-1-bit per dimension with random rotation preprocessing. Achieves 32x compression with bounded error.
+1-bit per dimension with random rotation preprocessing. This is a 32× *storage* reduction versus `f32` vectors (1 bit vs 32 bits per component); error bounds and recall behavior are paper-dependent.
 
 **Implementation sketch**:
 ```rust
@@ -104,11 +103,11 @@ From LSM-VEC: Recent updates in memory, periodic merge to disk graph.
 
 | Metric | Target | Notes |
 |--------|--------|-------|
-| Recall@10 | > 0.95 | Standard ANN benchmark |
-| QPS | > 10K | Per-core, 1M vectors |
-| Build time | < 10 min | 1M vectors, d=128 |
-| Memory | < 2 GB | 1M vectors, d=128 |
-| Deletion latency | < 1ms | Tombstone approach |
+| Recall@10 | (pick) | Choose per product need; report recall/latency curves |
+| QPS | (measure) | Hardware- and dataset-dependent |
+| Build time | (measure) | Report alongside recall/latency and memory |
+| Memory | (measure) | Separate vector store vs graph/index overhead |
+| Deletion latency | (measure) | Tombstones trade deletion cost vs search filtering/compaction |
 
 ## Integration Example
 
@@ -142,21 +141,14 @@ if tombstones.should_compact(index.len()) {
 
 ## References
 
-1. Singh et al. (2021). "FreshDiskANN: A Fast and Accurate Graph-Based ANN Index
-   for Streaming Similarity Search." arXiv:2105.09613
+1. Singh et al. (2021). "FreshDiskANN: A Fast and Accurate Graph-Based ANN Index for Streaming Similarity Search." `https://arxiv.org/abs/2105.09613`
 
-2. Xu et al. (2025). "IP-DiskANN: In-Place Graph Index Updates for Streaming ANN."
-   arXiv:2502.13826
+2. Xu et al. (2025). "IP-DiskANN: In-Place Graph Index Updates for Streaming ANN." `https://arxiv.org/abs/2502.13826`
 
-3. Gao et al. (2024). "RaBitQ: Quantizing High-Dimensional Vectors with a Theoretical
-   Error Bound for Approximate Nearest Neighbor Search." SIGMOD 2024.
+3. Gao et al. (2024). "RaBitQ: Quantizing High-Dimensional Vectors with a Theoretical Error Bound for Approximate Nearest Neighbor Search." (SIGMOD 2024) `https://dl.acm.org/doi/10.1145/3626246.3653391`
 
-4. Dehghankar & Asudeh (2025). "HENN: A Hierarchical Epsilon Net Navigation Graph
-   for Approximate Nearest Neighbor Search." arXiv:2505.17368
+4. Dehghankar & Asudeh (2025). "HENN: A Hierarchical Epsilon Net Navigation Graph for Approximate Nearest Neighbor Search." `https://arxiv.org/abs/2505.17368`
 
-5. Lu et al. (2024). "Probabilistic Edge Optimization for Graph-Based ANN Search."
+5. Lu, Xiao, Ishikawa (2024). "Probabilistic Routing for Graph-Based Approximate Nearest Neighbor Search." `https://arxiv.org/abs/2402.11354`
 
-6. Ruan et al. (2025). "GATE: Query-Aware Navigation for Graph-Based ANN."
-
-7. Xiao et al. (2024). "Enhancing HNSW Index for Real-Time Updates: Addressing 
-   Unreachable Points and Performance Degradation." arXiv:2407.07871
+6. Xiao et al. (2024). "Enhancing HNSW Index for Real-Time Updates: Addressing Unreachable Points and Performance Degradation." `https://arxiv.org/abs/2407.07871`

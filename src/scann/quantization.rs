@@ -20,6 +20,7 @@ pub struct AnisotropicQuantizer {
     dimension: usize,
     num_codebooks: usize,
     codebook_size: usize,
+    seed: u64,
     // [codebook_idx][codeword_idx][subvector_dim]
     pub(crate) codebooks: Vec<Vec<Vec<f32>>>,
 }
@@ -30,6 +31,7 @@ impl AnisotropicQuantizer {
         dimension: usize,
         num_codebooks: usize,
         codebook_size: usize,
+        seed: u64,
     ) -> Result<Self, RetrieveError> {
         if dimension == 0 || num_codebooks == 0 || codebook_size == 0 {
             return Err(RetrieveError::Other(
@@ -47,6 +49,7 @@ impl AnisotropicQuantizer {
             dimension,
             num_codebooks,
             codebook_size,
+            seed,
             codebooks: Vec::new(),
         })
     }
@@ -85,7 +88,8 @@ impl AnisotropicQuantizer {
 
             // Train K-Means on this subspace
             let mut kmeans =
-                crate::scann::partitioning::KMeans::new(subvector_dim, self.codebook_size)?;
+                crate::scann::partitioning::KMeans::new(subvector_dim, self.codebook_size)?
+                    .with_seed(self.seed.wrapping_add(m as u64));
             kmeans.fit(&subvectors, num_vectors)?;
 
             // Store centroids as codewords

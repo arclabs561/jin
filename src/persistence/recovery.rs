@@ -14,8 +14,6 @@ use crate::persistence::directory::Directory;
 use crate::persistence::error::{PersistenceError, PersistenceResult};
 use crate::persistence::wal::{WalEntry, WalReader};
 use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::path::PathBuf;
 use std::sync::Arc;
 
 /// Recovery state after WAL replay.
@@ -67,29 +65,14 @@ impl RecoveryManager {
     /// 9. Clean up temporary files
     /// 10. Return recovery state
     pub fn recover(&self) -> PersistenceResult<RecoveryState> {
-        // Step 1-2: Check for and load checkpoint
-        // Convert Arc to Box for CheckpointReader (requires cloning directory state)
-        // For FsDirectory, we can extract the path and create a new one
-        // For MemoryDirectory, we need to clone the internal state
-        let checkpoint_reader = {
-            // Create a new Box<dyn Directory> from the Arc
-            // This is a limitation - we need to work around the Arc/Box mismatch
-            // In practice, we'd store both Arc and Box, or refactor to use Arc everywhere
-            // For now, we'll use a workaround: create a new directory pointing to the same location
-            // This works for FsDirectory but not perfectly for MemoryDirectory
-            // TODO: Refactor Directory trait to use Arc consistently
-            let dir_clone: Box<dyn Directory> = {
-                // Try to downcast to FsDirectory to extract path
-                // If that fails, we'll use a different approach
-                // For now, we'll create a wrapper that can convert Arc to Box
-                // This is a temporary solution until we refactor the Directory trait
-                Box::new(ArcDirectoryWrapper::new(self.directory.clone()))
-            };
-            CheckpointReader::new(dir_clone)
-        };
+        // Step 1-2: Check for and load checkpoint.
+        //
+        // Note: `CheckpointReader` now supports `Arc<dyn Directory>` directly, so we don't need
+        // any Arc↔Box adapter wrappers in recovery code.
+        let checkpoint_reader = CheckpointReader::new_arc(self.directory.clone());
 
         let checkpoints = checkpoint_reader.list_checkpoints()?;
-        let (_checkpoint_path, last_checkpoint_entry_id, _initial_segments) =
+        let (_checkpoint_path, last_checkpoint_entry_id, initial_segments) =
             if let Some(latest_checkpoint) = checkpoints.last() {
                 let full_path = format!("checkpoints/{}", latest_checkpoint);
                 match checkpoint_reader.load_checkpoint_with_segments(&full_path) {
@@ -131,8 +114,14 @@ impl RecoveryManager {
             })
             .collect();
 
-        // Step 4-7: Reconstruct state from entries
-        let mut active_segments: HashMap<u64, SegmentMetadata> = HashMap::new();
+        // Step 4-7: Reconstruct state from checkpoint + WAL entries.
+        //
+        // Invariant: loading a checkpoint must not *reduce* information available for recovery.
+        // We therefore seed state from the checkpoint and then apply WAL entries with id > checkpoint.
+        let mut active_segments: HashMap<u64, SegmentMetadata> = initial_segments
+            .into_iter()
+            .map(|m| (m.segment_id, m))
+            .collect();
         let mut pending_merges: HashMap<u64, Vec<u64>> = HashMap::new();
         let mut deletes: HashMap<u64, Vec<u32>> = HashMap::new();
         let mut last_entry_id = last_checkpoint_entry_id;
@@ -341,61 +330,7 @@ impl RecoveryManager {
     }
 }
 
-/// Wrapper to convert Arc<dyn Directory> to Box<dyn Directory>.
-///
-/// This is a workaround for the Arc/Box mismatch in the API.
-/// In the future, we should refactor to use Arc consistently.
-struct ArcDirectoryWrapper {
-    inner: Arc<dyn Directory>,
-}
-
-impl ArcDirectoryWrapper {
-    fn new(inner: Arc<dyn Directory>) -> Self {
-        Self { inner }
-    }
-}
-
-impl Directory for ArcDirectoryWrapper {
-    fn create_file(&self, path: &str) -> PersistenceResult<Box<dyn Write>> {
-        self.inner.create_file(path)
-    }
-
-    fn open_file(&self, path: &str) -> PersistenceResult<Box<dyn Read>> {
-        self.inner.open_file(path)
-    }
-
-    fn exists(&self, path: &str) -> bool {
-        self.inner.exists(path)
-    }
-
-    fn delete(&self, path: &str) -> PersistenceResult<()> {
-        self.inner.delete(path)
-    }
-
-    fn atomic_rename(&self, from: &str, to: &str) -> PersistenceResult<()> {
-        self.inner.atomic_rename(from, to)
-    }
-
-    fn create_dir_all(&self, path: &str) -> PersistenceResult<()> {
-        self.inner.create_dir_all(path)
-    }
-
-    fn list_dir(&self, path: &str) -> PersistenceResult<Vec<String>> {
-        self.inner.list_dir(path)
-    }
-
-    fn append_file(&self, path: &str) -> PersistenceResult<Box<dyn Write>> {
-        self.inner.append_file(path)
-    }
-
-    fn atomic_write(&self, path: &str, data: &[u8]) -> PersistenceResult<()> {
-        self.inner.atomic_write(path, data)
-    }
-
-    fn file_path(&self, path: &str) -> Option<PathBuf> {
-        self.inner.file_path(path)
-    }
-}
+// (Arc/Box directory adapter removed: checkpoint now accepts Arc directly.)
 
 #[cfg(test)]
 mod tests {

@@ -21,7 +21,6 @@
 //! - Bentley (1975): "Multidimensional binary search trees used for associative searching"
 //! - Friedman et al. (1977): "An algorithm for finding best matches in logarithmic expected time"
 
-use crate::simd;
 use crate::RetrieveError;
 
 /// KD-Tree index.

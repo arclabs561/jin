@@ -1,5 +1,7 @@
 //! Error types for persistence operations.
 
+#[cfg(feature = "persistence")]
+use durability as durability_crate;
 use thiserror::Error;
 
 /// Errors that can occur during persistence operations.
@@ -82,3 +84,39 @@ impl From<hiqlite::Error> for PersistenceError {
 
 /// Result type for persistence operations.
 pub type PersistenceResult<T> = Result<T, PersistenceError>;
+
+#[cfg(feature = "persistence")]
+impl From<durability_crate::PersistenceError> for PersistenceError {
+    fn from(e: durability_crate::PersistenceError) -> Self {
+        match e {
+            durability_crate::PersistenceError::Io(e) => Self::Io(e),
+            durability_crate::PersistenceError::Format(s) => Self::Format(s),
+            durability_crate::PersistenceError::FormatDetail {
+                message,
+                expected,
+                actual,
+            } => {
+                let mut s = message;
+                if expected.is_some() || actual.is_some() {
+                    s.push_str(&format!(" (expected={expected:?}, actual={actual:?})"));
+                }
+                Self::Format(s)
+            }
+            durability_crate::PersistenceError::CrcMismatch { expected, actual } => {
+                Self::ChecksumMismatch { expected, actual }
+            }
+            durability_crate::PersistenceError::Encode(s) => Self::Serialization(s),
+            durability_crate::PersistenceError::Decode(s) => Self::Deserialization(s),
+            durability_crate::PersistenceError::InvalidState(s) => Self::InvalidState(s),
+            durability_crate::PersistenceError::InvalidConfig(s) => Self::InvalidConfig(s),
+            durability_crate::PersistenceError::NotSupported(s) => Self::NotSupported(s),
+            durability_crate::PersistenceError::LockFailed { resource, reason } => {
+                Self::LockFailed { resource, reason }
+            }
+            durability_crate::PersistenceError::NotFound(s) => Self::NotFound(s),
+            durability_crate::PersistenceError::MissingPath(p) => {
+                Self::NotFound(p.to_string_lossy().to_string())
+            }
+        }
+    }
+}

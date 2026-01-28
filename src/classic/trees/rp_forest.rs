@@ -1,10 +1,9 @@
 //! Random Projection Tree Forest implementation.
 //!
-//! Pure Rust implementation of the Random Projection Tree Forest algorithm
-//! (popularized by Spotify as "Annoy").
+//! Pure Rust implementation of a Random Projection Tree Forest.
 //!
-//! **Technical Name**: Random Projection Tree Forest
-//! **Vendor Name**: Annoy (Spotify)
+//! Note: some ecosystems refer to this family as “Annoy-style”, but this crate uses
+//! method-family names (`rptree`) rather than vendor/library names.
 //!
 //! Algorithm:
 //! - Forest of independent random projection trees
@@ -22,7 +21,7 @@
 //! # References
 //!
 //! - Dasgupta & Freund (2008): "Random projection trees and low dimensional manifolds"
-//! - Spotify Engineering Blog: "Annoy: Approximate Nearest Neighbors in C++/Python"
+//! - Spotify Engineering Blog: "Annoy: Approximate Nearest Neighbors in C++/Python" (historical name)
 
 use crate::simd;
 use crate::RetrieveError;
@@ -32,13 +31,11 @@ use crate::RetrieveError;
 /// Uses a forest of independent random projection trees for approximate
 /// nearest neighbor search. Each tree partitions space using random hyperplanes.
 ///
-/// **Technical Name**: Random Projection Tree Forest
-/// **Vendor Name**: Annoy (Spotify)
-pub struct AnnoyIndex {
+pub struct RpForestIndex {
     pub(crate) vectors: Vec<f32>,
     pub(crate) dimension: usize,
     pub(crate) num_vectors: usize,
-    params: AnnoyParams,
+    params: RpForestParams,
     built: bool,
 
     /// Forest of random projection trees
@@ -47,7 +44,7 @@ pub struct AnnoyIndex {
 
 /// Random Projection Tree Forest parameters.
 #[derive(Clone, Debug)]
-pub struct AnnoyParams {
+pub struct RpForestParams {
     /// Number of trees in forest
     pub num_trees: usize,
 
@@ -55,7 +52,7 @@ pub struct AnnoyParams {
     pub tree_params: RPTreeParams,
 }
 
-impl Default for AnnoyParams {
+impl Default for RpForestParams {
     fn default() -> Self {
         Self {
             num_trees: 10,
@@ -95,9 +92,9 @@ impl Default for RPTreeParams {
     }
 }
 
-impl AnnoyIndex {
-    /// Create a new Annoy index.
-    pub fn new(dimension: usize, params: AnnoyParams) -> Result<Self, RetrieveError> {
+impl RpForestIndex {
+    /// Create a new RP-forest index.
+    pub fn new(dimension: usize, params: RpForestParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
             return Err(RetrieveError::EmptyQuery);
         }

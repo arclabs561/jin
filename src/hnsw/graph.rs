@@ -68,8 +68,9 @@ pub struct HNSWIndex {
 
 /// Seed selection strategy for HNSW search initialization.
 ///
-/// Based on 2025-2026 research: SN (Stacked NSW) works best for billion-scale,
-/// KS (K-Sampled Random) works best for medium-scale (1M-25GB).
+/// This controls how the search chooses its entrypoint(s). Different strategies can
+/// behave better on different datasets and scale regimes; treat this as a tuning knob
+/// and benchmark on your workload.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum SeedSelectionStrategy {
     /// Stacked NSW: Hierarchical multi-resolution graphs (default, best for large datasets)
@@ -87,19 +88,17 @@ pub enum SeedSelectionStrategy {
 
 /// Neighborhood diversification strategy for graph construction.
 ///
-/// Based on 2025-2026 research: RND (Relative Neighborhood Diversification) achieves
-/// best performance with highest pruning ratios (20-25%). MOND is second-best.
+/// These strategies pick a subset of candidate neighbors to keep the graph navigable
+/// while avoiding redundant edges.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum NeighborhoodDiversification {
     /// Relative Neighborhood Diversification (RND) - best overall performance
     /// Formula: dist(X_q, X_j) < dist(X_i, X_j) for all neighbors X_i
-    /// Highest pruning ratios (20-25%), smaller graph sizes
     #[default]
     RelativeNeighborhood,
 
     /// Maximum-Oriented Neighborhood Diversification (MOND) - second-best
     /// Maximizes angles between neighbors (θ ≥ 60°)
-    /// Moderate pruning (2-4%), angle-based diversification
     MaximumOriented {
         /// Minimum angle threshold in degrees (typically 60°)
         min_angle_degrees: f32,
@@ -107,7 +106,6 @@ pub enum NeighborhoodDiversification {
 
     /// Relaxed Relative Neighborhood Diversification (RRND)
     /// Formula: dist(X_q, X_j) < α · dist(X_i, X_j) with α ≥ 1.5
-    /// Lower pruning (0.6-0.7%), creates larger graphs
     RelaxedRelative {
         /// Relaxation factor (typically 1.3-1.5)
         alpha: f32,

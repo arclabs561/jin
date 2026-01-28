@@ -375,53 +375,6 @@ impl ANNIndex for crate::sng::SNGIndex {
     }
 }
 
-// Implement ANNIndex for LSH
-#[cfg(feature = "lsh")]
-impl ANNIndex for crate::hash::search::LSHIndex {
-    fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
-        self.add(doc_id, vector)
-    }
-
-    fn build(&mut self) -> Result<(), RetrieveError> {
-        self.build()
-    }
-
-    fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
-        self.search(query, k)
-    }
-
-    fn size_bytes(&self) -> usize {
-        self.vectors.len() * std::mem::size_of::<f32>()
-            + self
-                .hash_tables
-                .iter()
-                .map(|t| t.len() * std::mem::size_of::<u32>())
-                .sum::<usize>()
-            + self
-                .hash_functions
-                .iter()
-                .map(|f| f.len() * std::mem::size_of::<f32>())
-                .sum::<usize>()
-    }
-
-    fn stats(&self) -> ANNStats {
-        ANNStats {
-            num_vectors: self.num_vectors,
-            dimension: self.dimension,
-            size_bytes: self.size_bytes(),
-            algorithm: "LSH".to_string(),
-        }
-    }
-
-    fn dimension(&self) -> usize {
-        self.dimension
-    }
-
-    fn num_vectors(&self) -> usize {
-        self.num_vectors
-    }
-}
-
 // Implement ANNIndex for DiskANN
 #[cfg(feature = "diskann")]
 impl ANNIndex for crate::diskann::graph::DiskANNIndex {
@@ -438,7 +391,7 @@ impl ANNIndex for crate::diskann::graph::DiskANNIndex {
     }
 
     fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
-        self.search(query, k)
+        self.search(query, k, self.ef_search())
     }
 
     fn size_bytes(&self) -> usize {

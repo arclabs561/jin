@@ -6,10 +6,9 @@
 
 #![allow(dead_code)]
 
-// Note: LSH methods moved to top-level `hash` module
+// Note: hash/LSH methods live in `sketchir`.
 
 #[cfg(any(
-    feature = "annoy",
     feature = "kdtree",
     feature = "balltree",
     feature = "rptree",

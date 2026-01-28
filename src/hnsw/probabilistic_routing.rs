@@ -1,12 +1,14 @@
 //! Probabilistic Edge Ordering (PEOs) for HNSW
 //!
-//! Implements probabilistic routing that can achieve 1.6-2.5x QPS improvement
-//! for HNSW and NSG while preserving recall. The key insight is to probabilistically
-//! test neighbor edges before computing exact distances.
+//! Implements probabilistic routing: test a subset of candidate edges before paying
+//! the full cost of distance computations.
+//!
+//! Some work reports throughput improvements with minimal recall loss for graph-based ANN
+//! by learning/estimating which edges are unlikely to improve the current best candidates.
+//! Exact gains are dataset- and parameter-dependent.
 //!
 //! References:
-//! - Lu et al. (2024): "PEOs: Probabilistic Edge Ordering for Graph-Based ANN"
-//! - Provides (delta, 1-epsilon)-routing guarantee
+//! - Lu, Xiao, Ishikawa (2024). "Probabilistic Routing for Graph-Based Approximate Nearest Neighbor Search." `https://arxiv.org/abs/2402.11354`
 //!
 //! Key techniques:
 //! - Edge probability estimation based on angle/distance

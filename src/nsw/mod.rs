@@ -26,25 +26,24 @@
 //! # Why Flat?
 //!
 //! HNSW's hierarchy (multiple layers) was designed to provide "express lanes"
-//! for long-range navigation. But research (2025-2026) shows:
+//! for long-range navigation. Recent empirical work suggests that on modern,
+//! high-dimensional embedding workloads the hierarchy can matter less than the
+//! presence of “hub” nodes and the quality of neighbor selection.
 //!
-//! - **In high dimensions (d > 32)**, natural "hubs" emerge in the data
-//! - These hubs serve the same routing function as explicit hierarchy
-//! - The multi-layer overhead becomes redundant
+//! One concrete reference is Munyampirwa et al. (2024), who benchmark HNSW against a
+//! flat NSW-like graph and report that the flat graph can retain HNSW’s latency/recall
+//! benefits on high-dimensional datasets.
 //!
-//! ```text
-//! HNSW (3 layers):          NSW (1 layer):
-//!   Memory: 100%              Memory: ~75%
-//!   Build time: 100%          Build time: ~80%
-//!   Search QPS: 100%          Search QPS: ~100%  <-- same!
-//! ```
+//! Note: removing hierarchy eliminates upper-layer graph storage and can reduce overhead,
+//! but for high-dimensional embeddings the **vector storage often dominates** total memory.
+//! Treat any “% savings” claims as workload-dependent until you measure.
 //!
 //! # When to Use
 //!
 //! | Situation | Recommendation |
 //! |-----------|----------------|
-//! | d > 32, memory-constrained | **NSW** |
-//! | d < 32, need maximum robustness | HNSW |
+//! | High-dimensional embeddings, want a simpler graph | **NSW** |
+//! | Want the most battle-tested default | HNSW |
 //! | Want simpler code to understand | **NSW** |
 //! | Production with many edge cases | HNSW (more battle-tested) |
 //!
@@ -68,7 +67,7 @@
 //!
 //! # References
 //!
-//! - [Why hierarchy doesn't help in high-d](https://arxiv.org/abs/2412.01940) (2024)
+//! - Munyampirwa et al. (2024). "Down with the Hierarchy: The 'H' in HNSW Stands for 'Hubs'." (arXiv:2412.01940)
 //! - See [`hnsw`](crate::hnsw) for the hierarchical variant
 
 pub mod construction;

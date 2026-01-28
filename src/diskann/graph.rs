@@ -44,6 +44,12 @@ impl DiskANNIndex {
         self.num_vectors
     }
 
+    /// Default search width (`ef_search`) configured for this index.
+    #[inline]
+    pub fn ef_search(&self) -> usize {
+        self.params.ef_search
+    }
+
     /// Approximate memory usage in bytes (vectors + adjacency lists).
     #[inline]
     pub fn size_bytes(&self) -> usize {

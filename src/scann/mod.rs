@@ -22,6 +22,7 @@
 //!     num_reorder: 100,
 //!     num_codebooks: 16,
 //!     codebook_size: 256,
+//!     seed: 42,
 //! };
 //!
 //! let mut index = SCANNIndex::new(128, params);
@@ -101,10 +102,9 @@
 //!
 //! # References
 //!
-//! - Guo et al. (2020). "Accelerating Large-Scale Inference with Anisotropic
-//!   Vector Quantization."
-//! - Sun et al. (2023). "SOAR: Improved Indexing for Approximate Nearest
-//!   Neighbor Search."
+//! - Guo et al. (2020). "Accelerating Large-Scale Inference with Anisotropic Vector Quantization." `https://arxiv.org/abs/1908.10396`
+//! - (ScaNN overview page) `https://github.com/google-research/google-research/tree/master/scann`
+//! - Sun et al. (2023). "SOAR: Improved Indexing for Approximate Nearest Neighbor Search."
 
 pub mod partitioning;
 mod quantization;

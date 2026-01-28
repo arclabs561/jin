@@ -73,6 +73,20 @@ jobs:
           rm -f Cargo.lock  # v4 lock requires Cargo 1.83+
           cargo check --no-default-features --features hnsw
 
+  # Feature-matrix compilation (catches cfg + optional-dep drift)
+  feature-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-hack
+        run: cargo install cargo-hack --locked
+
+      - name: Compile each feature (no dev-deps)
+        run: cargo hack check --each-feature --no-dev-deps
+
   # Cross-compilation check for different targets
   cross-compile:
     runs-on: ubuntu-latest

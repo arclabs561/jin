@@ -10,7 +10,7 @@
 //! # Implementation
 //!
 //! When the `id-compression` feature is enabled, compression primitives are
-//! provided by the `idpaq` crate, which implements:
+//! provided by the `cnk` crate, which implements:
 //! - **ROC (Random Order Coding)**: Compress sets using bits-back coding with ANS
 //! - **Delta encoding**: Simple baseline with varint
 //!
@@ -32,9 +32,9 @@
 
 #![allow(dead_code)]
 
-// When id-compression feature is enabled, re-export everything from idpaq
+// When id-compression feature is enabled, re-export everything from cnk
 #[cfg(feature = "id-compression")]
-pub use idpaq::{CompressionError, IdSetCompressor, RocCompressor};
+pub use cnk::{CompressionError, IdSetCompressor, RocCompressor};
 
 // Fallback types when id-compression is not enabled
 #[cfg(not(feature = "id-compression"))]
@@ -66,7 +66,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_idpaq_integration() {
+    fn test_cnk_integration() {
         let compressor = RocCompressor::new();
         let ids: Vec<u32> = vec![1, 5, 10, 20, 50, 100];
         let universe_size = 1000;

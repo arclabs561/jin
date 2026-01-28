@@ -66,17 +66,25 @@
 //!
 //! # Hierarchy in High Dimensions
 //!
-//! Research (2025-2026) shows hierarchy provides **minimal benefit for d > 32**.
-//! In high dimensions, "hubs" emerge naturally and serve the same routing function.
+//! Recent empirical work suggests the *hierarchical* aspect of HNSW can provide
+//! **less incremental benefit** on modern, high-dimensional embedding datasets,
+//! where “hub” nodes emerge and are sufficient for fast routing.
 //!
-//! **Practical advice**: HNSW is still the safe default. The hierarchy overhead
-//! is small, and the algorithm is battle-tested. Consider flat NSW only if you
-//! specifically need to minimize memory.
+//! Concretely, Munyampirwa et al. (2024) benchmark HNSW against a **flat** navigable
+//! small-world graph and report that the flat graph can retain the key latency/recall
+//! benefits of HNSW on high-dimensional datasets.
+//!
+//! **Practical advice**:
+//! - HNSW remains a safe default (widely used; robust).
+//! - If you are indexing modern embeddings (hundreds/thousands of dims) and want to
+//!   simplify or reduce overhead, consider trying flat [`crate::nsw`] (or other flat
+//!   graph variants like Vamana / DiskANN-style graphs) and compare recall/latency on
+//!   your workload.
 //!
 //! # Advanced Features
 //!
 //! - [`filtered`]: ACORN-style attribute filtering
-//! - [`dual_branch`]: LID-based insertion with skip bridges (2025-2026)
+//! - [`dual_branch`]: LID-based insertion with skip bridges (see arXiv:2501.13992)
 //! - [`fused`]: Attribute-vector fusion for filtered search
 //! - [`merge`]: Index merging algorithms (NGM, IGTM, CGTM)
 //! - [`tombstones`]: Soft deletion for streaming workloads (FreshDiskANN-style)
@@ -106,8 +114,7 @@
 //!   navigable small world graphs." Information Systems.
 //! - Malkov & Yashunin (2016). "Efficient and robust approximate nearest neighbor
 //!   search using Hierarchical Navigable Small World graphs." IEEE TPAMI.
-//! - [NSW hierarchy analysis](https://arxiv.org/abs/2412.01940) (2024)
-//! - [Hub Highway Hypothesis](https://arxiv.org/abs/2502.00450) (2025)
+//! - Munyampirwa et al. (2024). "Down with the Hierarchy: The 'H' in HNSW Stands for 'Hubs'." (arXiv:2412.01940)
 
 #![allow(dead_code)] // Compression fields are placeholders
 

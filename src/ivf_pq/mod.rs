@@ -1,6 +1,9 @@
 //! IVF-PQ: Inverted File with Product Quantization.
 //!
-//! The workhorse of billion-scale similarity search. **32x compression** with ~90% recall.
+//! The workhorse of billion-scale similarity search. IVF + PQ can provide large memory savings,
+//! with the recall/latency trade-off controlled by parameters like `nprobe`, `num_clusters`, and PQ
+//! codebook configuration. Exact numbers are workload-dependent; see the references below for
+//! baseline results and methodology.
 //!
 //! # Feature Flag
 //!
@@ -110,12 +113,12 @@
 //!
 //! PQ assumes subspaces are independent. Real data has correlations.
 //! OPQ learns a rotation matrix that decorrelates dimensions first,
-//! improving recall by 10-30% at same memory.
+//! which can improve recall at the same code size (see OPQ reference).
 //!
 //! # References
 //!
-//! - Jégou, Douze, Schmid (2011). "Product Quantization for Nearest Neighbor Search."
-//! - Ge et al. (2014). "Optimized Product Quantization."
+//! - Jégou, Douze, Schmid (2011). "Product Quantization for Nearest Neighbor Search." `https://ieeexplore.ieee.org/document/5432202`
+//! - Ge et al. (2014). "Optimized Product Quantization." `https://arxiv.org/abs/1311.4055`
 
 // IVF-PQ core implementation (always available when ivf_pq feature is enabled)
 pub mod opq;

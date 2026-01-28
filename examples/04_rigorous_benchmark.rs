@@ -1,8 +1,8 @@
 //! Rigorous ANN Benchmark with Statistical Rigor
 //!
 //! Based on research best practices from:
-//! - ann-benchmarks: Recall-QPS Pareto frontier
-//! - BigANN 2023 NeurIPS: Filtered, OOD, streaming at scale
+//! - ann-benchmarks: Recall/QPS evaluation conventions (arXiv:1807.05614)
+//! - BigANN (NeurIPS challenge series): workload variants at scale (e.g. "Results of the Big ANN: NeurIPS'23 competition", arXiv:2409.17424)
 //! - NeurIPS/ICML paper checklists: Confidence intervals, multiple runs
 //!
 //! Features:
@@ -37,6 +37,7 @@ use jin::hnsw::{HNSWIndex, HNSWParams};
 const N_RUNS: usize = 5;
 const WARMUP_QUERIES: usize = 50;
 const K: usize = 10;
+#[allow(dead_code)]
 const K_GT: usize = 100;
 
 // =============================================================================
@@ -190,6 +191,7 @@ fn load_neighbors(path: &str) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error
     Ok(neighbors)
 }
 
+#[allow(dead_code)]
 fn load_f32_array(path: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
@@ -303,6 +305,7 @@ fn compute_recall(results: &[(u32, f32)], ground_truth: &[i32], k: usize) -> Opt
 // =============================================================================
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct RunResult {
     recall: f64,
     latency_us: f64,

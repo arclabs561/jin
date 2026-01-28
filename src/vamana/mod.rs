@@ -10,8 +10,9 @@
 //! Vamana is a graph-based ANN algorithm that uses two-pass construction with
 //! RRND (Relaxed Relative Neighborhood Diversification) and RND strategies.
 //!
-//! Based on 2025-2026 research: Vamana is competitive with HNSW on large datasets
-//! and better for SSD-based serving (5-10× more points/node).
+//! Vamana-style flat graphs are commonly used as the basis for SSD-oriented ANN systems
+//! (e.g. DiskANN), where a single-layer graph is friendlier to disk access patterns than a
+//! multi-layer hierarchy.
 //!
 //! # Algorithm
 //!
@@ -50,7 +51,6 @@
 //! # References
 //!
 //! - Subramanya et al. (2019): "DiskANN: Fast accurate billion-point nearest neighbor search"
-//! - Azizi et al. (2025): "Graph-Based Vector Search: An Experimental Evaluation of the State-of-the-Art"
 
 #[cfg(feature = "vamana")]
 mod construction;

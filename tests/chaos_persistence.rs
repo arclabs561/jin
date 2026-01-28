@@ -1,11 +1,12 @@
-use jin::persistence::locking::{DistributedLock, LockType};
-use jin::persistence::wal::{WalWriter, WalEntry};
-use jin::persistence::directory::MemoryDirectory;
+#![cfg(feature = "persistence")]
+
+use jin::persistence::directory::{Directory, MemoryDirectory};
+use jin::persistence::wal::{WalEntry, WalWriter};
 use std::sync::Arc;
 
 #[tokio::test]
 async fn test_crash_recovery_invariant() -> anyhow::Result<()> {
-    let dir = Arc::new(MemoryDirectory::new());
+    let dir: Arc<dyn Directory> = Arc::new(MemoryDirectory::new());
     let mut writer = WalWriter::new(dir.clone());
 
     // 1. Record an incomplete operation in WAL
@@ -21,7 +22,7 @@ async fn test_crash_recovery_invariant() -> anyhow::Result<()> {
     // 2. Replay WAL to recover state
     let reader = jin::persistence::wal::WalReader::new(dir.clone());
     let entries = reader.replay()?;
-    
+
     assert_eq!(entries.len(), 1);
     match &entries[0] {
         WalEntry::StartMerge { transaction_id, .. } => {
@@ -38,7 +39,7 @@ async fn test_crash_recovery_invariant() -> anyhow::Result<()> {
 async fn test_lock_timeout_after_crash() -> anyhow::Result<()> {
     // This test would ideally use hiqlite, but since it requires a real cluster,
     // we document the intended behavior:
-    // If a node crashes while holding a hiqlite::DLock, 
+    // If a node crashes while holding a hiqlite::DLock,
     // the lock is automatically released by hiqlite after its TTL (10s in current impl).
     println!("Distributed lock timeout (10s) verified by design documentation.");
     Ok(())

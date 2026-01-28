@@ -93,7 +93,7 @@
 //! - Di Noia et al. (2024) "Beyond the noise: intrinsic dimension estimation"
 //! - Dual-Branch HNSW (arXiv 2501.13992, 2025) "LID-based insertion"
 
-use crate::hnsw::distance;
+use crate::distance;
 
 /// Result of LID estimation for a single point.
 #[derive(Debug, Clone, Copy)]

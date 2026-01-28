@@ -92,21 +92,21 @@
 //! Requires `features = ["rabitq"]`:
 //!
 //! ```ignore
-//! use jin::quantization::rabitq::{RaBitQ, RaBitQConfig};
+//! use jin::quantization::rabitq::{RaBitQConfig, RaBitQQuantizer};
 //!
 //! let config = RaBitQConfig::bits4();  // 4-bit quantization
-//! let mut quantizer = RaBitQ::new(768, config);
+//! let mut quantizer = RaBitQQuantizer::with_config(768, 42, config)?;
 //!
 //! // Train on sample vectors
 //! quantizer.fit(&sample_vectors)?;
 //!
 //! // Quantize database
 //! let codes: Vec<_> = vectors.iter()
-//!     .map(|v| quantizer.encode(v))
+//!     .map(|v| quantizer.quantize(v))
 //!     .collect();
 //!
 //! // Distance estimation
-//! let dist = quantizer.asymmetric_distance(&query, &codes[0]);
+//! let dist = quantizer.approximate_distance(&query, &codes[0])?;
 //! ```
 //!
 //! ## References
@@ -118,7 +118,7 @@
 #![allow(dead_code)]
 
 #[cfg(feature = "rabitq")]
-pub mod rabitq;
+pub use qntz::rabitq;
 
 #[cfg(feature = "rabitq")]
 pub mod simd_ops;
@@ -127,7 +127,7 @@ pub mod simd_ops;
 pub mod saq;
 
 #[cfg(feature = "saq")]
-pub mod ternary;
+pub use qntz::ternary;
 
 #[cfg(feature = "turboquant")]
 pub mod turboquant;

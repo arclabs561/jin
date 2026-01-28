@@ -239,7 +239,7 @@ fn demo_when_to_use() -> jin::Result<()> {
     println!("   See also:");
     println!("     - `innr/ternary_demo.rs`: 1.58-bit extreme compression");
     println!("     - `02_measure_recall.rs`: HNSW recall benchmarking");
-    println!("     - `lsh_demo.rs`: When LSH beats dense vector methods");
+    println!("     - (hash/LSH demos moved to `sketchir`)");
 
     Ok(())
 }

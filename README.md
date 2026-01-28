@@ -78,7 +78,7 @@ The `ef_search` parameter controls how many candidates HNSW explores:
   <img src="doc/plots/recall_vs_ef.png" width="720" alt="Recall vs ef_search" />
 </p>
 
-Higher `ef_search` = better recall, slower queries. For most applications, `ef_search=50-100` achieves >95% recall.
+Higher `ef_search` = better recall, slower queries. The “right” range is workload-dependent; start with `ef_search=50-100` and measure recall@k vs latency for your dataset.
 
 ## Dataset Difficulty
 
@@ -114,9 +114,10 @@ Different algorithms suit different constraints:
 | Algorithm | Best For | Tradeoff |
 |-----------|----------|----------|
 | **Brute force** | < 10K vectors | Exact, but O(N) |
-| **LSH** | Binary/sparse data | Fast, lower recall |
+| **LSH** | Binary/sparse data | Fast, lower recall (see `sketchir`) |
 | **IVF-PQ** | Memory-constrained | Compressed, lower recall |
 | **HNSW** | General use | Strong recall/latency tradeoff |
+| **NSW (flat graph)** | High-dim embeddings; simpler graph | Often comparable recall/latency; less overhead (measure) |
 
 ## Build Cost
 
@@ -142,8 +143,8 @@ For dim=128, M=16: approximately 0.5 KB per vector (vector + graph edges).
 
 | Type | Implementations |
 |------|-----------------|
-| Graph | HNSW, NSW, Vamana (DiskANN), SNG |
-| Hash | LSH, MinHash, SimHash |
+| Graph | HNSW, NSW, Vamana (DiskANN-style), SNG |
+| Hash | LSH, MinHash, SimHash (see `sketchir`) |
 | Partition | IVF-PQ, ScaNN |
 | Quantization | PQ, RaBitQ |
 
@@ -155,9 +156,24 @@ jin = { version = "0.1", features = ["hnsw"] }
 ```
 
 - `hnsw` — HNSW graph index (default)
-- `lsh` — Locality-Sensitive Hashing
+- `nsw` — Flat NSW graph index (single-layer)
 - `ivf_pq` — Inverted File with Product Quantization
 - `persistence` — WAL-based durability
+
+## Flat vs hierarchical graphs (why “H” may not matter)
+
+HNSW’s hierarchy was designed to provide multi-scale “express lanes” for long-range navigation.
+However, recent empirical work suggests that on **high-dimensional embedding datasets** a flat
+navigable small-world graph can retain the key recall/latency benefits of HNSW, because “hub” nodes
+emerge and already provide effective routing.
+
+Concrete reference:
+- Munyampirwa et al. (2024). *Down with the Hierarchy: The 'H' in HNSW Stands for "Hubs"* (arXiv:2412.01940).
+
+Practical guidance in `jin`:
+- Try `HNSW{m}` first (default; robust).
+- If you want to experiment with a simpler flat graph, enable `nsw` and try `NSW{m}` via the factory.
+  Benchmark recall@k vs latency on your workload; the “best” choice depends on data and constraints.
 
 ## Performance
 
@@ -173,11 +189,18 @@ Run benchmarks:
 cargo bench
 ```
 
-See [examples/](examples/) for more: semantic search, IVF-PQ, LSH, LID, and real dataset benchmarks.
+See [examples/](examples/) for more: semantic search, IVF-PQ, LID, and real dataset benchmarks.
 
 For benchmarking datasets, see [doc/datasets.md](doc/datasets.md) — covers bundled data, ann-benchmarks.com datasets, and typical embedding dimensions.
 
+For primary sources (papers) backing the algorithms and phenomena mentioned in docs, see [doc/references.md](doc/references.md).
+
 ## References
 
-- Malkov & Yashunin (2018). [Efficient and robust approximate nearest neighbor search using HNSW graphs](https://arxiv.org/abs/1603.09320)
-- Subramanya et al. (2019). [DiskANN: Fast Accurate Billion-point Nearest Neighbor Search](https://proceedings.neurips.cc/paper/2019/file/09853c7fb1d3f8ee67a61b6bf4a7f8e6-Paper.pdf)
+- Malkov & Yashunin (2016/2018). *Efficient and robust approximate nearest neighbor search using HNSW graphs* (HNSW). `https://arxiv.org/abs/1603.09320`
+- Malkov et al. (2014). *Approximate nearest neighbor algorithm based on navigable small world graphs* (NSW). `https://doi.org/10.1016/j.is.2013.10.006`
+- Munyampirwa et al. (2024). *Down with the Hierarchy: The “H” in HNSW Stands for “Hubs”*. `https://arxiv.org/abs/2412.01940`
+- Subramanya et al. (2019). *DiskANN: Fast Accurate Billion-point Nearest Neighbor Search on a Single Node*. `https://proceedings.neurips.cc/paper/2019/hash/09853c7fb1d3f8ee67a61b6bf4a7f8e6-Abstract.html`
+- Jégou, Douze, Schmid (2011). *Product Quantization for Nearest Neighbor Search* (PQ / IVFADC). `https://ieeexplore.ieee.org/document/5432202`
+- Ge et al. (2014). *Optimized Product Quantization* (OPQ). `https://arxiv.org/abs/1311.4055`
+- Guo et al. (2020). *Accelerating Large-Scale Inference with Anisotropic Vector Quantization* (ScaNN line). `https://arxiv.org/abs/1908.10396`

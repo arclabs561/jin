@@ -21,7 +21,7 @@
 //! # Performance
 //!
 //! On challenging datasets with outliers:
-//! - 18-30% recall improvement at the same latency
+//! - Reported recall improvements at similar latency (see paper for measured deltas)
 //! - Particularly effective when intrinsic dimension varies across the dataset
 //!
 //! # When to Use
@@ -32,8 +32,8 @@
 //!
 //! # References
 //!
-//! - "Dual-Branch HNSW with Skip Bridges" (arXiv 2501.13992, 2025)
-//! - "Local Intrinsic Dimensionality" (Levina & Bickel, 2004)
+//! - "Dual-Branch HNSW with Skip Bridges" (arXiv:2501.13992) `https://arxiv.org/abs/2501.13992`
+//! - Levina & Bickel (2004). "Maximum likelihood estimation of intrinsic dimension." `https://doi.org/10.48550/arXiv.math/0410372`
 
 use crate::hnsw::distance;
 use crate::lid::{estimate_lid_for_hnsw, LidEstimate, LidStats};

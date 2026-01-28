@@ -27,7 +27,6 @@ Realistic scenarios with synthetic data. Demonstrate when/why to use each algori
 |---------|-------|-----------|---------|
 | `semantic_search_demo` | 334 | HNSW | Document search with categories |
 | `ivf_pq_demo` | 321 | IVF-PQ | Billion-scale with compression |
-| `lsh_demo` | 258 | LSH | When to prefer LSH over HNSW |
 | `lid_demo` | 342 | LID | Intrinsic dimensionality estimation |
 | `lid_outlier_detection` | 186 | LID | Anomaly detection via LID |
 | `rabitq_demo` | 294 | RaBitQ | Randomized binary quantization |
@@ -35,7 +34,6 @@ Realistic scenarios with synthetic data. Demonstrate when/why to use each algori
 ```sh
 cargo run --example semantic_search_demo --release
 cargo run --example ivf_pq_demo --release --features ivf_pq
-cargo run --example lsh_demo --features lsh
 ```
 
 ## Benchmarks (Real Data)
@@ -112,7 +110,7 @@ Do you have < 10K vectors?
  └─> Brute force (no index needed)
 
 Do you need streaming inserts with theoretical guarantees?
- └─> LSH (see lsh_demo)
+ └─> Hash/LSH-style approaches (see `sketchir`)
 
 Are you memory-constrained (> 1M vectors)?
  └─> IVF-PQ (see ivf_pq_demo)

@@ -1,6 +1,6 @@
 # Testing Strategy
 
-Our testing strategy is grounded in real issues from ANN libraries (hnswlib, faiss, usearch, annoy).
+Our testing strategy is grounded in real issues from ANN libraries (hnswlib, faiss, usearch, and related ecosystems).
 
 ## Known Failure Modes (from real issues)
 

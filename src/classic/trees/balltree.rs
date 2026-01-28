@@ -21,7 +21,6 @@
 //! - Omohundro (1989): "Five balltree construction algorithms"
 //! - Liu et al. (2006): "An investigation of practical approximate nearest neighbor algorithms"
 
-use crate::simd;
 use crate::RetrieveError;
 
 /// Ball Tree index.

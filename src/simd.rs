@@ -36,7 +36,9 @@ mod simsimd_backend {
     #[inline]
     #[must_use]
     pub fn dot(a: &[f32], b: &[f32]) -> f32 {
-        f32::dot(a, b).unwrap_or_else(|| super::fallback::dot(a, b))
+        f32::dot(a, b)
+            .map(|v| v as f32)
+            .unwrap_or_else(|| super::fallback::dot(a, b))
     }
 
     /// Alias for `dot`.
@@ -57,7 +59,9 @@ mod simsimd_backend {
     #[inline]
     #[must_use]
     pub fn cosine(a: &[f32], b: &[f32]) -> f32 {
-        f32::cosine(a, b).unwrap_or_else(|| super::fallback::cosine(a, b))
+        f32::cosine(a, b)
+            .map(|v| v as f32)
+            .unwrap_or_else(|| super::fallback::cosine(a, b))
     }
 
     /// L2 (Euclidean) distance using SimSIMD.
@@ -66,7 +70,7 @@ mod simsimd_backend {
     pub fn l2_distance(a: &[f32], b: &[f32]) -> f32 {
         // SimSIMD returns squared distance
         f32::sqeuclidean(a, b)
-            .map(|d| d.sqrt())
+            .map(|d| (d as f32).sqrt())
             .unwrap_or_else(|| super::fallback::l2_distance(a, b))
     }
 
@@ -74,7 +78,9 @@ mod simsimd_backend {
     #[inline]
     #[must_use]
     pub fn l2_distance_squared(a: &[f32], b: &[f32]) -> f32 {
-        f32::sqeuclidean(a, b).unwrap_or_else(|| super::fallback::l2_distance_squared(a, b))
+        f32::sqeuclidean(a, b)
+            .map(|v| v as f32)
+            .unwrap_or_else(|| super::fallback::l2_distance_squared(a, b))
     }
 }
 

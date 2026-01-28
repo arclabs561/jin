@@ -10,6 +10,7 @@ use crate::persistence::error::{PersistenceError, PersistenceResult};
 use crate::persistence::format::CHECKPOINT_MAGIC;
 use crc32fast::Hasher;
 use std::io::{Read, Write};
+use std::sync::Arc;
 
 #[cfg(feature = "persistence")]
 use postcard;
@@ -154,13 +155,22 @@ pub struct SegmentMetadata {
 
 /// Checkpoint writer for creating checkpoints.
 pub struct CheckpointWriter {
-    directory: Box<dyn Directory>,
+    directory: Arc<dyn Directory>,
 }
 
 impl CheckpointWriter {
     /// Create a new checkpoint writer.
     pub fn new(directory: Box<dyn Directory>) -> Self {
-        Self { directory }
+        Self {
+            directory: Arc::<dyn Directory>::from(directory),
+        }
+    }
+
+    /// Create a new checkpoint writer from an `Arc` directory.
+    pub fn new_arc(directory: impl Into<Arc<dyn Directory>>) -> Self {
+        Self {
+            directory: directory.into(),
+        }
     }
 
     /// Create a checkpoint from current index state.
@@ -177,6 +187,12 @@ impl CheckpointWriter {
         let checkpoint_path = format!("checkpoints/checkpoint_{}.bin", checkpoint_id);
 
         self.directory.create_dir_all("checkpoints")?;
+
+        // NOTE: compute timestamp once; it is part of the checksum and header.
+        let created_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
 
         // Serialize segment list using postcard (format-stable, smaller size for long-term retention)
         let segment_list_bytes = postcard::to_allocvec(segments).map_err(|e| {
@@ -200,13 +216,7 @@ impl CheckpointWriter {
                 .sum::<u64>()
                 .to_le_bytes(),
         ); // doc_count
-        hasher.update(
-            &SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-                .to_le_bytes(),
-        ); // created_at
+        hasher.update(&created_at.to_le_bytes()); // created_at
         hasher.update(&segment_list_bytes);
         let checksum = hasher.finalize();
 
@@ -218,10 +228,7 @@ impl CheckpointWriter {
             segment_count: segments.len() as u32,
             segment_list_offset: CheckpointHeader::SIZE as u64, // After header
             doc_count: segments.iter().map(|s| s.doc_count as u64).sum(),
-            created_at: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            created_at,
             checksum,
         };
 
@@ -271,13 +278,22 @@ impl CheckpointWriter {
 
 /// Checkpoint reader for loading checkpoints.
 pub struct CheckpointReader {
-    directory: Box<dyn Directory>,
+    directory: Arc<dyn Directory>,
 }
 
 impl CheckpointReader {
     /// Create a new checkpoint reader.
     pub fn new(directory: Box<dyn Directory>) -> Self {
-        Self { directory }
+        Self {
+            directory: Arc::<dyn Directory>::from(directory),
+        }
+    }
+
+    /// Create a new checkpoint reader from an `Arc` directory.
+    pub fn new_arc(directory: impl Into<Arc<dyn Directory>>) -> Self {
+        Self {
+            directory: directory.into(),
+        }
     }
 
     /// Load a checkpoint from disk.

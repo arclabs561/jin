@@ -12,6 +12,7 @@ pub struct KMeans {
     centroids: Vec<Vec<f32>>,
     dimension: usize,
     k: usize,
+    seed: Option<u64>,
 }
 
 impl KMeans {
@@ -27,7 +28,17 @@ impl KMeans {
             centroids: Vec::new(),
             dimension,
             k,
+            seed: None,
         })
+    }
+
+    /// Configure a deterministic seed for k-means++ initialization.
+    ///
+    /// When set, repeated `fit(...)` calls on the same inputs produce identical results.
+    #[must_use]
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self
     }
 
     /// Train k-means on vectors.
@@ -71,8 +82,12 @@ impl KMeans {
         vectors: &[f32],
         num_vectors: usize,
     ) -> Result<Vec<Vec<f32>>, RetrieveError> {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
+
+        // Use an explicit seed when configured; otherwise derive one from entropy.
+        let seed = self.seed.unwrap_or_else(|| rand::rng().random());
+        let mut rng = StdRng::seed_from_u64(seed);
 
         let mut centroids = Vec::new();
 
@@ -185,5 +200,56 @@ impl KMeans {
     /// Get centroids.
     pub fn centroids(&self) -> &[Vec<f32>] {
         &self.centroids
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn l2_normalize_in_place(vecs: &mut [f32], num_vectors: usize, dimension: usize) {
+        for i in 0..num_vectors {
+            let start = i * dimension;
+            let end = start + dimension;
+            let v = &mut vecs[start..end];
+            let norm2: f32 = v.iter().map(|&x| x * x).sum();
+            let norm = norm2.sqrt();
+            if norm > 0.0 {
+                for x in v {
+                    *x /= norm;
+                }
+            } else if !v.is_empty() {
+                v[0] = 1.0;
+            }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn prop_kmeans_fit_is_deterministic_given_seed(
+            seed in any::<u64>(),
+            dimension in 1usize..16,
+            num_vectors in 2usize..64,
+            k in 1usize..16,
+            raw in proptest::collection::vec(-1.0f32..1.0f32, 2usize..(64*16)),
+        ) {
+            prop_assume!(k <= num_vectors);
+            let needed = num_vectors * dimension;
+            prop_assume!(raw.len() >= needed);
+
+            let mut vectors = raw[..needed].to_vec();
+            l2_normalize_in_place(&mut vectors, num_vectors, dimension);
+
+            let mut km1 = KMeans::new(dimension, k).unwrap().with_seed(seed);
+            let mut km2 = KMeans::new(dimension, k).unwrap().with_seed(seed);
+
+            km1.fit(&vectors, num_vectors).unwrap();
+            km2.fit(&vectors, num_vectors).unwrap();
+
+            let a1 = km1.assign_clusters(&vectors, num_vectors);
+            let a2 = km2.assign_clusters(&vectors, num_vectors);
+            prop_assert_eq!(a1, a2);
+        }
     }
 }
