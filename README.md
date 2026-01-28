@@ -71,7 +71,7 @@ HNSW builds a multi-layer graph where each point has:
 A query does a greedy, coarse-to-fine walk:
 - **start** from an entry point at the top layer
 - **greedily descend** toward the query through progressively denser layers
-- **maintain a candidate set** (size `ef_search`) at the bottom to avoid getting stuck
+- **maintain a candidate set** (size `ef_search`) at the bottom to avoid getting stuck
 
 A more accurate mental model than “shortcuts” is:
 **HNSW is a cheap way to keep multiple plausible local minima alive until you can locally refine.**
