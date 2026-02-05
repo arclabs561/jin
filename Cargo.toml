@@ -98,7 +98,7 @@ rptree = []
 rmt-spectral = ["dep:rmt"]
 evoc = []
 
-id-compression = ["dep:cnk", "dep:sbits"]
+id-compression = ["dep:cnk", "dep:sbits", "cnk/sbits"]
 succinct-filters = ["dep:sbits"]
 persistence-bincode = ["dep:bincode", "persistence"]
 memmap = ["persistence"]  # Alias for persistence with mmap focus

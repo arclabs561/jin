@@ -6,52 +6,23 @@
 
 Approximate nearest-neighbor (ANN) search in Rust.
 
-This repo is a working surface for:
-- graph-based ANN (HNSW + variants)
-- coarse-to-fine indexes (IVF-PQ, ScaNN-style ideas)
-- quantization / compression experiments
-
-- **Guide**: [GUIDE.md](GUIDE.md)
-- **Datasets**: [doc/datasets.md](doc/datasets.md)
-- **Testing**: [TESTING.md](TESTING.md)
-- **Research notes**: [docs/ANN_RESEARCH_2024_2026.md](docs/ANN_RESEARCH_2024_2026.md)
-
-## Quickstart
-
-Add the crate:
-
-```toml
-[dependencies]
-jin = "0.1.0"
-```
-
-Build an HNSW index and query it:
+## Minimal API
 
 ```rust
 use jin::hnsw::HNSWIndex;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // NOTE: `HNSWIndex` currently uses cosine distance.
-    // That implies L2-normalized vectors.
-    let vectors: Vec<Vec<f32>> = vec![
-        vec![1.0, 0.0, 0.0, 0.0],
-        vec![0.0, 1.0, 0.0, 0.0],
-        vec![0.0, 0.0, 1.0, 0.0],
-        vec![0.0, 0.0, 0.0, 1.0],
-    ];
+// 1. Create index (dim=4, M=16, ef_construction=32)
+let mut index = HNSWIndex::new(4, 16, 32)?;
 
-    let query = vec![1.0, 0.0, 0.0, 0.0];
+// 2. Add vectors
+index.add_slice(0, &[1.0, 0.0, 0.0, 0.0])?;
+index.add_slice(1, &[0.0, 1.0, 0.0, 0.0])?;
 
-    let mut index = HNSWIndex::new(4, 16, 32)?; // dim, m, m_max
-    for (id, v) in vectors.iter().enumerate() {
-        index.add_slice(id as u32, v)?;
-    }
-    index.build()?;
+// 3. Build graph
+index.build()?;
 
-    let results = index.search(&query, 2, 50)?; // k, ef_search
-    println!("{results:?}");
-    Ok(())
-}
+// 4. Search (k=1, ef_search=50)
+let results = index.search(&[1.0, 0.0, 0.0, 0.0], 1, 50)?;
 ```
 
 ## The problem

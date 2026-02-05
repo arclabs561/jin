@@ -34,7 +34,11 @@
 
 // When id-compression feature is enabled, re-export everything from cnk
 #[cfg(feature = "id-compression")]
-pub use cnk::{CompressionError, IdSetCompressor, RocCompressor};
+pub use cnk::{
+    choose_method, compress_set_auto, compress_set_enveloped, decompress_set_auto,
+    decompress_set_enveloped, AutoConfig, ChooseConfig, CodecChoice, CompressionError,
+    IdCompressionMethod, IdListStats, IdSetCompressor, RocCompressor,
+};
 
 // Fallback types when id-compression is not enabled
 #[cfg(not(feature = "id-compression"))]
@@ -48,6 +52,7 @@ pub use error::CompressionError;
 pub use traits::IdSetCompressor;
 
 /// Compression method selection.
+#[cfg(not(feature = "id-compression"))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum IdCompressionMethod {
     /// No compression (uncompressed storage).
@@ -55,6 +60,8 @@ pub enum IdCompressionMethod {
     None,
     /// Elias-Fano encoding (baseline, sorted sequences).
     EliasFano,
+    /// Partitioned Elias–Fano (cluster-aware monotone sequences).
+    PartitionedEliasFano,
     /// Random Order Coding (optimal for sets, uses bits-back with ANS).
     Roc,
     /// Wavelet tree (full random access, future).

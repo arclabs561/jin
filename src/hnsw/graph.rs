@@ -246,7 +246,7 @@ impl Layer {
     #[cfg(feature = "id-compression")]
     fn new_compressed(
         neighbors: Vec<SmallVec<[u32; 16]>>,
-        compressor: &crate::compression::RocCompressor,
+        _compressor: &crate::compression::RocCompressor,
         universe_size: u32,
         threshold: usize,
     ) -> Result<Self, crate::compression::CompressionError> {
@@ -259,11 +259,8 @@ impl Layer {
                 sorted.sort();
                 sorted.dedup();
 
-                let compressed = <crate::compression::RocCompressor as crate::compression::IdSetCompressor>::compress_set(
-                    compressor,
-                    &sorted,
-                    universe_size,
-                )?;
+                let compressed =
+                    crate::compression::compress_set_enveloped(&sorted, universe_size, crate::compression::AutoConfig::default())?;
 
                 compressed_lists.push(CompressedNeighborList {
                     data: compressed,
@@ -315,12 +312,9 @@ impl Layer {
                     return SmallVec::new();
                 }
 
-                let compressor = crate::compression::RocCompressor::new();
-                let decompressed = <crate::compression::RocCompressor as crate::compression::IdSetCompressor>::decompress_set(
-                    &compressor,
-                    &compressed.data,
-                    *universe_size,
-                ).unwrap_or_else(|_| Vec::new());
+                let decompressed = crate::compression::decompress_set_enveloped(&compressed.data)
+                    .map(|(_choice, u2, ids)| if u2 == *universe_size { ids } else { Vec::new() })
+                    .unwrap_or_else(|_| Vec::new());
 
                 let neighbors: SmallVec<[u32; 16]> = decompressed.into();
 

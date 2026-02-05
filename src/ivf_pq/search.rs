@@ -150,7 +150,7 @@ impl Cluster {
     fn new_compressed(
         ids: Vec<u32>,
         filter_bitmask: u64,
-        compressor: &crate::compression::RocCompressor,
+        _compressor: &crate::compression::RocCompressor,
         universe_size: u32,
     ) -> Result<Self, crate::compression::CompressionError> {
         // Sort IDs (required for compression)
@@ -158,8 +158,9 @@ impl Cluster {
         sorted_ids.sort();
         sorted_ids.dedup();
 
-        // Compress
-        let compressed = <crate::compression::RocCompressor as crate::compression::IdSetCompressor>::compress_set(&compressor, &sorted_ids, universe_size)?;
+        // Compress (self-describing envelope)
+        let compressed =
+            crate::compression::compress_set_enveloped(&sorted_ids, universe_size, crate::compression::AutoConfig::default())?;
 
         Ok(Self {
             storage: ClusterStorage::Compressed {
@@ -188,8 +189,13 @@ impl Cluster {
                 }
 
                 // Decompress
-                let compressor = crate::compression::RocCompressor::new();
-                let decompressed = <crate::compression::RocCompressor as crate::compression::IdSetCompressor>::decompress_set(&compressor, data, *universe_size)?;
+                let (_choice, u2, decompressed) =
+                    crate::compression::decompress_set_enveloped(data)?;
+                if u2 != *universe_size {
+                    return Err(crate::compression::CompressionError::DecompressionFailed(
+                        "universe mismatch in envelope".to_string(),
+                    ));
+                }
 
                 // Cache (will be cleared after search)
                 self.decompressed_cache = Some(decompressed);
@@ -209,8 +215,8 @@ impl Cluster {
                 ..
             } => {
                 // For immutable access, we need to decompress (no caching)
-                let compressor = crate::compression::RocCompressor::new();
-                <crate::compression::RocCompressor as crate::compression::IdSetCompressor>::decompress_set(&compressor, data, *universe_size)
+                crate::compression::decompress_set_enveloped(data)
+                    .map(|(_choice, u2, ids)| if u2 == *universe_size { ids } else { Vec::new() })
                     .unwrap_or_else(|_| Vec::new())
             }
         }
