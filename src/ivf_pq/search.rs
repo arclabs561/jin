@@ -159,8 +159,11 @@ impl Cluster {
         sorted_ids.dedup();
 
         // Compress (self-describing envelope)
-        let compressed =
-            crate::compression::compress_set_enveloped(&sorted_ids, universe_size, crate::compression::AutoConfig::default())?;
+        let compressed = crate::compression::compress_set_enveloped(
+            &sorted_ids,
+            universe_size,
+            crate::compression::AutoConfig::default(),
+        )?;
 
         Ok(Self {
             storage: ClusterStorage::Compressed {
@@ -216,7 +219,13 @@ impl Cluster {
             } => {
                 // For immutable access, we need to decompress (no caching)
                 crate::compression::decompress_set_enveloped(data)
-                    .map(|(_choice, u2, ids)| if u2 == *universe_size { ids } else { Vec::new() })
+                    .map(|(_choice, u2, ids)| {
+                        if u2 == *universe_size {
+                            ids
+                        } else {
+                            Vec::new()
+                        }
+                    })
                     .unwrap_or_else(|_| Vec::new())
             }
         }

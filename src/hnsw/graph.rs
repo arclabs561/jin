@@ -259,8 +259,11 @@ impl Layer {
                 sorted.sort();
                 sorted.dedup();
 
-                let compressed =
-                    crate::compression::compress_set_enveloped(&sorted, universe_size, crate::compression::AutoConfig::default())?;
+                let compressed = crate::compression::compress_set_enveloped(
+                    &sorted,
+                    universe_size,
+                    crate::compression::AutoConfig::default(),
+                )?;
 
                 compressed_lists.push(CompressedNeighborList {
                     data: compressed,
@@ -313,7 +316,13 @@ impl Layer {
                 }
 
                 let decompressed = crate::compression::decompress_set_enveloped(&compressed.data)
-                    .map(|(_choice, u2, ids)| if u2 == *universe_size { ids } else { Vec::new() })
+                    .map(|(_choice, u2, ids)| {
+                        if u2 == *universe_size {
+                            ids
+                        } else {
+                            Vec::new()
+                        }
+                    })
                     .unwrap_or_else(|_| Vec::new());
 
                 let neighbors: SmallVec<[u32; 16]> = decompressed.into();

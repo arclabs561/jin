@@ -11,3 +11,7 @@
 # Generated plots / reports
 /doc/plots/index.html
 /doc/plots/margin_distributions.png
+
+# Python cache artifacts (scripts/)
+__pycache__/
+*.pyc
