@@ -1,6 +1,6 @@
 # Multi-Scale ANN Benchmarks
 
-We test `jin` against datasets of increasing size and difficulty to understand its scaling behavior and failure modes.
+We test `vicinity` against datasets of increasing size and difficulty to understand its scaling behavior and failure modes.
 
 ## Scales
 

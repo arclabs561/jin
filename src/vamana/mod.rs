@@ -4,7 +4,7 @@
 //!
 //! Requires the `vamana` feature:
 //! ```toml
-//! jin = { version = "0.1", features = ["vamana"] }
+//! vicinity = { version = "0.1", features = ["vamana"] }
 //! ```
 //!
 //! Vamana is a graph-based ANN algorithm that uses two-pass construction with
@@ -33,7 +33,7 @@
 //! Requires `features = ["vamana"]`:
 //!
 //! ```ignore
-//! use jin::vamana::{VamanaIndex, VamanaParams};
+//! use vicinity::vamana::{VamanaIndex, VamanaParams};
 //!
 //! let params = VamanaParams {
 //!     max_degree: 64,

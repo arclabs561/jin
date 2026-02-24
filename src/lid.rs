@@ -143,7 +143,7 @@ impl Default for LidConfig {
 /// # Example
 ///
 /// ```ignore
-/// use jin::lid::{estimate_lid_mle, LidConfig};
+/// use vicinity::lid::{estimate_lid_mle, LidConfig};
 ///
 /// let distances = vec![0.1, 0.2, 0.3, 0.5, 0.8, 1.2];
 /// let lid = estimate_lid_mle(&distances, &LidConfig::default());

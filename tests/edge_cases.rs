@@ -1,8 +1,8 @@
-//! Edge case tests for jin.
+//! Edge case tests for vicinity.
 //!
 //! Tests unusual inputs and boundary conditions that could cause failures.
 
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 use std::collections::HashSet;
 
 fn normalize(v: &[f32]) -> Vec<f32> {

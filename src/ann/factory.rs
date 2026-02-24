@@ -6,7 +6,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use jin::ann::{index_factory, ANNIndex};
+//! use vicinity::ann::{index_factory, ANNIndex};
 //!
 //! // Create HNSW index (requires "hnsw" feature)
 //! let mut index = index_factory(128, "HNSW32")?;
@@ -239,8 +239,8 @@ impl ANNIndex for AnyANNIndex {
 /// # Examples
 ///
 /// ```rust,ignore
-/// use jin::ann::factory::index_factory;
-/// use jin::ann::ANNIndex;
+/// use vicinity::ann::factory::index_factory;
+/// use vicinity::ann::ANNIndex;
 ///
 /// // HNSW index
 /// let mut index = index_factory(128, "HNSW32")?;

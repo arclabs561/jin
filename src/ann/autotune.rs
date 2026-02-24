@@ -7,7 +7,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use jin::ann::autotune::{ParameterTuner, Criterion};
+//! use vicinity::ann::autotune::{ParameterTuner, Criterion};
 //!
 //! // Create tuner with recall target
 //! let tuner = ParameterTuner::new()

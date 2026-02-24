@@ -5,7 +5,7 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! jin = { version = "0.1", features = ["scann"] }
+//! vicinity = { version = "0.1", features = ["scann"] }
 //! ```
 //!
 //! # Status: Experimental
@@ -15,7 +15,7 @@
 //! # Quick Start
 //!
 //! ```ignore
-//! use jin::scann::{SCANNIndex, SCANNParams};
+//! use vicinity::scann::{SCANNIndex, SCANNParams};
 //!
 //! let params = SCANNParams {
 //!     num_partitions: 256,

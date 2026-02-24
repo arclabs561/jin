@@ -17,8 +17,8 @@ use std::io::{BufReader, Read};
 use std::path::Path;
 use std::time::Instant;
 
-use jin::hnsw::HNSWIndex;
-use jin::hnsw::HNSWParams;
+use vicinity::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWParams;
 use std::collections::HashMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -135,7 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (i, query) in test.iter().enumerate() {
             let results = if is_filter {
                 let topic = filter_topics.as_ref().expect("filter topics loaded")[i];
-                let filter = jin::filtering::FilterPredicate::equals("topic", topic);
+                let filter = vicinity::filtering::FilterPredicate::equals("topic", topic);
                 index.search_with_filter(query, k, ef, &filter)?
             } else {
                 index.search(query, k, ef)?
@@ -171,8 +171,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn find_data_dir(dataset: &str) -> Result<String, Box<dyn std::error::Error>> {
     let paths = [
         "data/sample",
-        "jin/data/sample",
-        "../jin/data/sample",
+        "vicinity/data/sample",
+        "../vicinity/data/sample",
         &format!("{}/data/sample", env!("CARGO_MANIFEST_DIR")),
     ];
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-cd /Users/arc/Documents/dev/jin
+cd /Users/arc/Documents/dev/vicinity
 
 # Ensure directories exist
 mkdir -p data/multiscale

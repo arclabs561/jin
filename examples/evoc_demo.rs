@@ -9,7 +9,7 @@
 //!
 //! | Crate     | Algorithm        | Best For                      |
 //! |-----------|------------------|-------------------------------|
-//! | jin  | EVōC             | Embedding exploration, outliers |
+//! | vicinity  | EVōC             | Embedding exploration, outliers |
 //! | stratify  | K-means, GMM     | Known k, production speed     |
 //! | stratify  | Leiden           | Graph community detection     |
 //! | stratify  | Hierarchical     | Dendrograms, any-k extraction |
@@ -26,9 +26,9 @@
 //! cargo run --example evoc_demo --release
 //! ```
 
-use jin::evoc::{EVoC, EVoCParams};
+use vicinity::evoc::{EVoC, EVoCParams};
 
-fn main() -> jin::Result<()> {
+fn main() -> vicinity::Result<()> {
     println!("EVōC: Hierarchical Embedding Clustering");
     println!("========================================\n");
 
@@ -43,7 +43,7 @@ fn main() -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_basic_clustering() -> jin::Result<()> {
+fn demo_basic_clustering() -> vicinity::Result<()> {
     println!("1. Basic Clustering: Discover Natural Groups");
     println!("   ------------------------------------------\n");
 
@@ -121,7 +121,7 @@ fn demo_basic_clustering() -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_hierarchy_exploration() -> jin::Result<()> {
+fn demo_hierarchy_exploration() -> vicinity::Result<()> {
     println!("2. Hierarchy Exploration: Multiple Granularities");
     println!("   ----------------------------------------------\n");
 
@@ -173,11 +173,11 @@ fn demo_hierarchy_exploration() -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_when_to_use() -> jin::Result<()> {
+fn demo_when_to_use() -> vicinity::Result<()> {
     println!("3. Clustering Decision Guide");
     println!("   -------------------------\n");
 
-    println!("   | Criterion           | EVōC (jin)  | K-means (stratify) | GMM (stratify)   |");
+    println!("   | Criterion           | EVōC (vicinity)  | K-means (stratify) | GMM (stratify)   |");
     println!(
         "   |---------------------|------------------|--------------------|--------------------|"
     );
@@ -202,7 +202,7 @@ fn demo_when_to_use() -> jin::Result<()> {
     println!();
 
     println!("   Pipeline recommendation:");
-    println!("     1. EVōC (jin) to EXPLORE and discover natural cluster count");
+    println!("     1. EVōC (vicinity) to EXPLORE and discover natural cluster count");
     println!("     2. stratify::Kmeans with discovered k for PRODUCTION (10-100x faster)");
     println!("     3. stratify::Gmm if you need probability per cluster");
     println!("     4. stratify::Leiden for graph community structure");

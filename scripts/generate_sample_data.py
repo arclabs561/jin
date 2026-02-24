@@ -547,7 +547,7 @@ def main():
     data_dir = Path(__file__).parent.parent / "data" / "sample"
     data_dir.mkdir(parents=True, exist_ok=True)
     
-    print("Generating bundled datasets for jin")
+    print("Generating bundled datasets for vicinity")
     print("=" * 70)
     
     # =========================================================================

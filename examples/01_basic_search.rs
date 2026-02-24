@@ -6,9 +6,9 @@
 //! cargo run --example 01_basic_search --release
 //! ```
 
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 
-fn main() -> jin::Result<()> {
+fn main() -> vicinity::Result<()> {
     // Sample data: 100 vectors of dimension 64
     let dim = 64;
     let n = 100;

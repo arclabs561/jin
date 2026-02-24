@@ -12,7 +12,7 @@
 //! 3. LID identifies outliers (points with unusually high LID)
 //! 4. Confidence intervals provide uncertainty quantification
 
-use jin::lid::{
+use vicinity::lid::{
     aggregate_lid, estimate_lid_batch, estimate_twonn, estimate_twonn_with_ci, LidAggregation,
     LidCategory, LidConfig, LidStats,
 };

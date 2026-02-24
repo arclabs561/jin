@@ -19,7 +19,7 @@
 //! Use `factory::index_factory()` to create indexes from string descriptions:
 //!
 //! ```rust,ignore
-//! use jin::ann::{index_factory, ANNIndex};
+//! use vicinity::ann::{index_factory, ANNIndex};
 //!
 //! // Create HNSW index (requires "hnsw" feature)
 //! let mut index = index_factory(128, "HNSW32")?;

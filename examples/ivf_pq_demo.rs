@@ -33,11 +33,11 @@
 //! cargo run --example ivf_pq_demo --release --features ivf_pq
 //! ```
 
-use jin::ivf_pq::{IVFPQIndex, IVFPQParams};
+use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
 use std::collections::HashSet;
 use std::time::Instant;
 
-fn main() -> jin::Result<()> {
+fn main() -> vicinity::Result<()> {
     println!("IVF-PQ: Billion-Scale Vector Search");
     println!("====================================\n");
 
@@ -50,7 +50,7 @@ fn main() -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_basic_search() -> jin::Result<()> {
+fn demo_basic_search() -> vicinity::Result<()> {
     println!("1. Basic IVF-PQ Search");
     println!("   --------------------\n");
 
@@ -113,7 +113,7 @@ fn demo_basic_search() -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_parameter_tuning() -> jin::Result<()> {
+fn demo_parameter_tuning() -> vicinity::Result<()> {
     println!("2. Parameter Impact on Recall/Speed");
     println!("   ---------------------------------\n");
 
@@ -175,7 +175,7 @@ fn demo_parameter_tuning() -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_memory_analysis() -> jin::Result<()> {
+fn demo_memory_analysis() -> vicinity::Result<()> {
     println!("3. Memory Analysis");
     println!("   ----------------\n");
 
@@ -233,7 +233,7 @@ fn demo_memory_analysis() -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_when_to_use() -> jin::Result<()> {
+fn demo_when_to_use() -> vicinity::Result<()> {
     println!("4. IVF-PQ vs HNSW Decision Guide");
     println!("   ------------------------------\n");
 

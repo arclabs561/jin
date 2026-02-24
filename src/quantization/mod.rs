@@ -12,8 +12,8 @@
 //! # Feature Flags
 //!
 //! ```toml
-//! jin = { version = "0.1", features = ["rabitq"] }  # RaBitQ
-//! jin = { version = "0.1", features = ["saq"] }     # Ternary/Binary
+//! vicinity = { version = "0.1", features = ["rabitq"] }  # RaBitQ
+//! vicinity = { version = "0.1", features = ["saq"] }     # Ternary/Binary
 //! ```
 //!
 //! # The Problem: Memory at Scale
@@ -92,7 +92,7 @@
 //! Requires `features = ["rabitq"]`:
 //!
 //! ```ignore
-//! use jin::quantization::rabitq::{RaBitQConfig, RaBitQQuantizer};
+//! use vicinity::quantization::rabitq::{RaBitQConfig, RaBitQQuantizer};
 //!
 //! let config = RaBitQConfig::bits4();  // 4-bit quantization
 //! let mut quantizer = RaBitQQuantizer::with_config(768, 42, config)?;

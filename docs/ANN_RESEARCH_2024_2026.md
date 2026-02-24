@@ -27,7 +27,7 @@ From FreshDiskANN: soft deletion via tombstones rather than immediate graph repa
 **Trade-off**: O(1) deletion cost, slight search overhead from filtering.
 
 ```rust
-use jin::hnsw::TombstoneSet;
+use vicinity::hnsw::TombstoneSet;
 
 let mut tombstones = TombstoneSet::new(0.1); // 10% threshold
 tombstones.delete(doc_id);
@@ -112,7 +112,7 @@ From LSM-VEC: Recent updates in memory, periodic merge to disk graph.
 ## Integration Example
 
 ```rust
-use jin::hnsw::{HNSWIndex, TombstoneSet};
+use vicinity::hnsw::{HNSWIndex, TombstoneSet};
 
 // Build index
 let mut index = HNSWIndex::new(128, 16, 200)?;

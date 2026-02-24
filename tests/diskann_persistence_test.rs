@@ -2,7 +2,7 @@
 //!
 //! Tests the full cycle: build -> save -> load -> search
 
-use jin::diskann::{DiskANNIndex, DiskANNParams, DiskANNSearcher};
+use vicinity::diskann::{DiskANNIndex, DiskANNParams, DiskANNSearcher};
 
 /// Generate random vectors for testing.
 fn generate_vectors(n: usize, d: usize, seed: u64) -> Vec<Vec<f32>> {

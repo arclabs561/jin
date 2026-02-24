@@ -1,11 +1,11 @@
-# jin User Guide
+# vicinity User Guide
 
 Approximate nearest neighbor search and local intrinsic dimensionality.
 
 ## Quick Start (5 minutes)
 
 ```rust
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 
 // 1. Create index
 let mut index = HNSWIndex::new(768, 16, 32)?;
@@ -67,7 +67,7 @@ ef_search   Recall@10   Latency   Use case
 If your dataset has outliers or varying density, standard HNSW may have poor recall on some queries. Dual-Branch HNSW addresses this:
 
 ```rust
-use jin::hnsw::dual_branch::{DualBranchConfig, DualBranchHNSW};
+use vicinity::hnsw::dual_branch::{DualBranchConfig, DualBranchHNSW};
 
 let config = DualBranchConfig {
     m: 16,
@@ -124,7 +124,7 @@ LID(x) = -k / Σ log(dᵢ/dₖ)
 where d₁ ≤ d₂ ≤ ... ≤ dₖ are k-nearest neighbor distances.
 
 ```rust
-use jin::lid::{estimate_lid, LidConfig};
+use vicinity::lid::{estimate_lid, LidConfig};
 
 let config = LidConfig { k: 20, ..Default::default() };
 let estimate = estimate_lid(&distances, &config);
@@ -134,7 +134,7 @@ println!("LID: {:.1}", estimate.lid);
 ### Outlier Detection
 
 ```rust
-use jin::lid::LidCategory;
+use vicinity::lid::LidCategory;
 
 // High LID = sparse region = potential outlier
 if estimate.category == LidCategory::Sparse {

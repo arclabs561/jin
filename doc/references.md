@@ -1,6 +1,6 @@
 # References (primary sources)
 
-This page is a **curated bibliography** for the algorithms and phenomena referenced in `jin`.
+This page is a **curated bibliography** for the algorithms and phenomena referenced in `vicinity`.
 It is intended to backstop claims in module docs and to give you a starting point for deeper reading.
 
 ## Small-world graph ANN (HNSW / NSW / NSG)

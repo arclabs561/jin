@@ -36,7 +36,7 @@ Generated from testing and improving all documentation.
 ## Test Results
 
 ```
-jin: 2 passed, 19 ignored (feature-gated)
+vicinity: 2 passed, 19 ignored (feature-gated)
 stratify: 3 passed, 4 ignored (need external data)
 innr: compiles
 hyperball: compiles
@@ -47,7 +47,7 @@ hyperball: compiles
 ### 1. HNSW Example: WORKS
 
 ```rust
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 let mut index = HNSWIndex::new(128, 16, 16)?;
 index.add(0, vec![0.1; 128])?;
 index.build()?;
@@ -82,7 +82,7 @@ IVFPQParams {
 
 ### 3. Vamana Example: MISSING FEATURE GATE
 
-Example uses `jin::vamana::{VamanaIndex, VamanaParams}` but:
+Example uses `vicinity::vamana::{VamanaIndex, VamanaParams}` but:
 - Requires `features = ["vamana"]`
 - Not mentioned in docs
 
@@ -92,7 +92,7 @@ Example uses `jin::vamana::{VamanaIndex, VamanaParams}` but:
 //!
 //! This module requires the `vamana` feature:
 //! ```toml
-//! jin = { version = "0.1", features = ["vamana"] }
+//! vicinity = { version = "0.1", features = ["vamana"] }
 //! ```
 ```
 
@@ -111,7 +111,7 @@ Requires `features = ["hnsw"]` (for `HNSWIndex`).
 use ordino_retrieve::dense::ann::factory::index_factory;
 
 // CORRECT:
-use jin::ann::factory::index_factory;
+use vicinity::ann::factory::index_factory;
 ```
 
 Affected files:
@@ -149,13 +149,13 @@ Every feature-gated module needs this in its `mod.rs`:
 //!
 //! Requires `features = ["<feature>"]`:
 //! ```toml
-//! jin = { version = "0.1", features = ["<feature>"] }
+//! vicinity = { version = "0.1", features = ["<feature>"] }
 //! ```
 ```
 
 ### Priority 3: Fix stale imports
 
-Replace `ordino_retrieve` with `jin` in 3 files.
+Replace `ordino_retrieve` with `vicinity` in 3 files.
 
 ### Priority 4: Enable doctests
 

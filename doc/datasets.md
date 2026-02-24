@@ -106,7 +106,7 @@ Standard format with train/test/neighbors groups. Requires hdf5 feature.
 
 ```rust
 // Enable HDF5 support
-// Cargo.toml: jin = { features = ["hdf5"] }
+// Cargo.toml: vicinity = { features = ["hdf5"] }
 ```
 
 ## Recommendations by Task

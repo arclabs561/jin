@@ -9,7 +9,7 @@
 //! cargo run --example dual_branch_hnsw_demo --release
 //! ```
 
-use jin::lid::{estimate_lid_batch, LidCategory, LidConfig, LidStats};
+use vicinity::lid::{estimate_lid_batch, LidCategory, LidConfig, LidStats};
 
 fn main() {
     println!("Local Intrinsic Dimensionality for ANN Index Quality");

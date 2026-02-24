@@ -5,7 +5,7 @@
 // (Rust 2024 edition strictness - this is a SIMD crate where unsafe is pervasive)
 #![allow(unsafe_op_in_unsafe_fn)]
 
-//! jin: Approximate Nearest Neighbor Search primitives.
+//! vicinity: Approximate Nearest Neighbor Search primitives.
 //!
 //! Provides standalone implementations of state-of-the-art ANN algorithms:
 //!
@@ -42,10 +42,10 @@
 //!
 //! ```toml
 //! # Minimal (HNSW + SIMD)
-//! jin = "0.1"
+//! vicinity = "0.1"
 //!
 //! # With quantization support
-//! jin = { version = "0.1", features = ["ivf_pq"] }
+//! vicinity = { version = "0.1", features = ["ivf_pq"] }
 //! ```
 //!
 //! # Notes (evidence-backed)
@@ -60,7 +60,7 @@
 //!   The extra hierarchy layers and graph edges still matter, but you should measure on your
 //!   actual (n, d, M, ef) and memory layout.
 //!
-//! - **Quantization**: IVF-PQ and related techniques trade recall for memory. `jin` exposes
+//! - **Quantization**: IVF-PQ and related techniques trade recall for memory. `vicinity` exposes
 //!   IVF-PQ under the `ivf_pq` feature, but you should treat parameter selection as workload-
 //!   dependent (benchmark recall@k vs latency vs memory).
 //!

@@ -1,4 +1,4 @@
-//! Error types for jin.
+//! Error types for vicinity.
 
 use thiserror::Error;
 
@@ -52,5 +52,5 @@ impl From<std::io::Error> for RetrieveError {
     }
 }
 
-/// Result type alias for jin operations.
+/// Result type alias for vicinity operations.
 pub type Result<T> = std::result::Result<T, RetrieveError>;

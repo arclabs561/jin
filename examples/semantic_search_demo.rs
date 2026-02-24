@@ -9,11 +9,11 @@
 //! cargo run --example semantic_search_demo --release
 //! ```
 
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 use std::collections::HashSet;
 use std::time::Instant;
 
-fn main() -> jin::Result<()> {
+fn main() -> vicinity::Result<()> {
     println!("Semantic Search Demo");
     println!("====================\n");
 
@@ -95,7 +95,7 @@ fn generate_corpus() -> (Vec<Vec<f32>>, Vec<DocMetadata>) {
     (embeddings, metadata)
 }
 
-fn demo_index_construction(corpus: &[Vec<f32>]) -> jin::Result<()> {
+fn demo_index_construction(corpus: &[Vec<f32>]) -> vicinity::Result<()> {
     println!("Index Construction");
     println!("------------------\n");
 
@@ -140,7 +140,7 @@ fn demo_index_construction(corpus: &[Vec<f32>]) -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_recall_latency_tradeoff(corpus: &[Vec<f32>]) -> jin::Result<()> {
+fn demo_recall_latency_tradeoff(corpus: &[Vec<f32>]) -> vicinity::Result<()> {
     println!("Recall vs Latency Tradeoff");
     println!("--------------------------\n");
 
@@ -224,7 +224,7 @@ fn demo_recall_latency_tradeoff(corpus: &[Vec<f32>]) -> jin::Result<()> {
     Ok(())
 }
 
-fn demo_search(corpus: &[Vec<f32>], metadata: &[DocMetadata]) -> jin::Result<()> {
+fn demo_search(corpus: &[Vec<f32>], metadata: &[DocMetadata]) -> vicinity::Result<()> {
     println!("Search Demonstration");
     println!("--------------------\n");
 

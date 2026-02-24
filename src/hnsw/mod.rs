@@ -5,9 +5,9 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use jin::hnsw::HNSWIndex;
+//! use vicinity::hnsw::HNSWIndex;
 //!
-//! fn main() -> Result<(), jin::RetrieveError> {
+//! fn main() -> Result<(), vicinity::RetrieveError> {
 //!     // dimension=128, M=16, ef_construction=200
 //!     let mut index = HNSWIndex::new(128, 16, 200)?;
 //!

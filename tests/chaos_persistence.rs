@@ -1,7 +1,7 @@
 #![cfg(feature = "persistence")]
 
-use jin::persistence::directory::{Directory, MemoryDirectory};
-use jin::persistence::wal::{WalEntry, WalWriter};
+use vicinity::persistence::directory::{Directory, MemoryDirectory};
+use vicinity::persistence::wal::{WalEntry, WalWriter};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -20,7 +20,7 @@ async fn test_crash_recovery_invariant() -> anyhow::Result<()> {
     drop(writer);
 
     // 2. Replay WAL to recover state
-    let reader = jin::persistence::wal::WalReader::new(dir.clone());
+    let reader = vicinity::persistence::wal::WalReader::new(dir.clone());
     let entries = reader.replay()?;
 
     assert_eq!(entries.len(), 1);

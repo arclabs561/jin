@@ -2,7 +2,7 @@
 //!
 //! # Design Goals
 //!
-//! 1. **Cross-crate compatibility**: jin and cerno-retrieve share format
+//! 1. **Cross-crate compatibility**: vicinity and cerno-retrieve share format
 //! 2. **Incremental writes**: WAL-based for crash recovery
 //! 3. **Memory-mapped reads**: Zero-copy for large indices
 //! 4. **Versioned**: Forward/backward compatible with magic bytes
@@ -10,7 +10,7 @@
 //! # File Layout
 //!
 //! ```text
-//! jin-index-v1
+//! vicinity-index-v1
 //! ├── manifest.json          # Index metadata, version, config
 //! ├── wal/                    # Write-ahead log for crash recovery
 //! │   ├── 00001.wal
@@ -83,7 +83,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use jin::persistence::{IndexPersistence, SegmentWriter, SegmentReader};
+//! use vicinity::persistence::{IndexPersistence, SegmentWriter, SegmentReader};
 //!
 //! // Write
 //! let mut writer = SegmentWriter::create("segment.seg", config)?;

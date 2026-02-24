@@ -2,11 +2,11 @@
 //!
 //! This module is intentionally a **thin shim** over `durability::walog`.
 //! Rationale: `durability` is the canonical L3 persistence substrate for “segment + WAL +
-//! checkpoint” systems. Keeping a second WAL implementation in `jin` is abstraction leakage:
+//! checkpoint” systems. Keeping a second WAL implementation in `vicinity` is abstraction leakage:
 //! it causes format drift (e.g., segment ordering, torn-tail handling) and duplicates tricky
 //! recovery logic.
 
-use crate::persistence::directory as jin_dir;
+use crate::persistence::directory as vicinity_dir;
 use crate::persistence::error::{PersistenceError, PersistenceResult};
 use std::sync::Arc;
 
@@ -68,7 +68,7 @@ fn from_durability_err(e: durability::PersistenceError) -> PersistenceError {
 
 #[derive(Clone)]
 struct DirAdapter {
-    inner: Arc<dyn jin_dir::Directory>,
+    inner: Arc<dyn vicinity_dir::Directory>,
 }
 
 impl durability::Directory for DirAdapter {
@@ -110,7 +110,7 @@ impl durability::Directory for DirAdapter {
 
 /// WAL writer for appending entries.
 ///
-/// Compatibility wrapper: keeps `jin::persistence::wal::WalWriter` stable while using the
+/// Compatibility wrapper: keeps `vicinity::persistence::wal::WalWriter` stable while using the
 /// canonical `durability::walog::WalWriter` implementation underneath.
 pub struct WalWriter {
     inner: durability::walog::WalWriter,
@@ -120,7 +120,7 @@ impl WalWriter {
     /// Create a new WAL writer.
     ///
     /// Uses the conservative durability posture: flush after each append.
-    pub fn new(directory: impl Into<Arc<dyn jin_dir::Directory>>) -> Self {
+    pub fn new(directory: impl Into<Arc<dyn vicinity_dir::Directory>>) -> Self {
         let inner_dir: Arc<dyn durability::Directory> = Arc::new(DirAdapter {
             inner: directory.into(),
         });
@@ -147,7 +147,7 @@ pub struct WalReader {
 
 impl WalReader {
     /// Create a new WAL reader.
-    pub fn new(directory: impl Into<Arc<dyn jin_dir::Directory>>) -> Self {
+    pub fn new(directory: impl Into<Arc<dyn vicinity_dir::Directory>>) -> Self {
         let inner_dir: Arc<dyn durability::Directory> = Arc::new(DirAdapter {
             inner: directory.into(),
         });
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn wal_write_read_roundtrip() {
-        let dir: Arc<dyn jin_dir::Directory> = Arc::new(MemoryDirectory::new());
+        let dir: Arc<dyn vicinity_dir::Directory> = Arc::new(MemoryDirectory::new());
         let mut w = WalWriter::new(dir.clone());
         w.append(WalEntry::AddSegment {
             entry_id: 0,

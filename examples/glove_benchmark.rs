@@ -34,7 +34,7 @@ use std::io::{BufReader, Read};
 use std::path::Path;
 use std::time::Instant;
 
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let full_mode = std::env::args().any(|a| a == "--full");
@@ -212,8 +212,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn find_data_dir() -> Option<String> {
     let paths = [
         "data",
-        "jin/data",
-        "../jin/data",
+        "vicinity/data",
+        "../vicinity/data",
         &format!("{}/data", env!("CARGO_MANIFEST_DIR")),
     ];
 

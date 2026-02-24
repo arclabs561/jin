@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="doc/readme_logo.png" width="180" alt="jin" />
+  <img src="doc/readme_logo.png" width="180" alt="vicinity" />
 </p>
 
-# jin
+# vicinity
 
 Approximate nearest-neighbor (ANN) search in Rust.
 
 ## Minimal API
 
 ```rust
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 
 // 1. Create index (dim=4, M=16, ef_construction=32)
 let mut index = HNSWIndex::new(4, 16, 32)?;
@@ -73,7 +73,7 @@ Larger values usually increase recall, at the cost of query time.
 </p>
 
 Notes:
-- This plot is from `jin`’s bundled “quick” profile (it’s meant to show the *shape* of the curve).
+- This plot is from `vicinity`’s bundled “quick” profile (it’s meant to show the *shape* of the curve).
 - It does **not** justify a universal claim like “ef_search=50–100 gives >95% recall” for all datasets.
 
 Higher `ef_search` typically improves recall and increases query time. Start around `ef_search=50-100`
@@ -124,7 +124,7 @@ so that “same input vectors” means “same meaning” across indexes.
 
 ```toml
 [dependencies]
-jin = { version = "0.1.0", features = ["hnsw"] }
+vicinity = { version = "0.1.0", features = ["hnsw"] }
 ```
 
 - `hnsw` — HNSW graph index (default)
@@ -132,7 +132,7 @@ jin = { version = "0.1.0", features = ["hnsw"] }
 - `ivf_pq` — Inverted File with Product Quantization
 - `scann` — ScaNN-style coarse-to-fine scaffolding (experimental)
 - `quantization` / `rabitq` / `saq` — vector quantization and RaBitQ-style compression
-- `persistence` — on-disk persistence helpers
+- `persistence` — on-disk persistence helpers (requires `durability/` checked out as a sibling; not yet on crates.io)
 - `python` — optional PyO3 bindings (feature-gated)
 
 ## Flat vs hierarchical graphs (why “H” may not matter)
@@ -145,7 +145,7 @@ emerge and already provide effective routing.
 Concrete reference:
 - Munyampirwa et al. (2024). *Down with the Hierarchy: The 'H' in HNSW Stands for "Hubs"* (arXiv:2412.01940).
 
-Practical guidance in `jin`:
+Practical guidance in `vicinity`:
 - Try `HNSW{m}` first (default; robust).
 - If you want to experiment with a simpler flat graph, enable `nsw` and try `NSW{m}` via the factory.
   Benchmark recall@k vs latency on your workload; the “best” choice depends on data and constraints.

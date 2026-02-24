@@ -1,6 +1,6 @@
 //! Distance metrics for dense vectors.
 //!
-//! `jin` has multiple ANN algorithms, and not all of them currently support all metrics.
+//! `vicinity` has multiple ANN algorithms, and not all of them currently support all metrics.
 //! This module provides a single, shared definition of common *dense* distance metrics
 //! and basic helper functions.
 //!

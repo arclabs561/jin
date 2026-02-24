@@ -17,7 +17,7 @@
 //! For normalized embeddings, prefer `dot()` over `cosine()`.
 //!
 //! ```rust
-//! use jin::simd::{dot, cosine, norm};
+//! use vicinity::simd::{dot, cosine, norm};
 //!
 //! let a = [1.0_f32, 0.0, 0.0];
 //! let b = [0.707, 0.707, 0.0];

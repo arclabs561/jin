@@ -1,7 +1,7 @@
 //! Cross-crate integration tests for Tekne Stack.
 //!
 //! These tests verify that cross-crate dependencies work correctly:
-//! - jin uses idpaq for ID compression
+//! - vicinity uses idpaq for ID compression
 //! - All crates compile with their optional dependencies
 //!
 //! # Running These Tests
@@ -17,11 +17,11 @@
 
 #[cfg(feature = "id-compression")]
 mod idpaq_integration {
-    use jin::compression::{IdSetCompressor, RocCompressor};
+    use vicinity::compression::{IdSetCompressor, RocCompressor};
 
-    /// Verify that jin correctly delegates to idpaq for compression
+    /// Verify that vicinity correctly delegates to idpaq for compression
     #[test]
-    fn jin_uses_idpaq_compressor() {
+    fn vicinity_uses_idpaq_compressor() {
         let compressor = RocCompressor::new();
 
         // This pattern simulates HNSW neighbor lists
@@ -85,8 +85,8 @@ mod idpaq_integration {
 mod feature_compilation {
     #[test]
     fn default_features_compile() {
-        // Just verify jin compiles with default features
-        let _ = std::any::type_name::<jin::compression::IdCompressionMethod>();
+        // Just verify vicinity compiles with default features
+        let _ = std::any::type_name::<vicinity::compression::IdCompressionMethod>();
     }
 
     #[cfg(feature = "hnsw")]
@@ -112,15 +112,15 @@ mod feature_compilation {
 mod dependency_documentation {
     /// Document the compression dependency chain
     ///
-    /// jin (id-compression) -> idpaq
+    /// vicinity (id-compression) -> idpaq
     #[test]
     fn compression_dependency_chain() {
         // This test documents the dependency:
-        // When id-compression is enabled, jin delegates to idpaq
+        // When id-compression is enabled, vicinity delegates to idpaq
         //
         // The types should be:
-        // - jin::compression::RocCompressor = idpaq::RocCompressor
-        // - jin::compression::CompressionError = idpaq::CompressionError
+        // - vicinity::compression::RocCompressor = idpaq::RocCompressor
+        // - vicinity::compression::CompressionError = idpaq::CompressionError
         //
         // This is verified by the idpaq_integration tests above
         assert!(true);
@@ -128,14 +128,14 @@ mod dependency_documentation {
 
     /// Document the SIMD dependency chain
     ///
-    /// jin (innr feature, default) -> innr
+    /// vicinity (innr feature, default) -> innr
     #[test]
     fn simd_dependency_chain() {
-        // jin/src/simd.rs re-exports innr functions when
+        // vicinity/src/simd.rs re-exports innr functions when
         // the innr feature is enabled (which is part of default features)
         //
         // Dependency chain:
-        // - `jin::simd::{dot, cosine, l2_distance, ...}`
+        // - `vicinity::simd::{dot, cosine, l2_distance, ...}`
         // - => `innr::{dot, cosine, l2_distance, ...}` when innr feature enabled
         // - => portable fallback when innr feature disabled
         //
@@ -143,9 +143,9 @@ mod dependency_documentation {
         let a = [1.0_f32, 0.0, 0.0];
         let b = [0.707, 0.707, 0.0];
 
-        let d = jin::simd::dot(&a, &b);
-        let c = jin::simd::cosine(&a, &b);
-        let n = jin::simd::norm(&a);
+        let d = vicinity::simd::dot(&a, &b);
+        let c = vicinity::simd::cosine(&a, &b);
+        let n = vicinity::simd::norm(&a);
 
         assert!((d - 0.707).abs() < 0.01);
         assert!((c - 0.707).abs() < 0.01);

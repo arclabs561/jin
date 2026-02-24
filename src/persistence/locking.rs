@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_file_lock_exclusive() {
-        let temp_dir = std::env::temp_dir().join("jin_lock_test");
+        let temp_dir = std::env::temp_dir().join("vicinity_lock_test");
         fs::create_dir_all(&temp_dir).unwrap();
         let lock_file = temp_dir.join("test.lock");
 

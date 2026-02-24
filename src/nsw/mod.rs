@@ -6,13 +6,13 @@
 //!
 //! Requires the `nsw` feature:
 //! ```toml
-//! jin = { version = "0.1", features = ["nsw"] }
+//! vicinity = { version = "0.1", features = ["nsw"] }
 //! ```
 //!
 //! # Quick Start
 //!
 //! ```ignore
-//! use jin::nsw::{NSWIndex, NSWParams};
+//! use vicinity::nsw::{NSWIndex, NSWParams};
 //!
 //! let params = NSWParams { m: 16, ef_construction: 200 };
 //! let mut index = NSWIndex::new(768, params);

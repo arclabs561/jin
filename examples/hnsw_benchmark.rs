@@ -7,10 +7,10 @@
 //! cargo run --example hnsw_benchmark --release
 //! ```
 
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 use std::time::Instant;
 
-fn main() -> jin::Result<()> {
+fn main() -> vicinity::Result<()> {
     println!("HNSW vs Brute Force Benchmark");
     println!("==============================\n");
     println!("Note: HNSW uses cosine distance internally, vectors are L2-normalized.\n");
@@ -25,7 +25,7 @@ fn main() -> jin::Result<()> {
     Ok(())
 }
 
-fn benchmark_size(n: usize, dim: usize) -> jin::Result<()> {
+fn benchmark_size(n: usize, dim: usize) -> vicinity::Result<()> {
     println!("Dataset: {} vectors, {} dimensions", n, dim);
     println!("{}", "-".repeat(50));
 

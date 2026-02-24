@@ -1,4 +1,4 @@
-//! Property-based tests for jin ANN components.
+//! Property-based tests for vicinity ANN components.
 //!
 //! These tests verify invariants that should hold regardless of input:
 //! - Distance metrics satisfy metric space properties
@@ -419,7 +419,7 @@ mod ground_truth_props {
 
 mod lid_props {
     use super::*;
-    use jin::lid::{estimate_lid_mle, LidConfig, LidEstimate, LidStats};
+    use vicinity::lid::{estimate_lid_mle, LidConfig, LidEstimate, LidStats};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
@@ -531,7 +531,7 @@ mod lid_props {
         fn lid_categorization_consistent(
             lids in prop::collection::vec(1.0f32..100.0, 20..50),
         ) {
-            use jin::lid::LidCategory;
+            use vicinity::lid::LidCategory;
 
             let estimates: Vec<LidEstimate> = lids.iter()
                 .map(|&lid| LidEstimate { lid, k: 20, max_dist: 1.0 })
@@ -583,7 +583,7 @@ mod lid_props {
 
 mod twonn_props {
     use super::*;
-    use jin::lid::{estimate_twonn, estimate_twonn_with_ci};
+    use vicinity::lid::{estimate_twonn, estimate_twonn_with_ci};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(200))]
@@ -780,7 +780,7 @@ mod twonn_props {
 
 mod lid_aggregation_props {
     use super::*;
-    use jin::lid::{aggregate_lid, LidAggregation, LidEstimate};
+    use vicinity::lid::{aggregate_lid, LidAggregation, LidEstimate};
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
@@ -1015,7 +1015,7 @@ mod metric_space_props {
 
 mod hnsw_props {
     use super::*;
-    use jin::hnsw::HNSWIndex;
+    use vicinity::hnsw::HNSWIndex;
 
     fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
         use std::hash::{Hash, Hasher};
@@ -1173,9 +1173,9 @@ mod hnsw_props {
 #[cfg(all(feature = "persistence", feature = "hnsw"))]
 mod persistence_props {
     use super::*;
-    use jin::hnsw::HNSWIndex;
-    use jin::persistence::directory::MemoryDirectory;
-    use jin::persistence::hnsw::{HNSWSegmentReader, HNSWSegmentWriter};
+    use vicinity::hnsw::HNSWIndex;
+    use vicinity::persistence::directory::MemoryDirectory;
+    use vicinity::persistence::hnsw::{HNSWSegmentReader, HNSWSegmentWriter};
     use std::collections::HashSet;
 
     fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {

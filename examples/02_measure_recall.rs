@@ -6,10 +6,10 @@
 //! cargo run --example 02_measure_recall --release
 //! ```
 
-use jin::hnsw::HNSWIndex;
+use vicinity::hnsw::HNSWIndex;
 use std::collections::HashSet;
 
-fn main() -> jin::Result<()> {
+fn main() -> vicinity::Result<()> {
     let dim = 64;
     let n = 1000;
     let k = 10;

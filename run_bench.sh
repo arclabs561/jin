@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd /Users/arc/Documents/dev/jin
+cd /Users/arc/Documents/dev/vicinity
 
 echo "=== Generating S scale (10K) ==="
 rm -rf data/multiscale/S

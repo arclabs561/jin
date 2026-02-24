@@ -8,13 +8,13 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! jin = { version = "0.1", features = ["ivf_pq"] }
+//! vicinity = { version = "0.1", features = ["ivf_pq"] }
 //! ```
 //!
 //! # Quick Start
 //!
 //! ```ignore
-//! use jin::ivf_pq::{IVFPQIndex, IVFPQParams};
+//! use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
 //!
 //! let params = IVFPQParams {
 //!     num_clusters: 1024,   // sqrt(n) rule of thumb

@@ -38,8 +38,8 @@ impl Default for StreamingConfig {
 /// # Example
 ///
 /// ```rust,ignore
-/// use jin::streaming::StreamingCoordinator;
-/// use jin::hnsw::HNSWIndex;
+/// use vicinity::streaming::StreamingCoordinator;
+/// use vicinity::hnsw::HNSWIndex;
 ///
 /// let index = HNSWIndex::new(128)?;
 /// let mut streaming = StreamingCoordinator::new(index);

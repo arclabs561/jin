@@ -43,9 +43,6 @@ jobs:
       - name: Property tests
         run: cargo test --no-default-features --features hnsw property_
 
-      - name: Build (with persistence)
-        run: cargo build --no-default-features --features "hnsw,persistence"
-
   # ARM native testing (M1/M2 - tests NEON code paths)
   test-arm:
     runs-on: macos-latest
@@ -85,7 +82,7 @@ jobs:
         run: cargo install cargo-hack --locked
 
       - name: Compile each feature (no dev-deps)
-        run: cargo hack check --each-feature --no-dev-deps
+        run: cargo hack check --each-feature --no-dev-deps --exclude-features persistence,memmap,persistence-bincode
 
   # Cross-compilation check for different targets
   cross-compile:

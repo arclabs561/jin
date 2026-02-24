@@ -7,7 +7,7 @@
 //! # Feature Flag
 //!
 //! ```toml
-//! jin = { version = "0.1", features = ["diskann"] }
+//! vicinity = { version = "0.1", features = ["diskann"] }
 //! ```
 //!
 //! # Status: Experimental
@@ -18,7 +18,7 @@
 //! # Quick Start
 //!
 //! ```ignore
-//! use jin::diskann::{DiskANNIndex, DiskANNParams};
+//! use vicinity::diskann::{DiskANNIndex, DiskANNParams};
 //!
 //! let params = DiskANNParams {
 //!     m: 32,

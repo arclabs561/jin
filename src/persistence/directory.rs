@@ -1,6 +1,6 @@
-//! Storage backends for `jin` persistence.
+//! Storage backends for `vicinity` persistence.
 //!
-//! `jin` exposes a `Directory` abstraction for all persistence modules to use.
+//! `vicinity` exposes a `Directory` abstraction for all persistence modules to use.
 //! When `feature = "persistence"` is enabled, this module delegates to the canonical
 //! implementations in `durability::storage` and adapts error types.
 //!
@@ -11,7 +11,7 @@ use crate::persistence::error::{PersistenceError, PersistenceResult};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-/// Filesystem-like directory abstraction for `jin` persistence.
+/// Filesystem-like directory abstraction for `vicinity` persistence.
 pub trait Directory: Send + Sync {
     fn create_file(&self, path: &str) -> PersistenceResult<Box<dyn Write>>;
     fn open_file(&self, path: &str) -> PersistenceResult<Box<dyn Read>>;

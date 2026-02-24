@@ -1,6 +1,6 @@
 #![cfg(feature = "persistence")]
 
-use jin::persistence::locking::{FileLock, LockType};
+use vicinity::persistence::locking::{FileLock, LockType};
 use tempfile::tempdir;
 
 #[test]

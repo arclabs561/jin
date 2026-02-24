@@ -64,8 +64,8 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use jin::streaming::{StreamingIndex, UpdateOp};
-//! use jin::hnsw::HNSWIndex;
+//! use vicinity::streaming::{StreamingIndex, UpdateOp};
+//! use vicinity::hnsw::HNSWIndex;
 //!
 //! let mut index = StreamingIndex::new(HNSWIndex::new(128)?);
 //!

@@ -28,7 +28,7 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use jin::hnsw::{HNSWIndex, HNSWParams};
+use vicinity::hnsw::{HNSWIndex, HNSWParams};
 
 // =============================================================================
 // Configuration
@@ -692,8 +692,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn find_data_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
     let paths = [
         "data/multiscale",
-        "jin/data/multiscale",
-        "../jin/data/multiscale",
+        "vicinity/data/multiscale",
+        "../vicinity/data/multiscale",
         &format!("{}/data/multiscale", env!("CARGO_MANIFEST_DIR")),
     ];
 

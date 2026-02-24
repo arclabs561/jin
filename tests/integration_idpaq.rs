@@ -1,11 +1,11 @@
-//! Integration tests verifying idpaq usage in jin.
+//! Integration tests verifying idpaq usage in vicinity.
 //!
 //! These tests enforce that the id-compression feature correctly delegates
 //! to the idpaq crate for ID set compression in ANN indexes.
 
 #![cfg(feature = "id-compression")]
 
-use jin::compression::{CompressionError, IdSetCompressor, RocCompressor};
+use vicinity::compression::{CompressionError, IdSetCompressor, RocCompressor};
 
 // =============================================================================
 // Basic Integration Tests
