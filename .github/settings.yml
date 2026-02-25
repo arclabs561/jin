@@ -1,0 +1,23 @@
+# Managed by repository-settings/app
+# https://github.com/repository-settings/app
+
+repository:
+  description: "vicinity -- approximate nearest-neighbor (ANN) search in Rust: HNSW, DiskANN, IVF-PQ, ScaNN, quantization"
+  homepage: "https://docs.rs/vicinity"
+  private: false
+  has_issues: true
+  has_wiki: false
+  has_downloads: true
+  default_branch: master
+  allow_squash_merge: true
+  allow_merge_commit: true
+  allow_rebase_merge: true
+  delete_branch_on_merge: true
+
+  topics:
+    - ann
+    - hnsw
+    - rust
+    - similarity-search
+    - vector-search
+    - vicinity
