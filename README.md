@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="doc/readme_logo.png" width="180" alt="vicinity" />
-</p>
-
 # vicinity
 
 Approximate nearest-neighbor (ANN) search in Rust.
