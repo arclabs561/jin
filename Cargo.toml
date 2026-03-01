@@ -55,7 +55,7 @@ kuji = "0.1.0"
 # Vector quantization primitives (extracted from `vicinity`)
 qntz = { package = "qntz", version = "0.1.0", optional = true }
 
-# Distributed Coordination
+# Distributed Coordination (used by persistence module)
 hiqlite = { version = "0.12", features = ["full"] }
 
 # Persistence & IO

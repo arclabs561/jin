@@ -2,12 +2,20 @@
 
 Approximate nearest-neighbor (ANN) search in Rust.
 
+MSRV: 1.80. Licensed under MIT OR Apache-2.0.
+
+```toml
+[dependencies]
+vicinity = { version = "0.1.0", features = ["hnsw"] }
+```
+
 ## Minimal API
 
 ```rust
 use vicinity::hnsw::HNSWIndex;
 
 // 1. Create index (dim=4, M=16, ef_construction=32)
+//    (use dim >= 128 for real workloads)
 let mut index = HNSWIndex::new(4, 16, 32)?;
 
 // 2. Add vectors
@@ -65,7 +73,7 @@ In HNSW, `ef_search` controls how many candidates you keep during the bottom-lay
 Larger values usually increase recall, at the cost of query time.
 
 <p align="center">
-  <img src="doc/plots/recall_vs_ef.png" width="720" alt="Recall vs ef_search" style="border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.18);" />
+  <img src="doc/plots/recall_vs_ef.png" width="720" alt="Recall vs ef_search" />
 </p>
 
 Notes:
@@ -80,11 +88,11 @@ and measure recall@k vs latency for your dataset.
 Higher `M` generally improves recall, but increases build time and memory.
 
 <p align="center">
-  <img src="doc/plots/build_time_vs_m.png" width="720" alt="Build time vs M" style="border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.18);" />
+  <img src="doc/plots/build_time_vs_m.png" width="720" alt="Build time vs M" />
 </p>
 
 <p align="center">
-  <img src="doc/plots/memory_scaling.png" width="720" alt="Memory scaling" style="border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.18);" />
+  <img src="doc/plots/memory_scaling.png" width="720" alt="Memory scaling" />
 </p>
 
 Notes:
@@ -110,11 +118,13 @@ so that “same input vectors” means “same meaning” across indexes.
 
 ## Algorithms
 
-| Type | Implementations |
-|---|---|
-| Graph | HNSW, NSW, Vamana (DiskANN), SNG |
-| Partition | IVF-PQ, ScaNN |
-| Quantization | PQ, RaBitQ |
+| Type | Implementations | Status |
+|---|---|---|
+| Graph | HNSW, NSW | Stable |
+| Graph | Vamana (DiskANN), SNG | Experimental |
+| Partition | IVF-PQ | Stable |
+| Partition | ScaNN | Experimental |
+| Quantization | PQ, RaBitQ | Stable |
 
 ## Features
 
@@ -128,7 +138,8 @@ vicinity = { version = "0.1.0", features = ["hnsw"] }
 - `ivf_pq` — Inverted File with Product Quantization
 - `scann` — ScaNN-style coarse-to-fine scaffolding (experimental)
 - `quantization` / `rabitq` / `saq` — vector quantization and RaBitQ-style compression
-- `persistence` — on-disk persistence helpers (requires `durability/` checked out as a sibling; not yet on crates.io)
+- `nsw` — Flat navigable small-world graph (alternative to HNSW, no hierarchy)
+- `persistence` — on-disk persistence helpers (**requires `durability/` checked out as a sibling; not yet on crates.io**)
 - `python` — optional PyO3 bindings (feature-gated)
 
 ## Flat vs hierarchical graphs (why “H” may not matter)
