@@ -17,9 +17,9 @@ use std::io::{BufReader, Read};
 use std::path::Path;
 use std::time::Instant;
 
+use std::collections::HashMap;
 use vicinity::hnsw::HNSWIndex;
 use vicinity::hnsw::HNSWParams;
-use std::collections::HashMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Select dataset: JIN_DATASET=quick for CI, otherwise bench

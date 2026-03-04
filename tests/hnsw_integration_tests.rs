@@ -6,8 +6,8 @@
 //! still uses insertion-order indices for graph navigation, but those are not
 //! exposed in the public search results. The index uses cosine distance internally.
 
-use vicinity::hnsw::{HNSWIndex, HNSWParams};
 use std::collections::HashSet;
+use vicinity::hnsw::{HNSWIndex, HNSWParams};
 
 /// Generate random vectors for testing.
 fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {

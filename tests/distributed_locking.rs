@@ -1,7 +1,7 @@
 #![cfg(feature = "persistence")]
 
-use vicinity::persistence::locking::{FileLock, LockType};
 use tempfile::tempdir;
+use vicinity::persistence::locking::{FileLock, LockType};
 
 #[test]
 fn test_local_file_lock_invariant() {

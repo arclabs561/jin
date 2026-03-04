@@ -6,8 +6,8 @@
 //! cargo run --example 02_measure_recall --release
 //! ```
 
-use vicinity::hnsw::HNSWIndex;
 use std::collections::HashSet;
+use vicinity::hnsw::HNSWIndex;
 
 fn main() -> vicinity::Result<()> {
     let dim = 64;

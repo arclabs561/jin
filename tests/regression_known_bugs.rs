@@ -181,8 +181,8 @@ fn layer_traversal_is_top_to_bottom() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn stopping_condition_allows_sufficient_exploration() {
-    use vicinity::hnsw::HNSWIndex;
     use std::collections::HashSet;
+    use vicinity::hnsw::HNSWIndex;
 
     let dim = 64;
     let n = 500;
@@ -231,8 +231,8 @@ fn stopping_condition_allows_sufficient_exploration() {
 #[test]
 #[cfg(feature = "hnsw")]
 fn recall_is_measurable() {
-    use vicinity::hnsw::HNSWIndex;
     use std::collections::HashSet;
+    use vicinity::hnsw::HNSWIndex;
 
     let dim = 64;
     let n = 500;

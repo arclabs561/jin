@@ -7,8 +7,8 @@
 //! cargo run --example hnsw_benchmark --release
 //! ```
 
-use vicinity::hnsw::HNSWIndex;
 use std::time::Instant;
+use vicinity::hnsw::HNSWIndex;
 
 fn main() -> vicinity::Result<()> {
     println!("HNSW vs Brute Force Benchmark");

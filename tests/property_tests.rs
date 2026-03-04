@@ -1173,10 +1173,10 @@ mod hnsw_props {
 #[cfg(all(feature = "persistence", feature = "hnsw"))]
 mod persistence_props {
     use super::*;
+    use std::collections::HashSet;
     use vicinity::hnsw::HNSWIndex;
     use vicinity::persistence::directory::MemoryDirectory;
     use vicinity::persistence::hnsw::{HNSWSegmentReader, HNSWSegmentWriter};
-    use std::collections::HashSet;
 
     fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
         use std::hash::{Hash, Hasher};

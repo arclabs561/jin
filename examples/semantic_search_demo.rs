@@ -9,9 +9,9 @@
 //! cargo run --example semantic_search_demo --release
 //! ```
 
-use vicinity::hnsw::HNSWIndex;
 use std::collections::HashSet;
 use std::time::Instant;
+use vicinity::hnsw::HNSWIndex;
 
 fn main() -> vicinity::Result<()> {
     println!("Semantic Search Demo");

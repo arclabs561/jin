@@ -1,8 +1,8 @@
 #![cfg(feature = "persistence")]
 
+use std::sync::Arc;
 use vicinity::persistence::directory::{Directory, MemoryDirectory};
 use vicinity::persistence::wal::{WalEntry, WalWriter};
-use std::sync::Arc;
 
 #[tokio::test]
 async fn test_crash_recovery_invariant() -> anyhow::Result<()> {

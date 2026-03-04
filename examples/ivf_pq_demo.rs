@@ -33,9 +33,9 @@
 //! cargo run --example ivf_pq_demo --release --features ivf_pq
 //! ```
 
-use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
 use std::collections::HashSet;
 use std::time::Instant;
+use vicinity::ivf_pq::{IVFPQIndex, IVFPQParams};
 
 fn main() -> vicinity::Result<()> {
     println!("IVF-PQ: Billion-Scale Vector Search");

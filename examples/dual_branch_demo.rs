@@ -8,11 +8,11 @@
 //! cargo run --example dual_branch_demo --release
 //! ```
 
+use std::collections::HashSet;
+use std::time::Instant;
 use vicinity::hnsw::dual_branch::{DualBranchConfig, DualBranchHNSW};
 use vicinity::hnsw::HNSWIndex;
 use vicinity::lid::{estimate_lid, LidConfig};
-use std::collections::HashSet;
-use std::time::Instant;
 
 fn main() -> vicinity::Result<()> {
     println!("Dual-Branch HNSW: LID-Driven Optimization Demo");

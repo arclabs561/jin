@@ -192,7 +192,7 @@ pub(crate) struct Layer {
     storage: NeighborStorage,
     /// Cache for decompressed neighbors (temporary, cleared after use)
     #[cfg(feature = "id-compression")]
-    decompressed_cache: std::sync::Mutex<std::collections::HashMap<u32, SmallVec<[u32; 16]>>>,
+    decompressed_cache: parking_lot::Mutex<std::collections::HashMap<u32, SmallVec<[u32; 16]>>>,
 }
 
 impl Layer {

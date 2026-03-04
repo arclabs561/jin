@@ -177,7 +177,9 @@ fn demo_when_to_use() -> vicinity::Result<()> {
     println!("3. Clustering Decision Guide");
     println!("   -------------------------\n");
 
-    println!("   | Criterion           | EVōC (vicinity)  | K-means (stratify) | GMM (stratify)   |");
+    println!(
+        "   | Criterion           | EVōC (vicinity)  | K-means (stratify) | GMM (stratify)   |"
+    );
     println!(
         "   |---------------------|------------------|--------------------|--------------------|"
     );
