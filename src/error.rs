@@ -52,5 +52,12 @@ impl From<std::io::Error> for RetrieveError {
     }
 }
 
+#[cfg(feature = "qntz")]
+impl From<qntz::VQuantError> for RetrieveError {
+    fn from(err: qntz::VQuantError) -> Self {
+        RetrieveError::Other(err.to_string())
+    }
+}
+
 /// Result type alias for vicinity operations.
 pub type Result<T> = std::result::Result<T, RetrieveError>;

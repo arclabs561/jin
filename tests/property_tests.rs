@@ -1013,6 +1013,7 @@ mod metric_space_props {
 // neighbor search using Hierarchical Navigable Small World graphs"
 //
 
+#[cfg(feature = "hnsw")]
 mod hnsw_props {
     use super::*;
     use vicinity::hnsw::HNSWIndex;

@@ -58,7 +58,9 @@ struct Partition {
 impl SCANNIndex {
     pub fn new(dimension: usize, params: SCANNParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be > 0".into(),
+            ));
         }
         Ok(Self {
             vectors: Vec::new(),
@@ -83,7 +85,7 @@ impl SCANNIndex {
     /// - ScaNN currently ignores `doc_id` and uses insertion order as the internal ID.
     pub fn add_slice(&mut self, _doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
-            return Err(RetrieveError::Other("Index already built".into()));
+            return Err(RetrieveError::InvalidParameter("index already built".into()));
         }
         if vector.len() != self.dimension {
             return Err(RetrieveError::DimensionMismatch {
@@ -179,13 +181,13 @@ impl SCANNIndex {
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other("Not built".into()));
+            return Err(RetrieveError::InvalidParameter("index must be built before search".into()));
         }
 
         let quantizer = self
             .quantizer
             .as_ref()
-            .ok_or_else(|| RetrieveError::Other("Quantizer not initialized".into()))?;
+            .ok_or(RetrieveError::InvalidParameter("quantizer not initialized".into()))?;
 
         // 1. Find top partitions
         // Compute dot product with all centroids
@@ -245,5 +247,63 @@ impl SCANNIndex {
     fn get_vector(&self, idx: usize) -> &[f32] {
         let start = idx * self.dimension;
         &self.vectors[start..start + self.dimension]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::RetrieveError;
+
+    #[test]
+    fn test_create_index() {
+        let params = SCANNParams {
+            num_partitions: 2,
+            num_reorder: 10,
+            num_codebooks: 2,
+            codebook_size: 256,
+            seed: 42,
+        };
+        let index = SCANNIndex::new(4, params);
+        assert!(index.is_ok());
+        let index = index.unwrap();
+        assert_eq!(index.dimension, 4);
+        assert_eq!(index.num_vectors, 0);
+    }
+
+    #[test]
+    fn test_add_and_search() {
+        let params = SCANNParams {
+            num_partitions: 2,
+            num_reorder: 10,
+            num_codebooks: 2,
+            codebook_size: 256,
+            seed: 42,
+        };
+        let mut index = SCANNIndex::new(4, params).unwrap();
+
+        // Add 20 vectors (need enough for k-means partitioning)
+        for i in 0..20u32 {
+            let v = vec![i as f32, (i as f32) * 0.5, 1.0, 0.0];
+            index.add(i, v).unwrap();
+        }
+
+        index.build().unwrap();
+
+        let query = vec![0.0, 0.0, 1.0, 0.0];
+        let results = index.search(&query, 3).unwrap();
+
+        assert!(!results.is_empty());
+        assert!(results.len() <= 3);
+    }
+
+    #[test]
+    fn test_zero_dimension_error() {
+        let result = SCANNIndex::new(0, SCANNParams::default());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RetrieveError::InvalidParameter(_) => {}
+            other => panic!("Expected InvalidParameter, got {:?}", other),
+        }
     }
 }

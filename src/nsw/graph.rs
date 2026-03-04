@@ -24,6 +24,9 @@ pub struct NSWIndex {
     /// Parameters
     pub(crate) params: NSWParams,
 
+    /// External doc_ids aligned with internal indices
+    doc_ids: Vec<u32>,
+
     /// Whether index has been built
     built: bool,
 
@@ -62,11 +65,13 @@ impl NSWIndex {
     /// Create a new NSW index.
     pub fn new(dimension: usize, m: usize, m_max: usize) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be greater than 0".to_string(),
+            ));
         }
         if m == 0 || m_max == 0 {
-            return Err(RetrieveError::Other(
-                "m and m_max must be greater than 0".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "m and m_max must be greater than 0".into(),
             ));
         }
 
@@ -80,6 +85,7 @@ impl NSWIndex {
                 m_max,
                 ..Default::default()
             },
+            doc_ids: Vec::new(),
             built: false,
             entry_point: None,
         })
@@ -88,11 +94,13 @@ impl NSWIndex {
     /// Create with custom parameters.
     pub fn with_params(dimension: usize, params: NSWParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be greater than 0".to_string(),
+            ));
         }
         if params.m == 0 || params.m_max == 0 {
-            return Err(RetrieveError::Other(
-                "m and m_max must be greater than 0".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "m and m_max must be greater than 0".into(),
             ));
         }
 
@@ -102,25 +110,26 @@ impl NSWIndex {
             num_vectors: 0,
             neighbors: Vec::new(),
             params,
+            doc_ids: Vec::new(),
             built: false,
             entry_point: None,
         })
     }
 
     /// Add a vector to the index.
-    pub fn add(&mut self, _doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
-        self.add_slice(_doc_id, &vector)
+    pub fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add_slice(doc_id, &vector)
     }
 
     /// Add a vector to the index from a borrowed slice.
     ///
     /// Notes:
     /// - The index stores vectors internally, so it must copy the slice into its own storage.
-    /// - NSW currently ignores `doc_id` and uses insertion order as the internal ID.
-    pub fn add_slice(&mut self, _doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+    /// - `doc_id` is stored and mapped back in search results.
+    pub fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
-            return Err(RetrieveError::Other(
-                "Cannot add vectors after index is built".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "cannot add vectors after index is built".into(),
             ));
         }
 
@@ -133,6 +142,7 @@ impl NSWIndex {
 
         // Store vector in SoA format
         self.vectors.extend_from_slice(vector);
+        self.doc_ids.push(doc_id);
         self.num_vectors += 1;
 
         Ok(())
@@ -165,8 +175,8 @@ impl NSWIndex {
         ef: usize,
     ) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Index must be built before search".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
             ));
         }
 
@@ -193,8 +203,15 @@ impl NSWIndex {
             ef.max(k),
         )?;
 
-        // Return top k
-        let mut sorted_results: Vec<(u32, f32)> = results.into_iter().take(k).collect();
+        // Return top k, mapping internal indices back to external doc_ids
+        let mut sorted_results: Vec<(u32, f32)> = results
+            .into_iter()
+            .take(k)
+            .filter_map(|(internal_id, dist)| {
+                let doc_id = self.doc_ids.get(internal_id as usize).copied()?;
+                Some((doc_id, dist))
+            })
+            .collect();
         sorted_results.sort_by(|a, b| a.1.total_cmp(&b.1));
         Ok(sorted_results)
     }
@@ -204,5 +221,52 @@ impl NSWIndex {
         let start = idx * self.dimension;
         let end = start + self.dimension;
         &self.vectors[start..end]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::RetrieveError;
+
+    #[test]
+    fn test_create_index() {
+        let index = NSWIndex::new(4, 8, 8);
+        assert!(index.is_ok());
+        let index = index.unwrap();
+        assert_eq!(index.dimension, 4);
+        assert_eq!(index.num_vectors, 0);
+    }
+
+    #[test]
+    fn test_add_and_search() {
+        let mut index = NSWIndex::new(4, 8, 8).unwrap();
+
+        // Add 10 vectors
+        for i in 0..10u32 {
+            let v = vec![i as f32, (i as f32) * 0.5, 1.0, 0.0];
+            index.add(i, v).unwrap();
+        }
+
+        index.build().unwrap();
+
+        // Search for the vector closest to [0.0, 0.0, 1.0, 0.0]
+        let query = vec![0.0, 0.0, 1.0, 0.0];
+        let results = index.search(&query, 3, 50).unwrap();
+
+        assert!(!results.is_empty());
+        assert!(results.len() <= 3);
+        // The closest vector should be doc_id 0 (vector [0, 0, 1, 0])
+        assert_eq!(results[0].0, 0);
+    }
+
+    #[test]
+    fn test_zero_dimension_error() {
+        let result = NSWIndex::new(0, 8, 8);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RetrieveError::InvalidParameter(_) => {}
+            other => panic!("Expected InvalidParameter, got {:?}", other),
+        }
     }
 }

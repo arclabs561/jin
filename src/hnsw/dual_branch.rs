@@ -157,7 +157,7 @@ impl DualBranchHNSW {
     /// Build the index with LID-aware construction.
     pub fn build(&mut self) -> Result<(), RetrieveError> {
         if self.num_vectors == 0 {
-            return Err(RetrieveError::Other("No vectors to index".to_string()));
+            return Err(RetrieveError::EmptyIndex);
         }
 
         let mut rng: Box<dyn RngCore> = match self.config.seed {
@@ -205,9 +205,7 @@ impl DualBranchHNSW {
         }
 
         // Safe: we checked is_none() above
-        let entry = self
-            .entry_point
-            .expect("entry_point should be set after is_none check");
+        let entry = self.entry_point.ok_or(RetrieveError::EmptyIndex)?;
 
         // Find nearest neighbors using greedy search
         let candidates = self.search_layer(&query, entry, self.config.ef_construction);
@@ -358,7 +356,7 @@ impl DualBranchHNSW {
         let stats = self
             .lid_stats
             .as_ref()
-            .ok_or_else(|| RetrieveError::Other("LID stats not computed".to_string()))?;
+            .ok_or(RetrieveError::InvalidParameter("LID stats not computed".into()))?;
 
         let threshold = stats.median + self.config.lid_threshold_sigma * stats.std_dev;
 
@@ -399,7 +397,7 @@ impl DualBranchHNSW {
         let stats = self
             .lid_stats
             .as_ref()
-            .ok_or_else(|| RetrieveError::Other("LID stats not computed".to_string()))?;
+            .ok_or(RetrieveError::InvalidParameter("LID stats not computed".into()))?;
 
         let threshold = stats.median + self.config.lid_threshold_sigma * stats.std_dev;
 
@@ -450,7 +448,7 @@ impl DualBranchHNSW {
     /// Search with dual-branch exploration.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other("Index not built".to_string()));
+            return Err(RetrieveError::InvalidParameter("index not built".into()));
         }
 
         if query.len() != self.dimension {
@@ -462,7 +460,7 @@ impl DualBranchHNSW {
 
         let entry = self
             .entry_point
-            .ok_or_else(|| RetrieveError::Other("No entry point".to_string()))?;
+            .ok_or(RetrieveError::EmptyIndex)?;
 
         // Dual-branch search
         let mut visited = HashSet::new();

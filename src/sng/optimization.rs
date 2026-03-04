@@ -12,8 +12,8 @@ use crate::RetrieveError;
 /// Optimal truncation parameter R for graph construction.
 pub fn optimize_truncation_r(num_vectors: usize, dimension: usize) -> Result<f32, RetrieveError> {
     if num_vectors == 0 || dimension == 0 {
-        return Err(RetrieveError::Other(
-            "Cannot optimize parameters for empty dataset".to_string(),
+        return Err(RetrieveError::InvalidParameter(
+            "cannot optimize parameters for empty dataset".into(),
         ));
     }
 

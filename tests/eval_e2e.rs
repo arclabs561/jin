@@ -128,12 +128,10 @@ fn test_eval_small_clustered() {
             .fold(f32::NEG_INFINITY, f32::max)
     );
 
-    // Target: 30%+ mean recall (lowered due to high variance in HNSW)
-    // Note: Results vary between runs (30-60%), suggesting randomness issues
-    // TODO: Raise to 75%+ once HNSW construction is fixed
+    // Target: 65%+ mean recall (non-deterministic; typical 80-100%)
     assert!(
-        results.mean_recall() >= 0.30,
-        "Mean recall {:.3} below threshold 0.30",
+        results.mean_recall() >= 0.65,
+        "Mean recall {:.3} below threshold 0.65",
         results.mean_recall()
     );
 }
@@ -156,10 +154,10 @@ fn test_eval_small_high_connectivity() {
 
     println!("\n{}", results.summary());
 
-    // Target: 55%+ with higher connectivity
+    // Target: 90%+ with higher connectivity
     assert!(
-        results.mean_recall() >= 0.55,
-        "Mean recall {:.3} below threshold 0.55",
+        results.mean_recall() >= 0.90,
+        "Mean recall {:.3} below threshold 0.90",
         results.mean_recall()
     );
 }
@@ -203,10 +201,10 @@ fn test_eval_normalized_uniform() {
 
     println!("\n{}", results.summary());
 
-    // Uniform data is hard - 40%+ is baseline
+    // Uniform data -- 65%+ (non-deterministic; typical 90-100%)
     assert!(
-        results.mean_recall() >= 0.40,
-        "Mean recall {:.3} below threshold 0.40",
+        results.mean_recall() >= 0.65,
+        "Mean recall {:.3} below threshold 0.65",
         results.mean_recall()
     );
 }
@@ -239,11 +237,10 @@ fn test_eval_medium_clustered() {
 
     println!("\n{}", results.summary());
 
-    // Medium scale target: 50%+ (lowered due to known scaling issues)
-    // TODO: Raise to 70%+ once HNSW construction is fixed
+    // Medium scale target: 80%+
     assert!(
-        results.mean_recall() >= 0.50,
-        "Mean recall {:.3} below threshold 0.50",
+        results.mean_recall() >= 0.80,
+        "Mean recall {:.3} below threshold 0.80",
         results.mean_recall()
     );
 }
@@ -276,12 +273,11 @@ fn test_ef_search_improves_recall() {
         recalls.push(results.mean_recall());
     }
 
-    // Recall should generally increase with ef (allowing for noise)
-    // Due to known issues, we just check max recall is reasonable
+    // Recall should generally increase with ef
     let max_recall = recalls.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     assert!(
-        max_recall >= 0.35,
-        "Best recall {:.3} below threshold 0.35",
+        max_recall >= 0.70,
+        "Best recall {:.3} below threshold 0.70",
         max_recall
     );
 }
@@ -314,11 +310,10 @@ fn test_m_parameter_tradeoff() {
     }
 
     // Higher M generally gives better recall (but slower build)
-    // Just verify M=48 achieves reasonable recall
     let best = &results_vec[2]; // M=48
     assert!(
-        best.mean_recall() >= 0.50,
-        "M=48 recall {:.3} below threshold 0.50",
+        best.mean_recall() >= 0.90,
+        "M=48 recall {:.3} below threshold 0.90",
         best.mean_recall()
     );
 }
@@ -372,9 +367,8 @@ fn test_no_recall_regression() {
 
     let results = evaluate_hnsw(&dataset, &params, "baseline");
 
-    // Record baseline (update this when implementation improves)
-    // Current baseline: ~35%+ with known issues on normalized data
-    let baseline_min = 0.35;
+    // Regression baseline with corrected HNSW (non-deterministic; typical 90%+)
+    let baseline_min = 0.60;
 
     assert!(
         results.mean_recall() >= baseline_min,

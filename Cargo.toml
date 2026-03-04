@@ -106,8 +106,6 @@ memmap = ["persistence"]
 # Quantization sub-features (kept separate so callers can be explicit)
 rabitq = ["qntz", "qntz/rabitq"]
 saq = ["qntz", "qntz/ternary"]
-turboquant = []
-
 # Re-exported quantizers (from `qntz`)
 qntz = ["dep:qntz"]
 
@@ -127,7 +125,7 @@ required-features = ["ivf_pq"]
 [[example]]
 name = "rabitq_demo"
 path = "examples/rabitq_demo.rs"
-required-features = ["rabitq"]
+required-features = ["rabitq", "hnsw", "quantization"]
 
 [[example]]
 name = "evoc_demo"

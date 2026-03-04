@@ -69,8 +69,8 @@ impl OptimizedProductQuantizer {
         iterations: usize,
     ) -> Result<(), RetrieveError> {
         if num_vectors < self.codebook_size {
-            return Err(RetrieveError::Other(format!(
-                "Need at least {} training vectors, got {}",
+            return Err(RetrieveError::InvalidParameter(format!(
+                "need at least {} training vectors, got {}",
                 self.codebook_size, num_vectors
             )));
         }

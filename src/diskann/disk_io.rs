@@ -170,8 +170,8 @@ impl DiskGraphReader {
         let degree = u32::from_le_bytes(degree_buf) as usize;
 
         if degree > self.max_degree {
-            return Err(RetrieveError::Other(
-                "Invalid node degree in graph file".to_string(),
+            return Err(RetrieveError::FormatError(
+                "invalid node degree in graph file".into(),
             ));
         }
 

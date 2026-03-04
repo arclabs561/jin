@@ -129,9 +129,6 @@ pub mod saq;
 #[cfg(feature = "saq")]
 pub use qntz::ternary;
 
-#[cfg(feature = "turboquant")]
-pub mod turboquant;
-
 // Re-exports for convenience
 #[cfg(feature = "saq")]
 pub use ternary::{

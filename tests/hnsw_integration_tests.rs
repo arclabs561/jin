@@ -1,3 +1,4 @@
+#![cfg(feature = "hnsw")]
 //! Integration tests for HNSW index.
 //!
 //! Tests the full lifecycle: build, query, persistence, streaming updates.

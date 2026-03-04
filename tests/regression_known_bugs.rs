@@ -14,6 +14,7 @@
 //! - lance #5208: Wrong layer iteration direction
 //! - usearch #439: Performance regression (recall too low)
 
+#![cfg(feature = "hnsw")]
 #![allow(clippy::float_cmp)]
 
 /// Test inspired by hnswlib #592: Vector not normalized for cosine distance.

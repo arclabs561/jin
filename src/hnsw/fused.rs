@@ -299,11 +299,10 @@ impl FusedIndex {
         attributes: HashMap<String, AttributeValue>,
     ) -> Result<u32, RetrieveError> {
         if content.len() != self.content_dim {
-            return Err(RetrieveError::Other(format!(
-                "Expected {} dimensions, got {}",
-                self.content_dim,
-                content.len()
-            )));
+            return Err(RetrieveError::DimensionMismatch {
+                query_dim: self.content_dim,
+                doc_dim: content.len(),
+            });
         }
 
         let attr_embedding = self.embedder.embed(&attributes);
@@ -324,11 +323,10 @@ impl FusedIndex {
         k: usize,
     ) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if query_content.len() != self.content_dim {
-            return Err(RetrieveError::Other(format!(
-                "Expected {} dimensions, got {}",
-                self.content_dim,
-                query_content.len()
-            )));
+            return Err(RetrieveError::DimensionMismatch {
+                query_dim: self.content_dim,
+                doc_dim: query_content.len(),
+            });
         }
 
         // Create query fused vector

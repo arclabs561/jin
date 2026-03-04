@@ -141,7 +141,7 @@ pub mod fusion {
         weight: f32,
     ) -> Result<Vec<f32>, RetrieveError> {
         if category_id as usize >= num_categories {
-            return Err(RetrieveError::Other(format!(
+            return Err(RetrieveError::InvalidParameter(format!(
                 "Category ID {} >= num_categories {}",
                 category_id, num_categories
             )));

@@ -151,7 +151,7 @@ impl Default for HNSWParams {
         Self {
             m: 16,
             m_max: 16,
-            m_l: 1.0 / 2.0_f64.ln(), // ≈ 1.44
+            m_l: 1.0 / 16.0_f64.ln(), // 1/ln(M), per Malkov & Yashunin 2018
             ef_construction: 200,
             ef_search: 50,
             seed_selection: SeedSelectionStrategy::default(),
@@ -201,7 +201,7 @@ impl Layer {
         Self {
             storage: NeighborStorage::Uncompressed(neighbors),
             #[cfg(feature = "id-compression")]
-            decompressed_cache: std::sync::Mutex::new(std::collections::HashMap::new()),
+            decompressed_cache: parking_lot::Mutex::new(std::collections::HashMap::new()),
         }
     }
 
@@ -283,7 +283,7 @@ impl Layer {
                 data: compressed_lists,
                 universe_size,
             },
-            decompressed_cache: std::sync::Mutex::new(std::collections::HashMap::new()),
+            decompressed_cache: parking_lot::Mutex::new(std::collections::HashMap::new()),
         })
     }
 
@@ -301,7 +301,7 @@ impl Layer {
             } => {
                 // Check cache first
                 {
-                    let cache = self.decompressed_cache.lock().unwrap();
+                    let cache = self.decompressed_cache.lock();
                     if let Some(cached) = cache.get(&node) {
                         return cached.clone();
                     }
@@ -329,7 +329,7 @@ impl Layer {
 
                 // Cache
                 {
-                    let mut cache = self.decompressed_cache.lock().unwrap();
+                    let mut cache = self.decompressed_cache.lock();
                     cache.insert(node, neighbors.clone());
                 }
 
@@ -341,7 +341,7 @@ impl Layer {
     /// Clear decompression cache (call after search).
     #[cfg(feature = "id-compression")]
     pub(crate) fn clear_cache(&self) {
-        let mut cache = self.decompressed_cache.lock().unwrap();
+        let mut cache = self.decompressed_cache.lock();
         cache.clear();
     }
 
@@ -380,11 +380,13 @@ impl HNSWIndex {
     /// Returns `RetrieveError` if parameters are invalid.
     pub fn new(dimension: usize, m: usize, m_max: usize) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be > 0".into(),
+            ));
         }
         if m == 0 || m_max == 0 {
-            return Err(RetrieveError::Other(
-                "m and m_max must be greater than 0".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "m and m_max must be greater than 0".into(),
             ));
         }
 
@@ -411,11 +413,13 @@ impl HNSWIndex {
     /// Create with custom parameters.
     pub fn with_params(dimension: usize, params: HNSWParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be > 0".into(),
+            ));
         }
         if params.m == 0 || params.m_max == 0 {
-            return Err(RetrieveError::Other(
-                "m and m_max must be greater than 0".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "m and m_max must be greater than 0".into(),
             ));
         }
 
@@ -450,11 +454,13 @@ impl HNSWIndex {
         filter_field: impl Into<String>,
     ) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be > 0".into(),
+            ));
         }
         if m == 0 || m_max == 0 {
-            return Err(RetrieveError::Other(
-                "m and m_max must be greater than 0".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "m and m_max must be greater than 0".into(),
             ));
         }
 
@@ -531,8 +537,8 @@ impl HNSWIndex {
             store.add(doc_id, metadata);
             Ok(())
         } else {
-            Err(RetrieveError::Other(
-                "Filtering not enabled. Use HNSWIndex::with_filtering()".to_string(),
+            Err(RetrieveError::InvalidParameter(
+                "filtering not enabled; use HNSWIndex::with_filtering()".into(),
             ))
         }
     }
@@ -556,14 +562,14 @@ impl HNSWIndex {
     /// - The index must be built before searching.
     pub fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
-            return Err(RetrieveError::Other(
-                "Cannot add vectors after index is built".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "cannot add vectors after index is built".into(),
             ));
         }
 
         if self.doc_id_to_internal.contains_key(&doc_id) {
-            return Err(RetrieveError::Other(format!(
-                "Duplicate doc_id {} (doc_id must be unique within an index)",
+            return Err(RetrieveError::InvalidParameter(format!(
+                "duplicate doc_id {} (doc_id must be unique within an index)",
                 doc_id
             )));
         }
@@ -761,8 +767,8 @@ impl HNSWIndex {
         ef: usize,
     ) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Index must be built before search".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
             ));
         }
 
@@ -980,8 +986,8 @@ impl HNSWIndex {
         filter: &crate::filtering::FilterPredicate,
     ) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Index must be built before search".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
             ));
         }
 
@@ -993,8 +999,8 @@ impl HNSWIndex {
         }
 
         if self.metadata.is_none() || self.filter_field.is_none() {
-            return Err(RetrieveError::Other(
-                "Filtering not enabled. Use HNSWIndex::with_filtering()".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "filtering not enabled; use HNSWIndex::with_filtering()".into(),
             ));
         }
 
@@ -1002,16 +1008,16 @@ impl HNSWIndex {
         let desired_category = match filter {
             crate::filtering::FilterPredicate::Equals { field, value } => {
                 if Some(field) != self.filter_field.as_ref() {
-                    return Err(RetrieveError::Other(format!(
-                        "Filter field '{}' doesn't match index filter field '{:?}'",
+                    return Err(RetrieveError::InvalidParameter(format!(
+                        "filter field '{}' doesn't match index filter field '{:?}'",
                         field, self.filter_field
                     )));
                 }
                 Some(*value)
             }
             _ => {
-                return Err(RetrieveError::Other(
-                    "Only equality filters on filter_field are supported".to_string(),
+                return Err(RetrieveError::InvalidParameter(
+                    "only equality filters on filter_field are supported".into(),
                 ));
             }
         };
@@ -1054,7 +1060,7 @@ impl HNSWIndex {
                 .enumerate()
                 .find(|(_, &cat)| cat == desired_category)
                 .map(|(idx, _)| idx as u32)
-                .ok_or(RetrieveError::Other("No vectors match filter".to_string()))?
+                .ok_or(RetrieveError::EmptyQuery)?
         };
 
         let start_vec = self.get_vector(start_point as usize);
@@ -1169,13 +1175,10 @@ impl HNSWIndex {
             use rand::Rng;
             let mut rng = rand::rng();
 
-            let mut layer = 0u8;
-            // Geometric distribution: P(l > L) = (1/m_l)^L
-            while rng.random::<f64>() < 1.0 / self.params.m_l && layer < 255 {
-                layer += 1;
-            }
-
-            layer
+            // Paper formula (Algorithm 1, line 4): l = floor(-ln(uniform) * mL)
+            let u: f64 = rng.random();
+            let level = (-u.ln() * self.params.m_l).floor() as u8;
+            level.min(255)
         }
         #[cfg(not(feature = "hnsw"))]
         {

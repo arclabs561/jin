@@ -96,7 +96,9 @@ impl RpForestIndex {
     /// Create a new RP-forest index.
     pub fn new(dimension: usize, params: RpForestParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be > 0".into(),
+            ));
         }
 
         Ok(Self {

@@ -62,7 +62,7 @@ impl VamanaIndex {
     /// Create a new Vamana index.
     pub fn new(dimension: usize, params: VamanaParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::Other("Dimension must be > 0".to_string()));
+            return Err(RetrieveError::InvalidParameter("dimension must be > 0".into()));
         }
 
         Ok(Self {
@@ -78,8 +78,8 @@ impl VamanaIndex {
     /// Add a vector to the index.
     pub fn add(&mut self, _id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
         if self.built {
-            return Err(RetrieveError::Other(
-                "Cannot add vectors after build".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "cannot add vectors after build".into(),
             ));
         }
 
@@ -105,7 +105,7 @@ impl VamanaIndex {
         }
 
         if self.built {
-            return Err(RetrieveError::Other("Index already built".to_string()));
+            return Err(RetrieveError::InvalidParameter("index already built".into()));
         }
 
         // Two-pass construction: RRND + RND
@@ -123,8 +123,8 @@ impl VamanaIndex {
         ef: usize,
     ) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Index must be built before search".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
             ));
         }
 

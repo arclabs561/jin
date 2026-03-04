@@ -156,7 +156,7 @@ impl StreamBuffer {
             .iter()
             .filter(|(id, _)| !self.deletes.contains(id))
             .map(|(&id, vec)| {
-                let dist = euclidean_distance(query, vec);
+                let dist = crate::distance::l2_distance(query, vec);
                 (id, dist)
             })
             .collect();
@@ -171,14 +171,6 @@ impl Default for StreamBuffer {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y) * (x - y))
-        .sum::<f32>()
-        .sqrt()
 }
 
 #[cfg(test)]

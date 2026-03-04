@@ -251,7 +251,9 @@ impl IVFPQIndex {
     /// Create a new IVF-PQ index.
     pub fn new(dimension: usize, params: IVFPQParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be > 0".into(),
+            ));
         }
 
         Ok(Self {
@@ -306,8 +308,8 @@ impl IVFPQIndex {
             store.add(doc_id, metadata);
             Ok(())
         } else {
-            Err(RetrieveError::Other(
-                "Filtering not enabled. Use IVFPQIndex::with_filtering()".to_string(),
+            Err(RetrieveError::InvalidParameter(
+                "filtering not enabled; use IVFPQIndex::with_filtering()".into(),
             ))
         }
     }
@@ -324,8 +326,8 @@ impl IVFPQIndex {
     /// - IVF-PQ currently ignores `doc_id` and uses insertion order as the internal ID.
     pub fn add_slice(&mut self, _doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
-            return Err(RetrieveError::Other(
-                "Cannot add vectors after index is built".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "cannot add vectors after index is built".into(),
             ));
         }
 
@@ -470,8 +472,8 @@ impl IVFPQIndex {
     /// Search for k nearest neighbors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Index must be built before search".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
             ));
         }
 
@@ -485,7 +487,7 @@ impl IVFPQIndex {
         let pq = self
             .pq
             .as_ref()
-            .ok_or(RetrieveError::Other("PQ not initialized".to_string()))?;
+            .ok_or(RetrieveError::InvalidParameter("PQ not initialized".into()))?;
 
         // Precompute ADC table for fast distance lookup
         let adc_table = pq.compute_adc_table(query)?;
@@ -552,8 +554,8 @@ impl IVFPQIndex {
         filter: &crate::filtering::FilterPredicate,
     ) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Index must be built before search".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
             ));
         }
 
@@ -568,21 +570,21 @@ impl IVFPQIndex {
         let desired_category = match filter {
             crate::filtering::FilterPredicate::Equals { field, value } => {
                 if Some(field) != self.filter_field.as_ref() {
-                    return Err(RetrieveError::Other(format!(
-                        "Filter field '{}' doesn't match index filter field '{:?}'",
+                    return Err(RetrieveError::InvalidParameter(format!(
+                        "filter field '{}' doesn't match index filter field '{:?}'",
                         field, self.filter_field
                     )));
                 }
                 if *value >= 64 {
-                    return Err(RetrieveError::Other(
-                        "Category ID must be < 64 for bitmask filtering".to_string(),
+                    return Err(RetrieveError::InvalidParameter(
+                        "category ID must be < 64 for bitmask filtering".into(),
                     ));
                 }
                 *value
             }
             _ => {
-                return Err(RetrieveError::Other(
-                    "Only equality filters on filter_field are supported".to_string(),
+                return Err(RetrieveError::InvalidParameter(
+                    "only equality filters on filter_field are supported".into(),
                 ));
             }
         };
@@ -608,7 +610,7 @@ impl IVFPQIndex {
         let pq = self
             .pq
             .as_ref()
-            .ok_or(RetrieveError::Other("PQ not initialized".to_string()))?;
+            .ok_or(RetrieveError::InvalidParameter("PQ not initialized".into()))?;
         let adc_table = pq.compute_adc_table(query)?;
 
         for (cluster_idx, _) in cluster_distances.iter().take(self.params.nprobe) {
@@ -634,8 +636,8 @@ impl IVFPQIndex {
                 }
             } else {
                 // No metadata store, can't filter (shouldn't happen)
-                return Err(RetrieveError::Other(
-                    "Metadata store not initialized".to_string(),
+                return Err(RetrieveError::InvalidParameter(
+                    "metadata store not initialized".into(),
                 ));
             }
         }

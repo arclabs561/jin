@@ -34,14 +34,14 @@ impl AnisotropicQuantizer {
         seed: u64,
     ) -> Result<Self, RetrieveError> {
         if dimension == 0 || num_codebooks == 0 || codebook_size == 0 {
-            return Err(RetrieveError::Other(
-                "All parameters must be greater than 0".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "all parameters must be greater than 0".into(),
             ));
         }
 
         if dimension % num_codebooks != 0 {
-            return Err(RetrieveError::Other(
-                "Dimension must be divisible by num_codebooks".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be divisible by num_codebooks".into(),
             ));
         }
 

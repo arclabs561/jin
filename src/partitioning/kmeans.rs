@@ -19,7 +19,7 @@ impl KMeans {
     /// Create new k-means with k clusters.
     pub fn new(dimension: usize, k: usize) -> Result<Self, RetrieveError> {
         if dimension == 0 || k == 0 {
-            return Err(RetrieveError::Other(
+            return Err(RetrieveError::InvalidParameter(
                 "Dimension and k must be greater than 0".to_string(),
             ));
         }
@@ -46,7 +46,7 @@ impl KMeans {
     /// Uses k-means++ initialization and iterative refinement.
     pub fn fit(&mut self, vectors: &[f32], num_vectors: usize) -> Result<(), RetrieveError> {
         if vectors.len() < num_vectors * self.dimension {
-            return Err(RetrieveError::Other("Insufficient vectors".to_string()));
+            return Err(RetrieveError::InvalidParameter("Insufficient vectors".to_string()));
         }
 
         // k-means++ initialization

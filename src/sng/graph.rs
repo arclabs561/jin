@@ -14,6 +14,8 @@ pub struct SNGIndex {
     pub(crate) vectors: Vec<f32>,
     pub(crate) dimension: usize,
     pub(crate) num_vectors: usize,
+    /// External doc_ids aligned with internal indices
+    doc_ids: Vec<u32>,
     params: SNGParams,
     built: bool,
 
@@ -47,13 +49,16 @@ impl SNGIndex {
     /// Create a new OPT-SNG index.
     pub fn new(dimension: usize, params: SNGParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be greater than 0".to_string(),
+            ));
         }
 
         Ok(Self {
             vectors: Vec::new(),
             dimension,
             num_vectors: 0,
+            doc_ids: Vec::new(),
             params,
             built: false,
             neighbors: Vec::new(),
@@ -62,10 +67,10 @@ impl SNGIndex {
     }
 
     /// Add a vector to the index.
-    pub fn add(&mut self, _doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+    pub fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
         if self.built {
-            return Err(RetrieveError::Other(
-                "Cannot add vectors after index is built".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "cannot add vectors after index is built".into(),
             ));
         }
 
@@ -77,6 +82,7 @@ impl SNGIndex {
         }
 
         self.vectors.extend_from_slice(&vector);
+        self.doc_ids.push(doc_id);
         self.num_vectors += 1;
         Ok(())
     }
@@ -105,8 +111,8 @@ impl SNGIndex {
     /// Search for k nearest neighbors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Index must be built before search".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
             ));
         }
 
@@ -117,7 +123,15 @@ impl SNGIndex {
             });
         }
 
-        crate::sng::search::search_sng(self, query, k)
+        let results = crate::sng::search::search_sng(self, query, k)?;
+        // Map internal indices back to external doc_ids
+        Ok(results
+            .into_iter()
+            .filter_map(|(internal_id, dist)| {
+                let doc_id = self.doc_ids.get(internal_id as usize).copied()?;
+                Some((doc_id, dist))
+            })
+            .collect())
     }
 
     /// Get vector from SoA storage.
@@ -183,5 +197,59 @@ impl SNGIndex {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::RetrieveError;
+
+    /// Normalize a vector to unit length (SNG uses dot-product distance).
+    fn normalize(v: &mut Vec<f32>) {
+        let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            v.iter_mut().for_each(|x| *x /= norm);
+        }
+    }
+
+    #[test]
+    fn test_create_index() {
+        let index = SNGIndex::new(4, SNGParams::default());
+        assert!(index.is_ok());
+        let index = index.unwrap();
+        assert_eq!(index.dimension, 4);
+        assert_eq!(index.num_vectors, 0);
+    }
+
+    #[test]
+    fn test_add_and_search() {
+        let mut index = SNGIndex::new(4, SNGParams::default()).unwrap();
+
+        // Add 10 normalized vectors
+        for i in 0..10u32 {
+            let mut v = vec![i as f32 + 1.0, (i as f32) * 0.5, 1.0, 0.5];
+            normalize(&mut v);
+            index.add(i, v).unwrap();
+        }
+
+        index.build().unwrap();
+
+        let mut query = vec![1.0, 0.0, 1.0, 0.5];
+        normalize(&mut query);
+        let results = index.search(&query, 3).unwrap();
+
+        assert!(!results.is_empty());
+        assert!(results.len() <= 3);
+    }
+
+    #[test]
+    fn test_zero_dimension_error() {
+        let result = SNGIndex::new(0, SNGParams::default());
+        match result {
+            Err(RetrieveError::InvalidParameter(_)) => {}
+            Err(other) => panic!("Expected InvalidParameter, got {:?}", other),
+            Ok(_) => panic!("Expected error for dimension 0"),
+        }
     }
 }

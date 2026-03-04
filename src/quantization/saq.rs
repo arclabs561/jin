@@ -32,13 +32,13 @@ impl SAQQuantizer {
         total_bits: usize,
     ) -> Result<Self, RetrieveError> {
         if dimension == 0 || num_segments == 0 || total_bits == 0 {
-            return Err(RetrieveError::Other(
+            return Err(RetrieveError::InvalidParameter(
                 "All parameters must be greater than 0".to_string(),
             ));
         }
 
         if dimension % num_segments != 0 {
-            return Err(RetrieveError::Other(
+            return Err(RetrieveError::InvalidParameter(
                 "Dimension must be divisible by num_segments".to_string(),
             ));
         }
@@ -125,7 +125,7 @@ impl SAQQuantizer {
                 sorted_indices.sort_by(|&a, &b| {
                     segment_variances[a]
                         .partial_cmp(&segment_variances[b])
-                        .unwrap()
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 });
 
                 for &idx in sorted_indices.iter().take(diff) {

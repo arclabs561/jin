@@ -52,16 +52,6 @@ pub enum PersistenceError {
     Distributed(String),
 }
 
-/// Helper to format expected/actual values for error messages.
-fn format_expected_actual(expected: &Option<String>, actual: &Option<String>) -> String {
-    match (expected, actual) {
-        (Some(e), Some(a)) => format!(" (expected: {}, actual: {})", e, a),
-        (Some(e), None) => format!(" (expected: {})", e),
-        (None, Some(a)) => format!(" (actual: {})", a),
-        (None, None) => String::new(),
-    }
-}
-
 #[cfg(feature = "persistence")]
 impl From<postcard::Error> for PersistenceError {
     fn from(e: postcard::Error) -> Self {
@@ -76,6 +66,7 @@ impl From<bincode::Error> for PersistenceError {
     }
 }
 
+#[cfg(feature = "persistence")]
 impl From<hiqlite::Error> for PersistenceError {
     fn from(e: hiqlite::Error) -> Self {
         Self::Distributed(e.to_string())

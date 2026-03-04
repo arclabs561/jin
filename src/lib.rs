@@ -1,9 +1,7 @@
 // Crate-level lint configuration
-// Dead code is allowed since this is research code with partial implementations
+// Allow dead code in feature-gated modules that may not be compiled.
+// Individual modules that are always compiled should NOT rely on this.
 #![allow(dead_code)]
-// Allow unsafe operations in unsafe fn without explicit unsafe blocks
-// (Rust 2024 edition strictness - this is a SIMD crate where unsafe is pervasive)
-#![allow(unsafe_op_in_unsafe_fn)]
 
 //! vicinity: Approximate Nearest Neighbor Search primitives.
 //!
@@ -82,14 +80,32 @@
 
 pub mod ann;
 pub mod classic;
+
+#[cfg(feature = "diskann")]
 pub mod diskann;
+
+#[cfg(feature = "evoc")]
 pub mod evoc;
+
+#[cfg(feature = "hnsw")]
 pub mod hnsw;
+
+#[cfg(feature = "ivf_pq")]
 pub mod ivf_pq;
+
+#[cfg(feature = "nsw")]
 pub mod nsw;
+
+#[cfg(feature = "quantization")]
 pub mod quantization;
+
+#[cfg(feature = "scann")]
 pub mod scann;
+
+#[cfg(feature = "sng")]
 pub mod sng;
+
+#[cfg(feature = "vamana")]
 pub mod vamana;
 
 pub mod adaptive;

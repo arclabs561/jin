@@ -101,11 +101,10 @@ impl DEGIndex {
     /// Add vector to index.
     pub fn add(&mut self, vector: Vec<f32>) -> Result<u32, RetrieveError> {
         if vector.len() != self.dim {
-            return Err(RetrieveError::Other(format!(
-                "Dimension mismatch: expected {}, got {}",
-                self.dim,
-                vector.len()
-            )));
+            return Err(RetrieveError::DimensionMismatch {
+                query_dim: self.dim,
+                doc_dim: vector.len(),
+            });
         }
 
         let id = self.vectors.len() as u32;
@@ -282,11 +281,10 @@ impl DEGIndex {
     /// Search for k nearest neighbors with density-aware navigation.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if query.len() != self.dim {
-            return Err(RetrieveError::Other(format!(
-                "Dimension mismatch: expected {}, got {}",
-                self.dim,
-                query.len()
-            )));
+            return Err(RetrieveError::DimensionMismatch {
+                query_dim: self.dim,
+                doc_dim: query.len(),
+            });
         }
 
         if self.vectors.is_empty() {

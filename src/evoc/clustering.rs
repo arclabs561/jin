@@ -64,7 +64,7 @@ impl EVoC {
     /// Create new EVōC clusterer.
     pub fn new(original_dim: usize, params: EVoCParams) -> Result<Self, RetrieveError> {
         if original_dim == 0 {
-            return Err(RetrieveError::Other(
+            return Err(RetrieveError::InvalidParameter(
                 "Original dimension must be greater than 0".to_string(),
             ));
         }
@@ -86,7 +86,7 @@ impl EVoC {
         num_vectors: usize,
     ) -> Result<Vec<Option<usize>>, RetrieveError> {
         if vectors.len() < num_vectors * self.original_dim {
-            return Err(RetrieveError::Other("Insufficient vectors".to_string()));
+            return Err(RetrieveError::InvalidParameter("Insufficient vectors".to_string()));
         }
 
         // Step 1: Dimensionality reduction
@@ -159,7 +159,7 @@ impl EVoC {
         let hierarchy = self
             .hierarchy
             .as_ref()
-            .ok_or_else(|| RetrieveError::Other("Hierarchy not built".to_string()))?;
+            .ok_or_else(|| RetrieveError::InvalidParameter("Hierarchy not built".to_string()))?;
 
         // Extract layers at different distance thresholds
         let mut layers = Vec::new();
@@ -302,5 +302,47 @@ impl UnionFind {
             self.parent[root_y] = root_x;
             self.rank[root_x] += 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_evoc() {
+        let evoc = EVoC::new(4, EVoCParams::default());
+        assert!(evoc.is_ok());
+    }
+
+    #[test]
+    fn test_zero_dimension_error() {
+        let result = EVoC::new(0, EVoCParams::default());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_fit_predict() {
+        let params = EVoCParams {
+            intermediate_dim: 2,
+            min_cluster_size: 2,
+            noise_level: 0.0,
+            min_number_clusters: None,
+        };
+        let mut evoc = EVoC::new(4, params).unwrap();
+
+        // Create 20 vectors in two distinct clusters
+        let mut vectors = Vec::new();
+        for i in 0..10 {
+            // Cluster A: near [1, 0, 0, 0]
+            vectors.extend_from_slice(&[1.0 + i as f32 * 0.01, 0.0, 0.0, 0.0]);
+        }
+        for i in 0..10 {
+            // Cluster B: near [0, 0, 0, 1]
+            vectors.extend_from_slice(&[0.0, 0.0, 0.0, 1.0 + i as f32 * 0.01]);
+        }
+
+        let assignments = evoc.fit_predict(&vectors, 20).unwrap();
+        assert_eq!(assignments.len(), 20);
     }
 }

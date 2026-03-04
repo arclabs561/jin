@@ -109,7 +109,7 @@ where
     F: Fn(u32, u32) -> f32 + Sync,
 {
     if num_vectors == 0 {
-        return Err(RetrieveError::Other("No vectors to index".into()));
+        return Err(RetrieveError::EmptyIndex);
     }
 
     // Initialize random adjacency

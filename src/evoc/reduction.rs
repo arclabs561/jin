@@ -23,13 +23,13 @@ impl DimensionalityReducer {
     /// and computational efficiency.
     pub fn new(original_dim: usize, intermediate_dim: usize) -> Result<Self, RetrieveError> {
         if original_dim == 0 || intermediate_dim == 0 {
-            return Err(RetrieveError::Other(
+            return Err(RetrieveError::InvalidParameter(
                 "Dimensions must be greater than 0".to_string(),
             ));
         }
 
         if intermediate_dim >= original_dim {
-            return Err(RetrieveError::Other(
+            return Err(RetrieveError::InvalidParameter(
                 "Intermediate dimension must be less than original".to_string(),
             ));
         }
@@ -46,7 +46,7 @@ impl DimensionalityReducer {
     /// Uses PCA-like approach optimized for embedding structure.
     pub fn fit(&mut self, vectors: &[f32], num_vectors: usize) -> Result<(), RetrieveError> {
         if vectors.len() < num_vectors * self.original_dim {
-            return Err(RetrieveError::Other("Insufficient vectors".to_string()));
+            return Err(RetrieveError::InvalidParameter("Insufficient vectors".to_string()));
         }
 
         // Simplified PCA: compute top eigenvectors of covariance matrix
@@ -65,7 +65,7 @@ impl DimensionalityReducer {
         let matrix = self
             .projection_matrix
             .as_ref()
-            .ok_or_else(|| RetrieveError::Other("Reducer not fitted".to_string()))?;
+            .ok_or_else(|| RetrieveError::InvalidParameter("Reducer not fitted".to_string()))?;
 
         let mut reduced = Vec::with_capacity(num_vectors * self.intermediate_dim);
 

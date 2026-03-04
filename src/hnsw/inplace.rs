@@ -121,11 +121,10 @@ impl InPlaceIndex {
     /// Insert a vector with in-place update.
     pub fn insert(&mut self, vector: Vec<f32>) -> Result<u32, RetrieveError> {
         if vector.len() != self.dim {
-            return Err(RetrieveError::Other(format!(
-                "Dimension mismatch: expected {}, got {}",
-                self.dim,
-                vector.len()
-            )));
+            return Err(RetrieveError::DimensionMismatch {
+                query_dim: self.dim,
+                doc_dim: vector.len(),
+            });
         }
 
         // Get slot (reuse or allocate new)
@@ -222,15 +221,15 @@ impl InPlaceIndex {
     /// Delete a node with in-place update.
     pub fn delete(&mut self, id: u32) -> Result<(), RetrieveError> {
         if id as usize >= self.nodes.len() {
-            return Err(RetrieveError::Other("Invalid node ID".to_string()));
+            return Err(RetrieveError::OutOfBounds(id as usize));
         }
 
         let node = self.nodes[id as usize]
             .as_ref()
-            .ok_or_else(|| RetrieveError::Other("Node already deleted".to_string()))?;
+            .ok_or(RetrieveError::OutOfBounds(id as usize))?;
 
         if node.is_deleted() {
-            return Err(RetrieveError::Other("Node already deleted".to_string()));
+            return Err(RetrieveError::OutOfBounds(id as usize));
         }
 
         // Collect in-neighbors before marking deleted
@@ -320,11 +319,10 @@ impl InPlaceIndex {
     /// Search for k nearest neighbors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if query.len() != self.dim {
-            return Err(RetrieveError::Other(format!(
-                "Dimension mismatch: expected {}, got {}",
-                self.dim,
-                query.len()
-            )));
+            return Err(RetrieveError::DimensionMismatch {
+                query_dim: self.dim,
+                doc_dim: query.len(),
+            });
         }
 
         let entry = self.entry_point.load(Ordering::Acquire);

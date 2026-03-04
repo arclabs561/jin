@@ -1,3 +1,4 @@
+#![cfg(feature = "hnsw")]
 //! Edge case tests for vicinity.
 //!
 //! Tests unusual inputs and boundary conditions that could cause failures.

@@ -123,7 +123,7 @@ impl Partitioner for EVoCPartitioner {
     ) -> Result<PartitionAssignments, RetrieveError> {
         self.assignments
             .clone()
-            .ok_or_else(|| RetrieveError::Other("EVōC not fitted".to_string()))
+            .ok_or_else(|| RetrieveError::InvalidParameter("EVōC not fitted".to_string()))
     }
 
     fn centroids(&self) -> &[Vec<f32>] {

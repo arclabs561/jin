@@ -22,6 +22,9 @@ pub struct DiskANNIndex {
     vectors: Vec<f32>,
     num_vectors: usize,
 
+    /// External doc_ids aligned with internal indices
+    doc_ids: Vec<u32>,
+
     // Graph structure (adjacency list)
     // Using SmallVec to optimize for typical degree M=16-32
     // Stored in memory for construction, serialized to disk later
@@ -69,8 +72,8 @@ impl DiskANNIndex {
     /// - Metadata (JSON)
     pub fn save(&self, output_dir: &Path) -> Result<(), RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Cannot save unbuilt index".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "cannot save unbuilt index".into(),
             ));
         }
 
@@ -103,16 +106,16 @@ impl DiskANNIndex {
             self.params.m,
             self.start_node,
         )
-        .map_err(|e| RetrieveError::Other(format!("Failed to create graph writer: {}", e)))?;
+        .map_err(|e| RetrieveError::Io(format!("failed to create graph writer: {}", e)))?;
 
         for neighbors in &self.adj {
             graph_writer
                 .write_adjacency(neighbors)
-                .map_err(|e| RetrieveError::Other(format!("Failed to write adjacency: {}", e)))?;
+                .map_err(|e| RetrieveError::Io(format!("failed to write adjacency: {}", e)))?;
         }
         graph_writer
             .flush()
-            .map_err(|e| RetrieveError::Other(format!("Failed to flush graph: {}", e)))?;
+            .map_err(|e| RetrieveError::Io(format!("failed to flush graph: {}", e)))?;
 
         // 3. Save Metadata (metadata.json)
         let metadata_path = output_dir.join("metadata.json");
@@ -186,7 +189,7 @@ impl DiskANNSearcher {
         // 2. Open Graph
         let graph_path = index_dir.join("graph.index");
         let graph_reader = super::disk_io::DiskGraphReader::open(&graph_path)
-            .map_err(|e| RetrieveError::Other(format!("Failed to open graph: {}", e)))?;
+            .map_err(|e| RetrieveError::Io(format!("failed to open graph: {}", e)))?;
 
         // 3. Open Vectors
         let vectors_path = index_dir.join("vectors.bin");
@@ -353,7 +356,9 @@ impl DiskANNIndex {
     /// Create a new DiskANN index.
     pub fn new(dimension: usize, params: DiskANNParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::EmptyQuery);
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be greater than 0".to_string(),
+            ));
         }
 
         Ok(Self {
@@ -362,25 +367,26 @@ impl DiskANNIndex {
             built: false,
             vectors: Vec::new(),
             num_vectors: 0,
+            doc_ids: Vec::new(),
             adj: Vec::new(),
             start_node: 0,
         })
     }
 
     /// Add a vector to the index.
-    pub fn add(&mut self, _doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
-        self.add_slice(_doc_id, &vector)
+    pub fn add(&mut self, doc_id: u32, vector: Vec<f32>) -> Result<(), RetrieveError> {
+        self.add_slice(doc_id, &vector)
     }
 
     /// Add a vector to the index from a borrowed slice.
     ///
     /// Notes:
     /// - The index stores vectors internally, so it must copy the slice into its own storage.
-    /// - DiskANN currently ignores `doc_id` and uses insertion order as the internal ID.
-    pub fn add_slice(&mut self, _doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
+    /// - `doc_id` is stored and mapped back in search results.
+    pub fn add_slice(&mut self, doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
-            return Err(RetrieveError::Other(
-                "Cannot add vectors after index is built".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "cannot add vectors after index is built".into(),
             ));
         }
 
@@ -392,6 +398,7 @@ impl DiskANNIndex {
         }
 
         self.vectors.extend_from_slice(vector);
+        self.doc_ids.push(doc_id);
         self.num_vectors += 1;
         self.adj.push(SmallVec::new());
         Ok(())
@@ -627,8 +634,8 @@ impl DiskANNIndex {
         ef_search: usize,
     ) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::Other(
-                "Index must be built before search".to_string(),
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
             ));
         }
 
@@ -642,11 +649,14 @@ impl DiskANNIndex {
         let ef = ef_search.max(k);
         let (_, candidates) = self.greedy_search(query, ef, self.start_node);
 
-        // Return top k
+        // Return top k, mapping internal indices back to external doc_ids
         let result = candidates
             .into_iter()
             .take(k)
-            .map(|c| (c.id, c.dist))
+            .filter_map(|c| {
+                let doc_id = self.doc_ids.get(c.id as usize).copied()?;
+                Some((doc_id, c.dist))
+            })
             .collect();
 
         Ok(result)
@@ -661,5 +671,57 @@ impl DiskANNIndex {
     fn dist(&self, a: &[f32], b: &[f32]) -> f32 {
         // In full impl, use SIMD from crate::simd
         a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::RetrieveError;
+
+    #[test]
+    fn test_create_index() {
+        let index = DiskANNIndex::new(4, DiskANNParams::default());
+        assert!(index.is_ok());
+        let index = index.unwrap();
+        assert_eq!(index.dimension(), 4);
+        assert_eq!(index.num_vectors(), 0);
+    }
+
+    #[test]
+    fn test_add_and_search() {
+        let params = DiskANNParams {
+            m: 4,
+            ef_construction: 20,
+            alpha: 1.2,
+            ef_search: 20,
+        };
+        let mut index = DiskANNIndex::new(4, params).unwrap();
+
+        // Add 10 vectors
+        for i in 0..10u32 {
+            let v = vec![i as f32, (i as f32) * 0.5, 1.0, 0.0];
+            index.add(i, v).unwrap();
+        }
+
+        index.build().unwrap();
+
+        let query = vec![0.0, 0.0, 1.0, 0.0];
+        let results = index.search(&query, 3, 20).unwrap();
+
+        assert!(!results.is_empty());
+        assert!(results.len() <= 3);
+        // The closest vector should be doc_id 0 (vector [0, 0, 1, 0])
+        assert_eq!(results[0].0, 0);
+    }
+
+    #[test]
+    fn test_zero_dimension_error() {
+        let result = DiskANNIndex::new(0, DiskANNParams::default());
+        match result {
+            Err(RetrieveError::InvalidParameter(_)) => {}
+            Err(other) => panic!("Expected InvalidParameter, got {:?}", other),
+            Ok(_) => panic!("Expected error for dimension 0"),
+        }
     }
 }

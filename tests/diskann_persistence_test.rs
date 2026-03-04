@@ -1,3 +1,4 @@
+#![cfg(feature = "diskann")]
 //! Integration test for DiskANN persistence.
 //!
 //! Tests the full cycle: build -> save -> load -> search
