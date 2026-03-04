@@ -1,8 +1,10 @@
 # vicinity
 
-Approximate nearest-neighbor (ANN) search in Rust.
+[![crates.io](https://img.shields.io/crates/v/vicinity.svg)](https://crates.io/crates/vicinity)
+[![Documentation](https://docs.rs/vicinity/badge.svg)](https://docs.rs/vicinity)
+[![CI](https://github.com/arclabs561/vicinity/actions/workflows/ci.yml/badge.svg)](https://github.com/arclabs561/vicinity/actions/workflows/ci.yml)
 
-MSRV: 1.80. Licensed under MIT OR Apache-2.0.
+Approximate nearest-neighbor (ANN) search in Rust. HNSW, NSW, DiskANN, IVF-PQ, ScaNN, PQ, and RaBitQ -- pure Rust, no C/C++ bindings.
 
 ```toml
 [dependencies]
@@ -185,3 +187,11 @@ For primary sources (papers) backing the algorithms and phenomena mentioned in d
 - Jégou, Douze, Schmid (2011). *Product Quantization for Nearest Neighbor Search* (PQ / IVFADC). `https://ieeexplore.ieee.org/document/5432202`
 - Ge et al. (2014). *Optimized Product Quantization* (OPQ). `https://arxiv.org/abs/1311.4055`
 - Guo et al. (2020). *Accelerating Large-Scale Inference with Anisotropic Vector Quantization* (ScaNN line). `https://arxiv.org/abs/1908.10396`
+
+## See also
+
+- [`innr`](https://crates.io/crates/innr) -- SIMD-accelerated similarity kernels (direct dependency for distance computation)
+
+## License
+
+MIT OR Apache-2.0
