@@ -70,10 +70,10 @@ impl Partitioner for KMeansPartitioner {
     }
 }
 
-/// EVōC partitioner (hierarchical clustering, uses finest layer).
+/// EVoC partitioner (hierarchical clustering, uses finest layer).
 #[cfg(feature = "evoc")]
 pub struct EVoCPartitioner {
-    evoc: crate::evoc::clustering::EVoC,
+    evoc: crate::evoc::EVoC,
     #[allow(dead_code)]
     dimension: usize,
     num_partitions: usize,
@@ -83,7 +83,7 @@ pub struct EVoCPartitioner {
 #[cfg(feature = "evoc")]
 impl EVoCPartitioner {
     pub fn new(dimension: usize, num_partitions: usize) -> Result<Self, RetrieveError> {
-        use crate::evoc::clustering::EVoCParams;
+        use crate::evoc::EVoCParams;
 
         let params = EVoCParams {
             intermediate_dim: 15,
@@ -93,7 +93,7 @@ impl EVoCPartitioner {
         };
 
         Ok(Self {
-            evoc: crate::evoc::clustering::EVoC::new(dimension, params)?,
+            evoc: crate::evoc::EVoC::new(dimension, params)?,
             dimension,
             num_partitions,
             assignments: None,
