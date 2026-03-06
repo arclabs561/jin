@@ -5,14 +5,17 @@
 //!
 //! # Usage
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use vicinity::ann::{index_factory, ANNIndex};
 //!
-//! // Create HNSW index (requires "hnsw" feature)
-//! let mut index = index_factory(128, "HNSW32")?;
-//! index.add(0, vec![0.1; 128])?;
-//! index.build()?;
-//! let results = index.search(&[0.1; 128], 10)?;
+//! fn main() -> Result<(), vicinity::RetrieveError> {
+//!     // Create HNSW index (requires "hnsw" feature)
+//!     let mut index = index_factory(128, "HNSW32")?;
+//!     index.add_slice(0, &[0.1; 128])?;
+//!     index.build()?;
+//!     let results = index.search(&[0.1; 128], 10)?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! # Supported Index Types
@@ -238,16 +241,18 @@ impl ANNIndex for AnyANNIndex {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use vicinity::ann::factory::index_factory;
 /// use vicinity::ann::ANNIndex;
 ///
-/// // HNSW index
-/// let mut index = index_factory(128, "HNSW32")?;
-/// let v0 = vec![0.1; 128];
-/// index.add_slice(0, &v0)?;
-/// index.build()?;
-/// let results = index.search(&[0.15; 128], 10)?;
+/// fn main() -> Result<(), vicinity::RetrieveError> {
+///     let mut index = index_factory(128, "HNSW32")?;
+///     let v0 = vec![0.1; 128];
+///     index.add_slice(0, &v0)?;
+///     index.build()?;
+///     let results = index.search(&[0.15; 128], 10)?;
+///     Ok(())
+/// }
 /// ```
 ///
 /// # Errors

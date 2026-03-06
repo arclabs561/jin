@@ -18,14 +18,17 @@
 //!
 //! Use `factory::index_factory()` to create indexes from string descriptions:
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use vicinity::ann::{index_factory, ANNIndex};
 //!
-//! // Create HNSW index (requires "hnsw" feature)
-//! let mut index = index_factory(128, "HNSW32")?;
-//! let v0 = vec![0.1; 128];
-//! index.add_slice(0, &v0)?;
-//! index.build()?;
+//! fn main() -> Result<(), vicinity::RetrieveError> {
+//!     // Create HNSW index (requires "hnsw" feature)
+//!     let mut index = index_factory(128, "HNSW32")?;
+//!     let v0 = vec![0.1; 128];
+//!     index.add_slice(0, &v0)?;
+//!     index.build()?;
+//!     Ok(())
+//! }
 //! ```
 
 // Autotune for automatic parameter optimization

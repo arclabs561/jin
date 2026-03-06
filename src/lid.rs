@@ -142,12 +142,13 @@ impl Default for LidConfig {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```rust
 /// use vicinity::lid::{estimate_lid_mle, LidConfig};
 ///
 /// let distances = vec![0.1, 0.2, 0.3, 0.5, 0.8, 1.2];
 /// let lid = estimate_lid_mle(&distances, &LidConfig::default());
-/// println!("LID estimate: {}", lid.lid);
+/// assert!(lid.lid.is_finite());
+/// assert!(lid.lid > 0.0);
 /// ```
 #[must_use]
 pub fn estimate_lid_mle(sorted_distances: &[f32], config: &LidConfig) -> LidEstimate {
@@ -253,12 +254,14 @@ pub fn estimate_lid(neighbor_distances: &[f32], config: &LidConfig) -> LidEstima
 ///
 /// # Example
 ///
-/// ```ignore
-/// // Given 2-NN distances for each point
-/// let mu_ratios: Vec<f32> = points.iter()
-///     .map(|p| p.dist_2nd / p.dist_1st)
-///     .collect();
+/// ```rust
+/// use vicinity::lid::estimate_twonn;
+///
+/// // Simulated 2-NN distance ratios (r2/r1) for points on a ~3D manifold
+/// let mu_ratios: Vec<f32> = vec![1.05, 1.12, 1.08, 1.15, 1.03, 1.20, 1.07, 1.11];
 /// let dim = estimate_twonn(&mu_ratios, 0.1);
+/// assert!(dim.is_finite());
+/// assert!(dim > 0.0);
 /// ```
 #[must_use]
 pub fn estimate_twonn(mu_ratios: &[f32], discard_fraction: f32) -> f32 {
@@ -454,9 +457,20 @@ pub enum LidAggregation {
 ///
 /// # Example
 ///
-/// ```ignore
-/// let estimates = estimate_lid_batch(&vectors, dim, &config);
+/// ```rust
+/// use vicinity::lid::{estimate_lid_mle, aggregate_lid, LidConfig, LidAggregation};
+///
+/// let config = LidConfig::default();
+/// let estimates: Vec<_> = [
+///     vec![0.1, 0.2, 0.3, 0.5, 0.8],
+///     vec![0.15, 0.25, 0.35, 0.55, 0.85],
+/// ]
+/// .iter()
+/// .map(|d| estimate_lid_mle(d, &config))
+/// .collect();
+///
 /// let global_lid = aggregate_lid(&estimates, LidAggregation::HarmonicMean);
+/// assert!(global_lid.is_finite());
 /// ```
 #[must_use]
 pub fn aggregate_lid(estimates: &[LidEstimate], method: LidAggregation) -> f32 {

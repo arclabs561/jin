@@ -137,8 +137,9 @@ vicinity = { version = "0.1.0", features = ["hnsw"] }
 
 - `hnsw` — HNSW graph index (default)
 - `diskann` / `vamana` — DiskANN-style graph variants (experimental)
-- `ivf_pq` — Inverted File with Product Quantization
-- `scann` — ScaNN-style coarse-to-fine scaffolding (experimental)
+- `ivf_pq` — Inverted File with Product Quantization (activates `clump` for k-means clustering)
+- `scann` — ScaNN-style coarse-to-fine scaffolding (experimental; activates `clump`)
+- `evoc` — EVoC hierarchical clustering (activates `clump`)
 - `quantization` / `rabitq` / `saq` — vector quantization and RaBitQ-style compression
 - `nsw` — Flat navigable small-world graph (alternative to HNSW, no hierarchy)
 - `persistence` — on-disk persistence helpers (**requires `durability/` checked out as a sibling; not yet on crates.io**)
@@ -174,7 +175,25 @@ cargo run --example 03_quick_benchmark --release
 JIN_DATASET=hard cargo run --example 03_quick_benchmark --release
 ```
 
-See [examples/](examples/) for more: semantic search, IVF-PQ, LID, and real dataset benchmarks.
+### Examples quick reference
+
+| Example | Features | What it demonstrates |
+|---|---|---|
+| `01_basic_search` | `hnsw` (default) | Minimal build-and-search workflow |
+| `02_measure_recall` | `hnsw` (default) | Recall@k measurement against brute force |
+| `03_quick_benchmark` | `hnsw` (default) | Benchmark with bundled sample data (no downloads) |
+| `04_rigorous_benchmark` | `hnsw` (default) | Multi-run benchmark with confidence intervals |
+| `hnsw_benchmark` | `hnsw` (default) | HNSW vs brute-force speed and recall |
+| `semantic_search_demo` | `hnsw` (default) | End-to-end semantic search pipeline |
+| `ivf_pq_demo` | `ivf_pq` | IVF-PQ index construction and querying |
+| `rabitq_demo` | `rabitq`, `hnsw`, `quantization` | RaBitQ binary quantization |
+| `evoc_demo` | `evoc` | EVoC hierarchical clustering |
+| `lid_demo` | `hnsw` (default) | LID estimation on synthetic data |
+| `lid_outlier_detection` | `hnsw` (default) | LID-based anomaly detection |
+| `dual_branch_demo` | `hnsw` (default) | LID-driven dual-branch HNSW |
+| `dual_branch_hnsw_demo` | `hnsw` (default) | LID-aware graph construction |
+| `sift_benchmark` | `hnsw` | SIFT-128 real dataset benchmark |
+| `glove_benchmark` | `hnsw` (default) | GloVe-25 real dataset benchmark |
 
 For primary sources (papers) backing the algorithms and phenomena mentioned in docs, see [doc/references.md](doc/references.md).
 
