@@ -7,19 +7,19 @@
 //!
 //! Provides standalone implementations of state-of-the-art ANN algorithms:
 //!
-//! - **Graph-based**: [`hnsw`], [`nsw`], [`sng`], [`vamana`]
-//! - **Partition-based**: [`ivf_pq`], [`scann`]
-//! - **Quantization**: [`quantization`] (PQ, RaBitQ)
+//! - **Graph-based**: [`hnsw`], `nsw`, `sng`, `vamana`
+//! - **Partition-based**: `ivf_pq`, `scann`
+//! - **Quantization**: `quantization` (PQ, RaBitQ)
 //!
 //! # Which Index Should I Use?
 //!
 //! | Situation | Recommendation | Feature |
 //! |-----------|----------------|---------|
 //! | **General Purpose** (Best Recall/Speed) | [`hnsw::HNSWIndex`] | `hnsw` (default) |
-//! | **Billion-Scale** (Memory Constrained) | [`ivf_pq::IVFPQIndex`] | `ivf_pq` |
-//! | **Flat Graph** (Simpler graph, often worth trying for modern embeddings) | [`nsw::NSWIndex`] | `nsw` |
+//! | **Billion-Scale** (Memory Constrained) | `ivf_pq::IVFPQIndex` | `ivf_pq` |
+//! | **Flat Graph** (Simpler graph, often worth trying for modern embeddings) | `nsw::NSWIndex` | `nsw` |
 //! | **Attribute Filtering** | [`hnsw::filtered`] | `hnsw` |
-//! | **Out-of-Core** (SSD-based) | [`diskann`] | `diskann` (experimental) |
+//! | **Out-of-Core** (SSD-based) | `diskann` | `diskann` (experimental) |
 //!
 //! **Default features**: `hnsw`, `innr` (SIMD).
 //!
@@ -83,6 +83,10 @@ pub mod classic;
 
 #[cfg(feature = "diskann")]
 pub mod diskann;
+
+// Shared helpers for clump-backed modules (evoc, kmeans partitioning).
+#[cfg(any(feature = "evoc", feature = "scann", feature = "ivf_pq"))]
+pub(crate) mod clump_compat;
 
 #[cfg(feature = "evoc")]
 pub mod evoc;

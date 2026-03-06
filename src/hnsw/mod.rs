@@ -97,7 +97,7 @@
 //! **Practical advice**:
 //! - HNSW remains a safe default (widely used; robust).
 //! - If you are indexing modern embeddings (hundreds/thousands of dims) and want to
-//!   simplify or reduce overhead, consider trying flat [`crate::nsw`] (or other flat
+//!   simplify or reduce overhead, consider trying flat `crate::nsw` (or other flat
 //!   graph variants like Vamana / DiskANN-style graphs) and compare recall/latency on
 //!   your workload.
 //!
