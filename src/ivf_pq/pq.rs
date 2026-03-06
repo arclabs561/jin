@@ -74,6 +74,12 @@ impl ProductQuantizer {
             self.codebooks.push(kmeans.centroids().to_vec());
         }
 
+        // When num_vectors < codebook_size, k-means produces fewer centroids.
+        // Update codebook_size to the actual count so indexing stays consistent.
+        if let Some(first) = self.codebooks.first() {
+            self.codebook_size = first.len();
+        }
+
         Ok(())
     }
 

@@ -80,9 +80,9 @@ persistence = [
     "dep:hex", "dep:fst",
 ]
 hnsw = []
-ivf_pq = []
+ivf_pq = ["dep:clump"]
 diskann = []
-scann = []
+scann = ["dep:clump"]
 sng = []
 vamana = ["hnsw"]
 quantization = ["qntz"]

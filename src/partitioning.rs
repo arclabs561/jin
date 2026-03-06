@@ -3,6 +3,7 @@
 //! Provides unified interface for partitioning vectors, supporting both
 //! k-means (flat clustering) and EVōC (hierarchical clustering).
 
+#[cfg(any(feature = "scann", feature = "ivf_pq"))]
 pub mod kmeans;
 
 use crate::RetrieveError;
