@@ -76,9 +76,9 @@ fn main() {
     println!("Estimating LID with k={} neighbors...\n", k);
 
     let mut estimates = Vec::new();
-    for i in 0..points.len() {
+    for (i, dist_row) in distances.iter().enumerate().take(points.len()) {
         // Get sorted distances to other points
-        let mut dists: Vec<f32> = distances[i]
+        let mut dists: Vec<f32> = dist_row
             .iter()
             .enumerate()
             .filter(|(j, _)| *j != i)
@@ -91,7 +91,7 @@ fn main() {
     }
 
     // Aggregate statistics
-    let all_estimates: Vec<_> = estimates.iter().map(|(_, e)| e.clone()).collect();
+    let all_estimates: Vec<_> = estimates.iter().map(|(_, e)| *e).collect();
     let stats = LidStats::from_estimates(&all_estimates);
 
     println!("Global LID Statistics:");

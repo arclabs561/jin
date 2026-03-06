@@ -24,7 +24,7 @@
 #[test]
 fn cosine_distance_handles_unnormalized_query() {
     // Normalized vectors
-    let _a = vec![1.0f32, 0.0, 0.0]; // reference direction
+    let _a = [1.0f32, 0.0, 0.0]; // reference direction
     let b = vec![0.0f32, 1.0, 0.0]; // perpendicular
     let c = vec![0.707f32, 0.707, 0.0]; // 45 degrees between a and b
 

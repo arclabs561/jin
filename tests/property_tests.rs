@@ -1,3 +1,4 @@
+#![allow(clippy::expect_used)]
 //! Property-based tests for vicinity ANN components.
 //!
 //! These tests verify invariants that should hold regardless of input:
@@ -105,7 +106,7 @@ mod distance_props {
             // Cosine distance should be in [0, 2] (or 1 for zero vectors)
             // Due to floating point, allow small violations
             prop_assert!(
-                dist >= -0.001 && dist <= 2.001,
+                (-0.001..=2.001).contains(&dist),
                 "Cosine distance out of range: {}",
                 dist
             );
@@ -153,7 +154,7 @@ mod recall_props {
         ) {
             let recall = recall_at_k(&gt, &ret, k);
             prop_assert!(
-                recall >= 0.0 && recall <= 1.0,
+                (0.0..=1.0).contains(&recall),
                 "Recall must be in [0,1], got {}",
                 recall
             );

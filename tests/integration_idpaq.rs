@@ -5,7 +5,7 @@
 
 #![cfg(feature = "id-compression")]
 
-use vicinity::compression::{CompressionError, IdSetCompressor, RocCompressor};
+use vicinity::compression::{IdSetCompressor, RocCompressor};
 
 // =============================================================================
 // Basic Integration Tests

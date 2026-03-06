@@ -1,4 +1,5 @@
 #![cfg(feature = "hnsw")]
+#![allow(clippy::expect_used)]
 //! Integration tests for HNSW index.
 //!
 //! Tests the full lifecycle: build, query, persistence, streaming updates.

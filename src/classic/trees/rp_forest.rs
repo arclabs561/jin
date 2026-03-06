@@ -184,7 +184,7 @@ impl RpForestIndex {
         &self,
         indices: &[u32],
         hyperplane: &[f32],
-        depth: usize,
+        _depth: usize,
     ) -> Result<Option<TreeNode>, RetrieveError> {
         if indices.is_empty() {
             return Ok(None);
@@ -229,8 +229,8 @@ impl RpForestIndex {
             }
         }
 
-        let left = self.build_tree_recursive(&left_indices, &new_hyperplane, depth + 1)?;
-        let right = self.build_tree_recursive(&right_indices, &new_hyperplane, depth + 1)?;
+        let left = self.build_tree_recursive(&left_indices, &new_hyperplane, _depth + 1)?;
+        let right = self.build_tree_recursive(&right_indices, &new_hyperplane, _depth + 1)?;
 
         Ok(Some(TreeNode::Internal {
             hyperplane: hyperplane.to_vec(),

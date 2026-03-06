@@ -102,8 +102,8 @@ fn demo_basic_clustering() -> vicinity::Result<()> {
 
     // Check if outliers were correctly identified as noise
     let mut outlier_noise_count = 0;
-    for i in n_normal..n_total {
-        if assignments[i].is_none() {
+    for assignment in assignments.iter().take(n_total).skip(n_normal) {
+        if assignment.is_none() {
             outlier_noise_count += 1;
         }
     }

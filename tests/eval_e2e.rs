@@ -1,3 +1,4 @@
+#![allow(clippy::expect_used)]
 //! End-to-end evaluation tests using standard benchmark methodology.
 //!
 //! These tests validate that our ANN implementations achieve expected
@@ -336,9 +337,9 @@ fn test_evaluation_metrics() {
     assert!((eval_recall_at_k(&approx, &truth, 5) - 0.4).abs() < 0.001);
 
     // MRR: first match at position 1
-    assert!((mrr(&vec![0], &vec![0]) - 1.0).abs() < 0.001);
-    assert!((mrr(&vec![1, 0], &vec![0]) - 0.5).abs() < 0.001);
-    assert!((mrr(&vec![2, 1, 0], &vec![0]) - 0.333).abs() < 0.01);
+    assert!((mrr(&[0], &[0]) - 1.0).abs() < 0.001);
+    assert!((mrr(&[1, 0], &[0]) - 0.5).abs() < 0.001);
+    assert!((mrr(&[2, 1, 0], &[0]) - 0.333).abs() < 0.01);
 }
 
 // ============ Regression Tests ============

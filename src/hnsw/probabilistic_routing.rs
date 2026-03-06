@@ -599,7 +599,7 @@ mod tests {
         assert!(router.stats.edges_tested > 0);
         // Should have some skip ratio
         let skip_ratio = router.stats.skip_ratio();
-        assert!(skip_ratio >= 0.0 && skip_ratio <= 1.0);
+        assert!((0.0..=1.0).contains(&skip_ratio));
     }
 
     #[test]

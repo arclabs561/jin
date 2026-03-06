@@ -52,7 +52,7 @@ impl DistributedLock {
 
     /// Get the lock key.
     pub fn key(&self) -> &str {
-        &self.key
+        self.key
     }
 }
 

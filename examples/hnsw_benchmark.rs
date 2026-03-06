@@ -119,7 +119,7 @@ fn generate_vector(seed: usize, dim: usize) -> Vec<f32> {
     (0..dim)
         .map(|j| {
             let x = (seed * dim + j) as f32;
-            (x * 0.618033988).fract() * 2.0 - 1.0 // Golden ratio hash
+            (x * 0.618_034).fract() * 2.0 - 1.0 // Golden ratio hash
         })
         .collect()
 }

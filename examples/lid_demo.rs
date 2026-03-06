@@ -273,29 +273,29 @@ fn generate_sphere_points(
     let mut points = Vec::with_capacity(n);
 
     // Use golden ratio based quasi-random sequence for better uniformity
-    let phi = 1.618033988749895f32;
+    let phi = 1.618_034_f32;
 
     for i in 0..n {
         let mut point = vec![0.0f32; ambient_dim];
 
         // Generate uniform coordinates in the first `intrinsic_dim` dimensions
         // Using quasi-random (low-discrepancy) sequence for better coverage
-        for j in 0..intrinsic_dim {
+        for (j, p) in point.iter_mut().enumerate().take(intrinsic_dim) {
             // Quasi-random value in [0, 1] using generalized golden ratio
             let alpha = (1.0 / (j as f32 + 1.0 + phi)).fract();
             let val = ((i as f32 + 0.5) * alpha).fract();
             // Scale to [-1, 1]
-            point[j] = (val * 2.0 - 1.0) * 1.0;
+            *p = (val * 2.0 - 1.0) * 1.0;
         }
 
         // Add small isotropic noise in ALL dimensions
         // This simulates measurement noise but shouldn't change intrinsic dimension
-        for j in 0..ambient_dim {
+        for (j, p) in point.iter_mut().enumerate().take(ambient_dim) {
             let noise_val = noise
                 * (((i * ambient_dim + j) as f32 * 0.414213).sin()
                     + ((i * ambient_dim + j) as f32 * 0.732051).cos())
                 * 0.5;
-            point[j] += noise_val;
+            *p += noise_val;
         }
 
         points.push(point);

@@ -69,7 +69,7 @@ enum KMeansNode {
     /// Internal node: has cluster centers and children
     Internal {
         centers: Vec<Vec<f32>>,          // Cluster centers
-        children: Vec<Box<KMeansNode>>,  // Child nodes for each cluster
+        children: Vec<KMeansNode>,  // Child nodes for each cluster
         cluster_assignments: Vec<usize>, // Vector index -> cluster index
     },
     /// Leaf node: contains vector indices
@@ -166,7 +166,7 @@ impl KMeansTreeIndex {
         let mut children = Vec::new();
         for cluster_indices in cluster_groups {
             if !cluster_indices.is_empty() {
-                children.push(Box::new(self.build_tree(&cluster_indices, depth + 1)?));
+                children.push(self.build_tree(&cluster_indices, depth + 1)?);
             }
         }
 

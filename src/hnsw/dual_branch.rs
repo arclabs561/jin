@@ -658,8 +658,8 @@ mod tests {
                 .collect();
 
             for _ in 0..points_per_cluster {
-                for d in 0..dim {
-                    data.push(center[d] + rng.random::<f32>() * 0.5);
+                for c_val in center.iter().take(dim) {
+                    data.push(c_val + rng.random::<f32>() * 0.5);
                 }
             }
         }

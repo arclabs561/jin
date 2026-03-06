@@ -821,9 +821,7 @@ mod tests {
         // Create ratios with some extreme outliers
         let mut mu_ratios: Vec<f32> = (1..=90).map(|i| 1.0 + (i as f32 * 0.01)).collect();
         // Add outliers
-        for _ in 0..10 {
-            mu_ratios.push(100.0);
-        }
+        mu_ratios.resize(mu_ratios.len() + 10, 100.0);
 
         let dim_no_discard = estimate_twonn(&mu_ratios, 0.0);
         let dim_with_discard = estimate_twonn(&mu_ratios, 0.15);

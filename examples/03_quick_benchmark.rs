@@ -1,3 +1,4 @@
+#![allow(clippy::expect_used)]
 //! Quick Benchmark with Bundled Data
 //!
 //! Runs a benchmark using pre-generated sample data (no downloads required).

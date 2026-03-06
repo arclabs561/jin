@@ -1,4 +1,5 @@
 #![cfg(feature = "hnsw")]
+#![allow(clippy::expect_used)]
 //! Edge case tests for vicinity.
 //!
 //! Tests unusual inputs and boundary conditions that could cause failures.
@@ -208,7 +209,7 @@ fn query_not_in_index() {
     hnsw.build().expect("Failed to build");
 
     // Query with a negative vector (opposite direction)
-    let query: Vec<f32> = (0..dim).map(|d| -1.0 * (d as f32 + 1.0)).collect();
+    let query: Vec<f32> = (0..dim).map(|d| -(d as f32 + 1.0)).collect();
     let results = hnsw
         .search(&normalize(&query), 5, 50)
         .expect("Search failed");
@@ -234,8 +235,8 @@ fn multiple_queries_returns_results() {
             v[0] = angle.cos();
             v[1] = angle.sin();
             // Add small variation in other dimensions
-            for d in 2..dim {
-                v[d] = (d as f32 * 0.01) * (i as f32 * 0.1).sin();
+            for (d, val) in v.iter_mut().enumerate().skip(2) {
+                *val = (d as f32 * 0.01) * (i as f32 * 0.1).sin();
             }
             normalize(&v)
         })
@@ -247,8 +248,8 @@ fn multiple_queries_returns_results() {
     hnsw.build().expect("Failed to build");
 
     // Run queries and verify we get results
-    for i in 0..10 {
-        let results = hnsw.search(&vectors[i], 5, 100).expect("Search failed");
+    for (i, query_vec) in vectors.iter().enumerate().take(10) {
+        let results = hnsw.search(query_vec, 5, 100).expect("Search failed");
         assert_eq!(results.len(), 5, "Should return 5 results for query {}", i);
 
         // Results should be sorted by distance

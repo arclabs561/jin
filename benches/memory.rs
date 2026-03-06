@@ -183,8 +183,8 @@ fn bench_memory_comparison(c: &mut Criterion) {
     });
 
     // Print comparison
-    let (hnsw_raw, hnsw_total, hnsw_bpv) = hnsw_memory(n_vectors, dimension, 16);
-    let (ivfpq_raw, ivfpq_total, ivfpq_bpv, ivfpq_compress) =
+    let (_hnsw_raw, hnsw_total, hnsw_bpv) = hnsw_memory(n_vectors, dimension, 16);
+    let (_ivfpq_raw, ivfpq_total, ivfpq_bpv, ivfpq_compress) =
         ivf_pq_memory(n_vectors, dimension, 1024, 16);
 
     eprintln!(

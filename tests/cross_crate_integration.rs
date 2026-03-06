@@ -94,13 +94,13 @@ mod feature_compilation {
     fn hnsw_feature_compiles() {
         // HNSW feature should enable the HNSW module
         // This is a compile-time check more than runtime
-        assert!(true, "HNSW feature compiled successfully");
+        // Compile-time check: HNSW feature enables the HNSW module
     }
 
     #[cfg(feature = "persistence")]
     #[test]
     fn persistence_feature_compiles() {
-        assert!(true, "Persistence feature compiled successfully");
+        // Compile-time check: persistence feature enables the persistence module
     }
 }
 
@@ -123,7 +123,7 @@ mod dependency_documentation {
         // - vicinity::compression::CompressionError = idpaq::CompressionError
         //
         // This is verified by the idpaq_integration tests above
-        assert!(true);
+        // Compile-time verification only; presence of this function confirms the chain compiles.
     }
 
     /// Document the SIMD dependency chain

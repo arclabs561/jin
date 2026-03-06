@@ -1,4 +1,5 @@
 #![cfg(feature = "diskann")]
+#![allow(clippy::expect_used)]
 //! Integration test for DiskANN persistence.
 //!
 //! Tests the full cycle: build -> save -> load -> search

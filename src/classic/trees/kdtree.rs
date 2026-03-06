@@ -235,7 +235,7 @@ impl KDTreeIndex {
         &self,
         node: &KDNode,
         query: &[f32],
-        depth: usize,
+        _depth: usize,
         candidates: &mut Vec<u32>,
     ) -> Result<(), RetrieveError> {
         match node {
@@ -252,11 +252,11 @@ impl KDTreeIndex {
 
                 // Traverse both subtrees (pruning could be added for optimization)
                 if query_val < *split_value {
-                    self.search_recursive(left, query, depth + 1, candidates)?;
-                    self.search_recursive(right, query, depth + 1, candidates)?;
+                    self.search_recursive(left, query, _depth + 1, candidates)?;
+                    self.search_recursive(right, query, _depth + 1, candidates)?;
                 } else {
-                    self.search_recursive(right, query, depth + 1, candidates)?;
-                    self.search_recursive(left, query, depth + 1, candidates)?;
+                    self.search_recursive(right, query, _depth + 1, candidates)?;
+                    self.search_recursive(left, query, _depth + 1, candidates)?;
                 }
             }
         }

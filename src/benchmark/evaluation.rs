@@ -429,10 +429,10 @@ mod tests {
         assert!((recall_at_k(&approx, &truth, 5) - 0.6).abs() < 0.01);
 
         // Perfect recall
-        assert!((recall_at_k(&vec![0, 2, 4, 6, 8], &truth, 5) - 1.0).abs() < 0.01);
+        assert!((recall_at_k(&[0, 2, 4, 6, 8], &truth, 5) - 1.0).abs() < 0.01);
 
         // No overlap
-        assert!((recall_at_k(&vec![1, 3, 5, 7, 9], &truth, 5) - 0.0).abs() < 0.01);
+        assert!((recall_at_k(&[1, 3, 5, 7, 9], &truth, 5) - 0.0).abs() < 0.01);
     }
 
     #[test]
@@ -440,16 +440,16 @@ mod tests {
         let truth = vec![5, 10, 15];
 
         // First result is relevant
-        assert!((mrr(&vec![5, 1, 2], &truth) - 1.0).abs() < 0.01);
+        assert!((mrr(&[5, 1, 2], &truth) - 1.0).abs() < 0.01);
 
         // Second result is relevant
-        assert!((mrr(&vec![1, 5, 2], &truth) - 0.5).abs() < 0.01);
+        assert!((mrr(&[1, 5, 2], &truth) - 0.5).abs() < 0.01);
 
         // Third result is relevant
-        assert!((mrr(&vec![1, 2, 10], &truth) - 0.333).abs() < 0.01);
+        assert!((mrr(&[1, 2, 10], &truth) - 0.333).abs() < 0.01);
 
         // No relevant results
-        assert!((mrr(&vec![1, 2, 3], &truth) - 0.0).abs() < 0.01);
+        assert!((mrr(&[1, 2, 3], &truth) - 0.0).abs() < 0.01);
     }
 
     #[test]

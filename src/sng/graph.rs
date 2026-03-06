@@ -206,7 +206,7 @@ mod tests {
     use crate::error::RetrieveError;
 
     /// Normalize a vector to unit length (SNG uses dot-product distance).
-    fn normalize(v: &mut Vec<f32>) {
+    fn normalize(v: &mut [f32]) {
         let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
         if norm > 0.0 {
             v.iter_mut().for_each(|x| *x /= norm);

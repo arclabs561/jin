@@ -459,8 +459,8 @@ mod tests {
 
             for p in 0..points_per_cluster {
                 let mut point = vec![0.0; dim];
-                for d in 0..dim {
-                    point[d] = center_offset + ((p * d) % 10) as f32 * 0.1;
+                for (d, val) in point.iter_mut().enumerate() {
+                    *val = center_offset + ((p * d) % 10) as f32 * 0.1;
                 }
                 data.push(point);
             }

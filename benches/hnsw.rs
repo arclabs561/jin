@@ -13,11 +13,11 @@ use std::collections::BinaryHeap;
 fn random_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
     let mut rng = StdRng::seed_from_u64(seed);
     (0..n)
-        .map(|_| (0..dim).map(|_| rng.gen::<f32>()).collect())
+        .map(|_| (0..dim).map(|_| rng.random::<f32>()).collect())
         .collect()
 }
 
-fn normalized_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
+fn _normalized_vectors(n: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
     random_vectors(n, dim, seed)
         .into_iter()
         .map(|v| {
@@ -66,7 +66,7 @@ impl SimpleHnsw {
     }
 
     fn random_level(&self, rng: &mut impl Rng) -> usize {
-        let r: f64 = rng.gen();
+        let r: f64 = rng.random();
         ((-r.ln() * self.ml).floor() as usize).min(16)
     }
 
@@ -102,10 +102,10 @@ impl SimpleHnsw {
             // Add bidirectional links
             for &neighbor_id in &selected {
                 let neighbor = &mut self.nodes[neighbor_id as usize];
-                if neighbor.neighbors.len() > l {
-                    if neighbor.neighbors[l].len() < self.m * 2 {
-                        neighbor.neighbors[l].push(id);
-                    }
+                if neighbor.neighbors.len() > l
+                    && neighbor.neighbors[l].len() < self.m * 2
+                {
+                    neighbor.neighbors[l].push(id);
                 }
             }
 

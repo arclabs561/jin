@@ -156,8 +156,8 @@ impl BallTreeIndex {
 
         for &idx in indices {
             let vec = self.get_vector(idx as usize);
-            let dist1 = self.euclidean_distance(vec, &self.get_vector(seed1_idx as usize));
-            let dist2 = self.euclidean_distance(vec, &self.get_vector(seed2_idx as usize));
+            let dist1 = self.euclidean_distance(vec, self.get_vector(seed1_idx as usize));
+            let dist2 = self.euclidean_distance(vec, self.get_vector(seed2_idx as usize));
 
             if dist1 < dist2 {
                 left_indices.push(idx);

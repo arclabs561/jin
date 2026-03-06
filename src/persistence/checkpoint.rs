@@ -191,7 +191,7 @@ impl CheckpointWriter {
         // NOTE: compute timestamp once; it is part of the checksum and header.
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .map_err(|e| PersistenceError::InvalidState(format!("system clock error: {e}")))?
             .as_secs();
 
         // Serialize segment list using postcard (format-stable, smaller size for long-term retention)

@@ -356,15 +356,15 @@ fn generate_clustered_with_outliers(
         let center: Vec<f32> = (0..dim)
             .map(|d| {
                 let seed = (c * dim + d) as f32;
-                (seed * 0.618033988).fract() * 10.0 - 5.0
+                (seed * 0.618_034).fract() * 10.0 - 5.0
             })
             .collect();
 
         // Points around center
         for p in 0..points_per_cluster {
-            for d in 0..dim {
+            for (d, &c_val) in center.iter().enumerate().take(dim) {
                 let noise = ((c * points_per_cluster * dim + p * dim + d) as f32 * 0.1).sin() * 0.5;
-                data.push(center[d] + noise);
+                data.push(c_val + noise);
             }
             labels.push(c);
         }
@@ -374,7 +374,7 @@ fn generate_clustered_with_outliers(
     for o in 0..n_outliers {
         for d in 0..dim {
             let seed = (1000000 + o * dim + d) as f32;
-            let val = (seed * 0.618033988).fract() * 40.0 - 20.0; // Wider range
+            let val = (seed * 0.618_034).fract() * 40.0 - 20.0; // Wider range
             data.push(val);
         }
         labels.push(999); // Special label for outliers

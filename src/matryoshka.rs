@@ -508,8 +508,10 @@ mod tests {
 
     #[test]
     fn test_cascaded_search() {
-        let mut config = MatryoshkaConfig::default();
-        config.cascaded_search = true;
+        let config = MatryoshkaConfig {
+            cascaded_search: true,
+            ..Default::default()
+        };
         let mut index = MatryoshkaIndex::new(config);
 
         for i in 0..2000 {

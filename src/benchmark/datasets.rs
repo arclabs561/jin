@@ -198,7 +198,7 @@ mod tests {
         // Values should be in [0, 1] range
         for vec in &dataset.train {
             for &v in vec {
-                assert!(v >= 0.0 && v <= 1.0);
+                assert!((0.0..=1.0).contains(&v));
             }
         }
     }

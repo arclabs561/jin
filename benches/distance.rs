@@ -27,7 +27,7 @@ fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
 }
 
 /// Inner product distance (negative dot product for max similarity).
-fn inner_product_distance(a: &[f32], b: &[f32]) -> f32 {
+fn _inner_product_distance(a: &[f32], b: &[f32]) -> f32 {
     -dot_product(a, b)
 }
 
@@ -36,7 +36,7 @@ fn inner_product_distance(a: &[f32], b: &[f32]) -> f32 {
 fn random_vectors(n: usize, dim: usize) -> Vec<Vec<f32>> {
     let mut rng = StdRng::seed_from_u64(42);
     (0..n)
-        .map(|_| (0..dim).map(|_| rng.gen::<f32>() * 2.0 - 1.0).collect())
+        .map(|_| (0..dim).map(|_| rng.random::<f32>() * 2.0 - 1.0).collect())
         .collect()
 }
 
