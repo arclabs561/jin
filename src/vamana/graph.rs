@@ -62,7 +62,9 @@ impl VamanaIndex {
     /// Create a new Vamana index.
     pub fn new(dimension: usize, params: VamanaParams) -> Result<Self, RetrieveError> {
         if dimension == 0 {
-            return Err(RetrieveError::InvalidParameter("dimension must be > 0".into()));
+            return Err(RetrieveError::InvalidParameter(
+                "dimension must be > 0".into(),
+            ));
         }
 
         Ok(Self {
@@ -105,7 +107,9 @@ impl VamanaIndex {
         }
 
         if self.built {
-            return Err(RetrieveError::InvalidParameter("index already built".into()));
+            return Err(RetrieveError::InvalidParameter(
+                "index already built".into(),
+            ));
         }
 
         // Two-pass construction: RRND + RND

@@ -46,7 +46,9 @@ impl DimensionalityReducer {
     /// Uses PCA-like approach optimized for embedding structure.
     pub fn fit(&mut self, vectors: &[f32], num_vectors: usize) -> Result<(), RetrieveError> {
         if vectors.len() < num_vectors * self.original_dim {
-            return Err(RetrieveError::InvalidParameter("Insufficient vectors".to_string()));
+            return Err(RetrieveError::InvalidParameter(
+                "Insufficient vectors".to_string(),
+            ));
         }
 
         // Simplified PCA: compute top eigenvectors of covariance matrix

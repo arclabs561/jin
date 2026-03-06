@@ -356,7 +356,9 @@ impl DualBranchHNSW {
         let stats = self
             .lid_stats
             .as_ref()
-            .ok_or(RetrieveError::InvalidParameter("LID stats not computed".into()))?;
+            .ok_or(RetrieveError::InvalidParameter(
+                "LID stats not computed".into(),
+            ))?;
 
         let threshold = stats.median + self.config.lid_threshold_sigma * stats.std_dev;
 
@@ -397,7 +399,9 @@ impl DualBranchHNSW {
         let stats = self
             .lid_stats
             .as_ref()
-            .ok_or(RetrieveError::InvalidParameter("LID stats not computed".into()))?;
+            .ok_or(RetrieveError::InvalidParameter(
+                "LID stats not computed".into(),
+            ))?;
 
         let threshold = stats.median + self.config.lid_threshold_sigma * stats.std_dev;
 
@@ -458,9 +462,7 @@ impl DualBranchHNSW {
             });
         }
 
-        let entry = self
-            .entry_point
-            .ok_or(RetrieveError::EmptyIndex)?;
+        let entry = self.entry_point.ok_or(RetrieveError::EmptyIndex)?;
 
         // Dual-branch search
         let mut visited = HashSet::new();

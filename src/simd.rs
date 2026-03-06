@@ -56,11 +56,14 @@ mod simsimd_backend {
     }
 
     /// Cosine similarity using SimSIMD.
+    ///
+    /// Note: SimSIMD's `cosine` returns **distance** (1 - cos_sim),
+    /// so we convert to similarity here.
     #[inline]
     #[must_use]
     pub fn cosine(a: &[f32], b: &[f32]) -> f32 {
         f32::cosine(a, b)
-            .map(|v| v as f32)
+            .map(|v| 1.0 - v as f32)
             .unwrap_or_else(|| super::fallback::cosine(a, b))
     }
 

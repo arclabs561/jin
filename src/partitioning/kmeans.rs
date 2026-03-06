@@ -46,7 +46,9 @@ impl KMeans {
     /// Uses k-means++ initialization and iterative refinement.
     pub fn fit(&mut self, vectors: &[f32], num_vectors: usize) -> Result<(), RetrieveError> {
         if vectors.len() < num_vectors * self.dimension {
-            return Err(RetrieveError::InvalidParameter("Insufficient vectors".to_string()));
+            return Err(RetrieveError::InvalidParameter(
+                "Insufficient vectors".to_string(),
+            ));
         }
 
         // k-means++ initialization

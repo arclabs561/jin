@@ -159,13 +159,13 @@ fn identity_matrix(d: usize) -> Vec<f32> {
 /// M is d×d row-major, v is d-dimensional.
 fn matrix_vector_multiply(m: &[f32], v: &[f32], d: usize) -> Vec<f32> {
     let mut result = vec![0.0f32; d];
-    for i in 0..d {
+    for (i, val) in result.iter_mut().enumerate() {
         let mut sum = 0.0;
         let row_start = i * d;
         for j in 0..d {
             sum += m[row_start + j] * v[j];
         }
-        result[i] = sum;
+        *val = sum;
     }
     result
 }

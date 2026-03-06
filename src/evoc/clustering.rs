@@ -86,7 +86,9 @@ impl EVoC {
         num_vectors: usize,
     ) -> Result<Vec<Option<usize>>, RetrieveError> {
         if vectors.len() < num_vectors * self.original_dim {
-            return Err(RetrieveError::InvalidParameter("Insufficient vectors".to_string()));
+            return Err(RetrieveError::InvalidParameter(
+                "Insufficient vectors".to_string(),
+            ));
         }
 
         // Step 1: Dimensionality reduction

@@ -829,24 +829,6 @@ impl HNSWIndex {
         let mut current_closest = entry_point;
         let mut current_dist = f32::INFINITY;
 
-        // For KS strategy, warm up candidate queue with initial seeds
-        // TODO: This state is computed but not used - investigate if this is intentional
-        let _search_state = if matches!(
-            self.params.seed_selection,
-            SeedSelectionStrategy::KSampledRandom { .. }
-        ) {
-            use crate::hnsw::search::SearchState;
-            let mut state = SearchState::with_capacity(ef.max(k));
-            for &seed_id in &initial_seeds {
-                let seed_vec = self.get_vector(seed_id as usize);
-                let dist = crate::hnsw::distance::cosine_distance(query, seed_vec);
-                state.add_candidate(seed_id, dist);
-            }
-            Some(state)
-        } else {
-            None
-        };
-
         // Search in upper layers (coarse search)
         for layer_idx in (1..=entry_layer).rev() {
             if layer_idx >= self.layers.len() {
@@ -1177,8 +1159,7 @@ impl HNSWIndex {
 
             // Paper formula (Algorithm 1, line 4): l = floor(-ln(uniform) * mL)
             let u: f64 = rng.random();
-            let level = (-u.ln() * self.params.m_l).floor() as u8;
-            level.min(255)
+            (-u.ln() * self.params.m_l).floor() as u8
         }
         #[cfg(not(feature = "hnsw"))]
         {

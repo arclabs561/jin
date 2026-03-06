@@ -85,7 +85,9 @@ impl SCANNIndex {
     /// - ScaNN currently ignores `doc_id` and uses insertion order as the internal ID.
     pub fn add_slice(&mut self, _doc_id: u32, vector: &[f32]) -> Result<(), RetrieveError> {
         if self.built {
-            return Err(RetrieveError::InvalidParameter("index already built".into()));
+            return Err(RetrieveError::InvalidParameter(
+                "index already built".into(),
+            ));
         }
         if vector.len() != self.dimension {
             return Err(RetrieveError::DimensionMismatch {
@@ -181,13 +183,17 @@ impl SCANNIndex {
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(u32, f32)>, RetrieveError> {
         if !self.built {
-            return Err(RetrieveError::InvalidParameter("index must be built before search".into()));
+            return Err(RetrieveError::InvalidParameter(
+                "index must be built before search".into(),
+            ));
         }
 
         let quantizer = self
             .quantizer
             .as_ref()
-            .ok_or(RetrieveError::InvalidParameter("quantizer not initialized".into()))?;
+            .ok_or(RetrieveError::InvalidParameter(
+                "quantizer not initialized".into(),
+            ))?;
 
         // 1. Find top partitions
         // Compute dot product with all centroids
