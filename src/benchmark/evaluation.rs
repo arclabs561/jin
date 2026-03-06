@@ -417,6 +417,7 @@ pub fn generate_normalized_clustered_dataset(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

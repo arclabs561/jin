@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Semantic Search Demo
 //!
 //! End-to-end demonstration of building a semantic search system:

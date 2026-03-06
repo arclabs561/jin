@@ -453,6 +453,7 @@ pub fn recommend_alpha(estimated_selectivity: f32, k: usize, total_docs: usize) 
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

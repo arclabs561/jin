@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! GloVe-25 Real ANN Benchmark
 //!
 //! Benchmarks HNSW against the GloVe-25-angular dataset from ann-benchmarks.com.

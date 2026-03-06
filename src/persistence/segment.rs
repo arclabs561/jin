@@ -100,6 +100,8 @@ impl SegmentWriter {
 
         // Write postings lists for each term
         for (ordinal, term) in terms.iter().enumerate() {
+            // Safety: `terms` was collected from `postings.keys()`, so the key always exists
+            #[allow(clippy::unwrap_used)]
             let postings_list = postings.get(*term).unwrap();
             let doc_freq = doc_frequencies.get(*term).copied().unwrap_or(0);
 

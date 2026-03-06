@@ -166,11 +166,15 @@ impl BallTreeIndex {
             }
         }
 
-        // Ensure both sides have at least one point
+        // Ensure both sides have at least one point.
+        // Safety: indices.len() >= 2 here (leaf check above requires max_leaf_size >= 1),
+        // so at least one side is non-empty after the split loop.
         if left_indices.is_empty() {
+            #[allow(clippy::unwrap_used)] // right_indices is non-empty when left is empty
             left_indices.push(right_indices.pop().unwrap());
         }
         if right_indices.is_empty() {
+            #[allow(clippy::unwrap_used)] // left_indices is non-empty (just ensured above)
             right_indices.push(left_indices.pop().unwrap());
         }
 

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! SIFT-128 Benchmark - Real ANN Benchmark Dataset
 //!
 //! Downloads and benchmarks against the SIFT-128-euclidean dataset from ann-benchmarks.

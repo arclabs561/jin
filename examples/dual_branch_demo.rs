@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Dual-Branch HNSW Demo
 //!
 //! Demonstrates LID-driven optimization for handling outliers and varying density.

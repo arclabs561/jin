@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Scaling benchmarks: how performance changes with dataset size and dimensions.
 //!
 //! Key questions:

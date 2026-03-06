@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! HNSW vs Brute Force Benchmark
 //!
 //! Demonstrates that HNSW is faster than brute force for larger datasets

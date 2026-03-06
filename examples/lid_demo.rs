@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Local Intrinsic Dimensionality (LID) Demonstration
 //!
 //! Shows LID estimation working on synthetic data with known ground truth.

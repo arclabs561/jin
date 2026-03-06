@@ -45,9 +45,6 @@ pub mod checkpoint;
 #[cfg(feature = "persistence")]
 pub mod recovery;
 
-#[cfg(all(feature = "persistence", feature = "dense"))]
-pub mod dense;
-
 #[cfg(all(feature = "persistence", feature = "hnsw"))]
 pub mod hnsw;
 

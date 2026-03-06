@@ -1,4 +1,4 @@
-#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Property-based tests for vicinity ANN components.
 //!
 //! These tests verify invariants that should hold regardless of input:

@@ -413,6 +413,7 @@ fn get_vector(vectors: &[f32], dimension: usize, idx: usize) -> &[f32] {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

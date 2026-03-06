@@ -1,4 +1,4 @@
-#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! End-to-end tests validating HNSW actually works.
 //!
 //! These tests verify that the real HNSWIndex achieves reasonable recall,

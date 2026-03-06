@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Rigorous ANN Benchmark with Statistical Rigor
 //!
 //! Based on research best practices from:

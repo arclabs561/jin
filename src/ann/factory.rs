@@ -548,6 +548,7 @@ pub fn index_factory(dimension: usize, factory_string: &str) -> Result<AnyANNInd
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

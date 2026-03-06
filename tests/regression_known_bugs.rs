@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Regression tests for known bugs in ANN libraries.
 //!
 //! These tests are grounded in real issues from hnswlib, faiss, usearch, lance:

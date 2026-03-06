@@ -64,6 +64,26 @@
 //! - **> 99.9% recall required**: Graph methods have a recall ceiling
 //! - **Memory constrained + > 10M vectors**: Use IVF-PQ instead
 //!
+//! # Variants
+//!
+//! | Variant | Type | Use case |
+//! |---------|------|----------|
+//! | [`HNSWIndex`] | Standard | General-purpose ANN; batch build then search |
+//! | [`inplace::InPlaceIndex`] | Streaming | Per-operation insert/delete without batch rebuild (IP-DiskANN style) |
+//! | [`dual_branch::DualBranchHNSW`] | LID-aware | Datasets with outliers or varying density; uses skip bridges for sparse regions |
+//!
+//! **Standard** ([`HNSWIndex`]): The default. Build the full graph, then query. Best when
+//! the dataset is static or changes infrequently.
+//!
+//! **Streaming** ([`inplace::InPlaceIndex`]): Supports efficient per-operation insertions
+//! and deletions via in-neighbor tracking, without batch consolidation. Use when the index
+//! must stay current under continuous writes.
+//!
+//! **LID-aware** ([`dual_branch::DualBranchHNSW`]): Assigns high-LID (outlier) points to
+//! higher layers and adds skip bridges for long-range navigation. Maintains two search
+//! fronts (standard greedy + skip-bridge exploration). Use when recall degrades on datasets
+//! with non-uniform density.
+//!
 //! # Hierarchy in High Dimensions
 //!
 //! Recent empirical work suggests the *hierarchical* aspect of HNSW can provide

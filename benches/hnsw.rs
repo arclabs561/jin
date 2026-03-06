@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Benchmarks for HNSW index construction and search.
 //!
 //! These benchmarks measure end-to-end performance on synthetic data.

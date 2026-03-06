@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Recall vs Latency benchmarks.
 //!
 //! Measures the fundamental ANN tradeoff: how much accuracy do you sacrifice for speed?

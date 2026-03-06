@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! LID-based Outlier Detection
 //!
 //! Demonstrates using Local Intrinsic Dimensionality to identify outliers.

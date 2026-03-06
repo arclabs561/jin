@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Measuring Recall
 //!
 //! How to verify your index is working correctly.

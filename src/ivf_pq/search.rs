@@ -202,6 +202,8 @@ impl Cluster {
 
                 // Cache (will be cleared after search)
                 self.decompressed_cache = Some(decompressed);
+                // Safety: just assigned Some on the line above
+                #[allow(clippy::unwrap_used)]
                 Ok(self.decompressed_cache.as_ref().unwrap())
             }
         }
