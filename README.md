@@ -142,7 +142,7 @@ vicinity = { version = "0.1.0", features = ["hnsw"] }
 - `evoc` — EVoC hierarchical clustering (activates `clump`)
 - `quantization` / `rabitq` / `saq` — vector quantization and RaBitQ-style compression
 - `nsw` — Flat navigable small-world graph (alternative to HNSW, no hierarchy)
-- `persistence` — on-disk persistence helpers (**requires `durability/` checked out as a sibling; not yet on crates.io**)
+- `persistence` — on-disk persistence helpers (requires the `durability` crate, which is not yet published to crates.io; available for local development only)
 - `python` — optional PyO3 bindings (feature-gated)
 
 ## Flat vs hierarchical graphs (why “H” may not matter)
