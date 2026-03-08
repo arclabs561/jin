@@ -103,9 +103,7 @@ impl SimpleHnsw {
             // Add bidirectional links
             for &neighbor_id in &selected {
                 let neighbor = &mut self.nodes[neighbor_id as usize];
-                if neighbor.neighbors.len() > l
-                    && neighbor.neighbors[l].len() < self.m * 2
-                {
+                if neighbor.neighbors.len() > l && neighbor.neighbors[l].len() < self.m * 2 {
                     neighbor.neighbors[l].push(id);
                 }
             }

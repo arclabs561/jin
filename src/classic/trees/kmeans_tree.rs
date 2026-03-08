@@ -69,7 +69,7 @@ enum KMeansNode {
     /// Internal node: has cluster centers and children
     Internal {
         centers: Vec<Vec<f32>>,          // Cluster centers
-        children: Vec<KMeansNode>,  // Child nodes for each cluster
+        children: Vec<KMeansNode>,       // Child nodes for each cluster
         cluster_assignments: Vec<usize>, // Vector index -> cluster index
     },
     /// Leaf node: contains vector indices

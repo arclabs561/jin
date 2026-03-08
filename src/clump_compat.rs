@@ -14,23 +14,18 @@ pub(crate) fn soa_to_aos(flat: &[f32], num_vectors: usize, dim: usize) -> Vec<Ve
 /// Map `clump::Error` to `RetrieveError`.
 pub(crate) fn map_clump_error(e: clump::Error) -> RetrieveError {
     match e {
-        clump::Error::EmptyInput => {
-            RetrieveError::InvalidParameter("Empty input".to_string())
-        }
+        clump::Error::EmptyInput => RetrieveError::InvalidParameter("Empty input".to_string()),
         clump::Error::InvalidParameter { name, message } => {
             RetrieveError::InvalidParameter(format!("{name}: {message}"))
         }
-        clump::Error::InvalidClusterCount {
-            requested,
-            n_items,
-        } => RetrieveError::InvalidParameter(format!(
-            "invalid cluster count: requested {requested}, but dataset has {n_items} items"
-        )),
-        clump::Error::DimensionMismatch { expected, found } => {
+        clump::Error::InvalidClusterCount { requested, n_items } => {
             RetrieveError::InvalidParameter(format!(
-                "dimension mismatch: expected {expected}, found {found}"
+                "invalid cluster count: requested {requested}, but dataset has {n_items} items"
             ))
         }
+        clump::Error::DimensionMismatch { expected, found } => RetrieveError::InvalidParameter(
+            format!("dimension mismatch: expected {expected}, found {found}"),
+        ),
         clump::Error::Other(msg) => RetrieveError::Other(msg),
     }
 }

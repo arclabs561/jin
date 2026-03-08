@@ -101,10 +101,7 @@ impl EVoC {
         let data = soa_to_aos(vectors, num_vectors, self.original_dim);
 
         // Delegate to clump.
-        let labels = self
-            .inner
-            .fit_predict(&data)
-            .map_err(map_clump_error)?;
+        let labels = self.inner.fit_predict(&data).map_err(map_clump_error)?;
 
         // If the caller requested a minimum number of clusters, attempt to refine.
         if let Some(target) = self.params.min_number_clusters {
