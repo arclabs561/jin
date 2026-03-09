@@ -118,6 +118,7 @@ tempfile = "3"
 memmap2 = "0.9"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
 anyhow = "1.0"
+rankops = "0.1"
 
 [[example]]
 name = "ivf_pq_demo"
@@ -137,6 +138,11 @@ required-features = ["evoc"]
 [[example]]
 name = "sift_benchmark"
 path = "examples/sift_benchmark.rs"
+required-features = ["hnsw"]
+
+[[example]]
+name = "retrieve_and_rerank"
+path = "examples/retrieve_and_rerank.rs"
 required-features = ["hnsw"]
 
 [[bench]]
